@@ -15,5 +15,5 @@ $ conda create -n rag-ishms python=3.12
 ```
 3) Activate the enviroment :
 ```bash
-$conda activate rag-ishms
+$ conda activate rag-ishms
 ```
