@@ -17,3 +17,11 @@ $ conda create -n rag-ishms python=3.12
 ```bash
 $ conda activate rag-ishms
 ```
+
+#### Install the requires packages 
+```bash
+$ pip install -r requirements.txt
+```
+
+
+
