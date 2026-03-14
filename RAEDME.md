@@ -22,6 +22,9 @@ $ conda activate rag-ishms
 ```bash
 $ pip install -r requirements.txt
 ```
-
+#### Run the FastAPI server
+```bash
+$ uvicorn main:app --reload --host 0.0.0.0 --port 5000 
+```
 
 
