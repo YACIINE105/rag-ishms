@@ -22,9 +22,33 @@ $ conda activate rag-ishms
 ```bash
 $ pip install -r requirements.txt
 ```
+
+### for running the drug checker manually
+```bash         
+$ cd ~/rag-ishms/src
+```
+```bash         
+$ pyhton drug_checker.py
+```
+
+### Run the model 
+```bash
+$ cd ~/llama.cpp/build/bin
+```
+```bash
+$ ./llama-server -m /mnt/g/ishms/modeel/medgemma-4b-it-Q8_0.gguf -ngl 99 --host 0.0.0.0 --port 8080
+```
+
 #### Run the FastAPI server
+
+```bash         
+$ cd ~/rag-ishms/src
+```
+
 ```bash
 $ uvicorn main:app --reload --host 0.0.0.0 --port 5000 
 ```
+
+
 
 
