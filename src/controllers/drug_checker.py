@@ -27,7 +27,9 @@ def check_drug_pair(drug1, drug2):
 
 
 class Interaction:
-    def full_interaction_check(current_meds: list, new_med: str):
+    def __init__(self):
+        pass
+    def full_interaction_check(self, current_meds: list, new_med: str):
         results = []
 
         for med in current_meds:
@@ -53,7 +55,6 @@ class Interaction:
 
 
 if __name__ == "__main__":
-    print()
     t = time.time()
     prev = ["warfarin", "metformin"]
     new = "aspirin"
