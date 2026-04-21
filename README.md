@@ -1,6 +1,6 @@
 # ishms-rag-app
 
-this is a rag app created to serve the ISHMS software.
+this is a rag api that was created to serve the ISHMS software.
 
 
 ## REQUIREMENTS
