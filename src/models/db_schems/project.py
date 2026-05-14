@@ -22,6 +22,15 @@ class Project(BaseModel):
     class Config: # this class is allowing types that the validator don't no how to deal with it. 
         arbitrary_types_allowed=True
         populate_by_name=True
+    
+    
+    @classmethod
+    def get_indexes(cls)->list[dict]:
         
+        return[{
+            "key":[("project_id",1)],
+            "name":"project_id_index_1",
+            "unique":True
+        }]
         
         

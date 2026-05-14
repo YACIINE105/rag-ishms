@@ -23,7 +23,7 @@ async def upload_data(request:Request, project_id:str, file:UploadFile,
                       app_settings : Settings =Depends(get_settings)):
     
     
-    projectmodel = ProjectModel(db_client=request.app.db_client)
+    projectmodel = await ProjectModel.create_instance(db_client=request.app.db_client)
     
     project = await projectmodel.get_project_or_create_one(project_id=project_id)
     # Vaildating the uploaded file properities.
@@ -63,7 +63,6 @@ async def upload_data(request:Request, project_id:str, file:UploadFile,
     
     
     
-    
 @data_router.post("/process/{project_id}")
 async def process_endpoint(request :Request, project_id:str, process_request:ProcessRequest):
     
@@ -73,7 +72,7 @@ async def process_endpoint(request :Request, project_id:str, process_request:Pro
     do_reset  =process_request.reset
     
     
-    projectmodel = ProjectModel(db_client=request.app.db_client)
+    projectmodel = await ProjectModel.create_instance(db_client=request.app.db_client)
     
     project = await projectmodel.get_project_or_create_one(project_id=project_id)
 
@@ -101,7 +100,7 @@ async def process_endpoint(request :Request, project_id:str, process_request:Pro
         for i, chunk in enumerate(file_chunks)
     ]
 
-    chunk_model = ChunkModel(
+    chunk_model = await ChunkModel.create_instance(
         db_client=request.app.db_client
     )
     
@@ -123,3 +122,5 @@ async def process_endpoint(request :Request, project_id:str, process_request:Pro
 #                             content={
 #                                 "status":ResponseSignal.Peocessing_Success.value
 #                             })
+
+
