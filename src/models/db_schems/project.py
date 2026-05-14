@@ -3,8 +3,7 @@ from typing import Optional
 from bson.objectid import ObjectId # is an  object from motor 
 
 class Project(BaseModel):
-    # i have added this because pydanticv2 treats any variable starting with 
-    # an underscore (like _id) as a hidden, private attribute
+    # i have added this because pydanticv2 treats any variable starting with an underscore (like _id) as a hidden, private attribute
     id : Optional[ObjectId] = Field(default=None, alias="_id")
     project_id:str = Field(..., min_length=1) # 3 dots means take all default vals of the class 
 
