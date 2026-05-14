@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field
 from bson.objectid import ObjectId
 from typing  import Optional
 
@@ -15,3 +15,13 @@ class DataChunk(BaseModel):
         # it fails previously because of a typo
         arbitrary_types_allowed = True  
     
+    
+    @classmethod
+    def get_indexes(cls)->list[dict]:
+        
+        return[{
+            "key":[("chunk_project_id",1)],
+            "name":"chunk_project_id_index_1",
+            "unique":False
+        }]
+        
