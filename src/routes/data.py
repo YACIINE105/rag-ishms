@@ -139,3 +139,27 @@ async def process_endpoint(request :Request, project_id:str, process_request:Pro
 #                             })
 
 
+######## TESTING IF GIVEN A NON EXIST CHUNK_ID##########
+
+# from fastapi.responses import JSONResponse
+# import json
+# from bson import json_util
+
+# @data_router.get("/chunks/{chunk_id}")
+# async def get_single_chunk(request: Request, chunk_id: str):
+#     chunk_model = await ChunkModel.create_instance(db_client=request.app.db_client)
+    
+#     result = await chunk_model.get_chunk(chunk_id)
+    
+#     if result is None:
+#         from fastapi import HTTPException
+#         raise HTTPException(status_code=404, detail="Chunk not found")
+        
+#     # 1. بنحول الـ Pydantic model لـ dict عادي
+#     chunk_dict = result.model_dump()
+    
+#     # 2. بنستخدم الـ json_util بتاع MongoDB عشان يحول أي ObjectId أو داتا غريبة لنصوص فورا
+#     clean_json_str = json_util.dumps(chunk_dict)
+    
+#     # 3. بنرجع الداتا المنظفة كـ JSONResponse رسمي
+#     return JSONResponse(content=json.loads(clean_json_str))

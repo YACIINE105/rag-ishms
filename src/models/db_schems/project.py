@@ -14,8 +14,6 @@ class Project(BaseModel):
     def validate_project_id(cls, value):
         if not value.isalnum(): # check if the value is alpha numeric
             raise ValueError('project_id is not alphanumeric')
-
-
         return value
     
     class Config: # this class is allowing types that the validator don't no how to deal with it. 

@@ -21,8 +21,9 @@ class ChunkModel(BaseDataModel):
 
     async def init_collection(self):
         all_collection = await self.db_client.list_collection_names()
-        if DataBaseEnum.COLLECTION_CHUNK_NAME not in all_collection:
-            self.collection = self.db_client[DataBaseEnum.COLLECTION_CHUNK_NAME.value]
+        if DataBaseEnum.COLLECTION_CHUNK_NAME.value not in all_collection:
+            # i commented this line as i see it not important since we intialized the collection allready.
+            # self.collection = self.db_client[DataBaseEnum.COLLECTION_CHUNK_NAME.value]
             indexes = DataChunk.get_indexes()
             for index in indexes:
                 await self.collection.create_index(
@@ -33,7 +34,7 @@ class ChunkModel(BaseDataModel):
 
 
     async def create_chunk(self, chunk:DataChunk):
-        result = self.collection.insert_one(chunk.dict(exclude_none=True))
+        result = self.collection.insert_one(chunk.model_dump(exclude_none=True))
         chunk.id = result.inserted_id
 
         return chunk
@@ -45,9 +46,9 @@ class ChunkModel(BaseDataModel):
                 "_id":ObjectId(chunk_id)
             }
         )
-        
+
         if result is None:
-            None
+            return None
         
         return DataChunk(**result)
         
