@@ -6,6 +6,6 @@ class ResponseSignal(Enum):
     File_Upload_Success = "file_upload_success"
     File_Upload_Failed = "file_upload_failed"
     Processing_Failed = "Processing_Failed"
-    Peocessing_Success = "Peocessing_Success"
+    Peocessing_Success = "Processing_Success"
     File_Empty = "Empty_file"
     
