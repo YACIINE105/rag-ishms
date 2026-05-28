@@ -4,12 +4,15 @@ from pydantic import BaseModel
 from controllers import Interaction, ISBAR_GEN
 
 
-check_router = APIRouter(
+drug_check_router = APIRouter(
     prefix="/api/v1/drug",
     tags=["api_v1", "drug"]
 )
 
-
+isbar_gen_router = APIRouter(
+    prefix="/api/v1/isbar",
+    tags=["api_v1", "isbar"]
+)
 
 
 class DrugCheckRequest(BaseModel):
@@ -23,7 +26,7 @@ class ISBARRequest(BaseModel):
 
 
 
-@check_router.post("/check")
+@drug_check_router.post("/check")
 async def check(body: DrugCheckRequest):
     checked = Interaction().full_interaction_check(
         current_meds=body.current_medications,
@@ -33,7 +36,7 @@ async def check(body: DrugCheckRequest):
 
 
 
-@check_router.post("/isbar")
+@isbar_gen_router.post("/generate")
 async def generate_isbar(body: ISBARRequest):
     result = ISBAR_GEN().isbar_gen(
         identification=body.identification,

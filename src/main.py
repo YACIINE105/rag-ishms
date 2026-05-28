@@ -27,6 +27,7 @@ async def shutdown_db_client():
 
 app.include_router(base.base_router)
 app.include_router(data.data_router)
-app.include_router(checker.check_router)
+app.include_router(checker.drug_check_router)
+app.include_router(checker.isbar_gen_router)
 
 
