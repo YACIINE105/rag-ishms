@@ -31,3 +31,5 @@ app.include_router(checker.drug_check_router)
 app.include_router(checker.isbar_gen_router)
 
 
+
+
