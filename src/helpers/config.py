@@ -4,9 +4,14 @@ class Settings(BaseSettings):
     
     APP_NAME:str
     APP_VERSION:str
+    
     FILE_ALLOWED_TYPES:list
     FILE_MAX_SIZE:int
     FILE_CHHUNK_SIZE:int # as a limit / for memory effiency
+    
+    MONGO_URL:str
+    MONGO_DATABASE:str
+    
     class Config:
         env_file = ".env"    
     

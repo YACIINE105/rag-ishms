@@ -1,4 +1,4 @@
-from fastapi import  APIRouter, Depends, UploadFile, status
+from fastapi import  APIRouter, Depends, UploadFile, status, Request
 from fastapi.responses import JSONResponse
 import os
 from helpers.config import get_settings, Settings
@@ -7,7 +7,11 @@ import aiofiles #    مكتبة تُستخدم للتعامل مع الملفا�
 from models.enums import ResponseSignal
 import logging
 from .schemes.data import ProcessRequest
-
+from models import ProjectModel
+from models.db_schems import DataChunk, Asset
+from models.AssetModel import AssetModel
+from models.ChunkModel import ChunkModel
+from models.enums.AssetTypeEnum import AssetTypeEnum
 
 logger = logging.getLogger('uvicorn.error')
 
@@ -17,9 +21,13 @@ data_router = APIRouter(
 )
 
 @data_router.post("/upload/{project_id}")
-async def upload_data(project_id:str, file:UploadFile,
+async def upload_data(request:Request, project_id:str, file:UploadFile,
                       app_settings : Settings =Depends(get_settings)):
     
+    
+    projectmodel = await ProjectModel.create_instance(db_client=request.app.db_client)
+    
+    project = await projectmodel.get_project_or_create_one(project_id=project_id)
     # Vaildating the uploaded file properities.
     data_controller = DataController()
     
@@ -49,20 +57,41 @@ async def upload_data(project_id:str, file:UploadFile,
         
         return JSONResponse(
         content=ResponseSignal.File_Upload_Failed.value)
-        
-    return JSONResponse(content={"status":ResponseSignal.File_Upload_Success.value,
-             "file_id":file_unique_id})
     
+    
+# storing the File / Asset in DB
+    asset_model = await AssetModel.create_instance(db_client=request.app.db_client)
+   
+    asset_resource = Asset(
+        asset_project_id=project.id,
+        asset_type=AssetTypeEnum.FILE.value,
+        asset_name=file_unique_id,
+        asset_size=os.path.getsize(file_path)
+    )
+    
+    asset_record = await asset_model.create_asset(asset=asset_resource)
+    
+    return JSONResponse(content={"status":ResponseSignal.File_Upload_Success.value,
+             "file_id":str(asset_record.id)
+             })
     
     
     
     
 @data_router.post("/process/{project_id}")
-async def process_endpoint(project_id:str, process_request:ProcessRequest):
+async def process_endpoint(request :Request, project_id:str, process_request:ProcessRequest):
     
     file_id= process_request.file_id
     chunk_size = process_request.chunk_size
     overlap_size = process_request.overlap_size
+    do_reset  =process_request.reset
+    
+    
+    projectmodel = await ProjectModel.create_instance(db_client=request.app.db_client)
+    
+    project = await projectmodel.get_project_or_create_one(project_id=project_id)
+
+    
     
     process_controller = ProcessController(project_id=project_id)
     
@@ -76,9 +105,61 @@ async def process_endpoint(project_id:str, process_request:ProcessRequest):
                                 "status":ResponseSignal.Processing_Failed.value
                             })
 
-    return file_chunks
+    file_chunks_records = [
+        DataChunk(
+            chunk_metadata=chunk.metadata,
+            chunk_order=i+1,
+            chunk_project_id=project.id,
+            chunk_text=chunk.page_content
+        )
+        for i, chunk in enumerate(file_chunks)
+    ]
+
+    chunk_model = await ChunkModel.create_instance(
+        db_client=request.app.db_client
+    )
+    
+    if do_reset==1:
+        _ = await chunk_model.delete_chunk_by_project_id(
+            project_id=project.id
+        )
+
+    number_of_records = await chunk_model.insert_many_chunks(chunks=file_chunks_records)
+
+    return JSONResponse(
+        content={
+            "signal":ResponseSignal.Peocessing_Success.value,
+            "inserted_chunks":number_of_records
+        }
+    )
+
 # , JSONResponse(status_code=status.HTTP_200_OK,
 #                             content={
 #                                 "status":ResponseSignal.Peocessing_Success.value
 #                             })
+
+
+######## TESTING IF GIVEN A NON EXIST CHUNK_ID##########
+
+# from fastapi.responses import JSONResponse
+# import json
+# from bson import json_util
+
+# @data_router.get("/chunks/{chunk_id}")
+# async def get_single_chunk(request: Request, chunk_id: str):
+#     chunk_model = await ChunkModel.create_instance(db_client=request.app.db_client)
     
+#     result = await chunk_model.get_chunk(chunk_id)
+    
+#     if result is None:
+#         from fastapi import HTTPException
+#         raise HTTPException(status_code=404, detail="Chunk not found")
+        
+#     # 1. بنحول الـ Pydantic model لـ dict عادي
+#     chunk_dict = result.model_dump()
+    
+#     # 2. بنستخدم الـ json_util بتاع MongoDB عشان يحول أي ObjectId أو داتا غريبة لنصوص فورا
+#     clean_json_str = json_util.dumps(chunk_dict)
+    
+#     # 3. بنرجع الداتا المنظفة كـ JSONResponse رسمي
+#     return JSONResponse(content=json.loads(clean_json_str))

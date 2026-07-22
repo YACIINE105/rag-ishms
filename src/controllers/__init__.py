@@ -1,4 +1,4 @@
 from .DataController import DataController
 from .ProjectController import ProjectController
-from .drug_checker import Interaction
+from .AiController import Interaction,ISBAR_GEN
 from .ProcessController import ProcessController
