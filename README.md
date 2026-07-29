@@ -77,3 +77,5 @@ $ cloudflared --version
 ```bash
 $ cloudflared tunnel run rag-ishms
 ```
+
+### base_url=  "https://router.bynara.id/v1"

@@ -38,14 +38,29 @@ class AssetModel(BaseDataModel):
         
         return asset
         
-           
-    async def get_all_project_assets(self, asset_project_id:str):
+    # adding asset type param to get all types like files, urls, etc
+    async def get_all_project_assets(self, asset_project_id:str, asset_type:str):
         
-        return await self.collection.find({
+        records = await self.collection.find({
             # self.collaction accepts only OBJECTID so i had to cast it.
-            "asset_project_id":ObjectId(asset_project_id) if isinstance(asset_project_id, str) else asset_project_id
+            "asset_project_id":ObjectId(asset_project_id) if isinstance(asset_project_id, str) else asset_project_id , 
+            "asset_type":asset_type
             # to get all assets with the same asset id
-        }).to_list(lenght=None)
+        }).to_list(length=None)
+        
+        return [Asset(**record) for record in records]
+    
+    async def get_asset_record(self, asset_project_id:str, asset_name:str):
+        record = await self.collection.find_one({
+            "asset_project_id":ObjectId(asset_project_id) if isinstance(asset_project_id, str) else asset_project_id ,
+            "asset_name":asset_name,
+        })
+        
+        if record:
+            return Asset(**record)
+        
+        else:
+            return None
         
         
            
