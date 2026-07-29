@@ -8,6 +8,7 @@ class DataChunk(BaseModel):
     chunk_metadata : dict = Field(..., min_length=1)
     chunk_order : int= Field(..., gt=0) # refer to greater than 0.
     chunk_project_id : ObjectId
+    chunk_asset_id : ObjectId
     
     
     
