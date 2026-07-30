@@ -24,3 +24,4 @@ class LLM_Interface(ABC):
     @abstractmethod
     def constuct_response(self, response:dict):
         pass
+    
