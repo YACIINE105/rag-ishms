@@ -1,4 +1,4 @@
-from ...LLMinterface import LLM_Interface
+from ..LLMinterface import LLM_Interface
 from openai import OpenAI
 import logging
 from LLMEnums import OpenAI_Enums
@@ -87,14 +87,14 @@ class OpenAIProvider(LLM_Interface):
             self.logger.error("Embedding model for OpenAI client wasn't set ")
             return None
         
-        respoense = self.client.embeddings.create(
+        response = self.client.embeddings.create(
             model=self.embedding_model_id, input=text
         ) 
         
-        if not respoense or not respoense.data or len(respoense.data) == 0 or not respoense.data[0].embedding:
+        if not response or not response.data or len(response.data) == 0 or not response.data[0].embedding:
             self.logger.error("Error while embedding text with OpenAI")
             return None
-        return respoense.data[0].embedding
+        return response.data[0].embedding
     
     
     
