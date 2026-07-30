@@ -11,6 +11,21 @@ class Settings(BaseSettings):
     
     MONGO_URL:str
     MONGO_DATABASE:str
+    GENERATION_PROVIDER:str
+    EMBEDDING_PROVIDER:str
+    
+    OPENAI_BASE_URL:str=None
+    OPENAI_API_KEY:str=None
+    COHERE_API_KEY:str=None
+    NARA_API_KEY:str=None
+    
+    GENERATION_MODEL_ID:str=None
+    EMBEDDING_MODEL_ID:str=None
+    INPUT_MAX_CHARACTERS:int=None
+    GENERATION_MODEL_TEMPERATURE:float=None
+    MAX_OUTPUT_TOKENS:int=None
+    EMBEDDING_MODEL_SIZE:int=None
+    
     
     class Config:
         env_file = ".env"    

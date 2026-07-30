@@ -1,0 +1,30 @@
+from LLMEnums import LLM_Enums
+from .providers import  CohereProvider, OpenAIProvider
+
+
+class LLMProviderFactory:
+    def __init__(self, config:dict):
+        self.config = config
+        
+    
+    def create(self, provider:str):
+        if provider == LLM_Enums.OPENAI.value:
+            return OpenAIProvider(
+               api_key=self.config.OPENAI_API_KEY,
+               api_url=self.config.OPENAI_BASE_URL
+            )
+        
+        if provider == LLM_Enums.COHERE.value:
+            return CohereProvider(
+                api_key=self.config.COHERE_API_KEY
+            )
+        
+        
+        return None
+        
+    
+    
+    
+    
+    
+    
