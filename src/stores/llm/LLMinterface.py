@@ -21,3 +21,6 @@ class LLM_Interface(ABC):
     def construct_prompt(self, prompt:str, role:str):
         pass
     
+    @abstractmethod
+    def constuct_response(self, response:dict):
+        pass

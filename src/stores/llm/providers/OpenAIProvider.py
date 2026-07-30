@@ -69,6 +69,12 @@ class OpenAIProvider(LLM_Interface):
                 max_tokens=max_output_token,
                 temperature=temprature
             )
+            if not response or not response.choices or not response.choices[0].message.content.strip():
+                self.logger.error("OpenAI returned a successful response, but the text is empty.")
+                return None
+
+            chat_history.append(self.construct_response(response=response))
+
             return response.choices[0].message.content
         
         except Exception as e:
@@ -108,5 +114,11 @@ class OpenAIProvider(LLM_Interface):
     def process_text(self, text:str):
         return text[:self.default_generation_max_output_characters].strip()
         
+        
+    def construct_response(self, response:dict):
+        return {
+            "role" : OpenAI_Enums.ASSISTANT.value,
+            "content" : response.choices[0].message.content      
+        }
         
               

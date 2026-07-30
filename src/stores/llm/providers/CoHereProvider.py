@@ -53,6 +53,7 @@ class CohereProvider(LLM_Interface):
             
         max_output_token = max_output_token if max_output_token else self.default_generation_max_output_token     
         temprature = temprature if temprature else self.default_generation_temprature
+        user_message = self.process_text(text=prompt)
         
         try:
             response =  self.client.chat(
@@ -60,14 +61,23 @@ class CohereProvider(LLM_Interface):
                         max_tokens=max_output_token,
                         temperature=temprature,
                         chat_history=chat_history,
-                        message=(self.process_text(text=prompt))
+                        message=(user_message)
             )
             
             
-            if not response or response.text.strip():
+            if not response or not response.message.content or not response.message.content[0].text.strip():
                 self.logger.error("Cohere returned a successful response, but the text is empty.")
                 return None
-            return response.text
+            
+            # adding user query to vhat history
+            chat_history.append({
+                "role":Cohere_Enums.USER.value,
+                "content":user_message
+            })
+            
+            chat_history.append(self.construct_response(response))
+            
+            return response.message.content[0].text
         
         except Exception as e:
             self.logger.error(f"Error during text generation: {e}")
@@ -76,13 +86,9 @@ class CohereProvider(LLM_Interface):
             
             
     def construct_prompt(self, prompt:str, role:str):
-        
-        
-    
         return {"role":role, 
                 "text":self.process_text(prompt)
                 }
-
 
 
     def embed_text(self, text:str, document_type:str=None):
@@ -110,3 +116,9 @@ class CohereProvider(LLM_Interface):
                 return None
         return response.embeddings
         
+
+    def construct_response(self, response:dict):
+        return {
+                "role":Cohere_Enums.ASSISTANT.value,
+                "content":response.message.content[0].text
+            }
