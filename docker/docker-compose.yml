@@ -37,3 +37,4 @@ networks:
 
 volumes:
   mongodatabase:
+  qdrantdatabase:
