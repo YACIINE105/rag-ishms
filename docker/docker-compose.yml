@@ -17,7 +17,21 @@ services:
       - backend
 
     restart: always
+  qdrant:
+    image: qdrant/qdrant:v1.15.1
+    container_name: qdrant
 
+    ports:
+      - "6333:6333"   # REST API
+      - "6334:6334"   # gRPC API
+
+    volumes:
+      - qdrantdatabase:/qdrant/storage
+
+    networks:
+      - backend
+
+    restart: always
 networks:
   backend:
 
