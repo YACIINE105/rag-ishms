@@ -8,7 +8,7 @@ class BaseController:
         self.app_settings = get_settings()
         self.base_dir  = os.path.dirname(os.path.dirname(__file__))
         self.files_dir = os.path.join(self.base_dir , "assets/files")
-        self.vector_DB_dir = os.path.join(self.base_dir, "assets/Vdatabase" )
+        self.vector_DB_dir = os.path.join(self.base_dir, "assets/Vectordatabase" )
         
         
     def generate_random_strings(self, lenght:int=12):
