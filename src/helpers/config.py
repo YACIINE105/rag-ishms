@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     GENERATION_MODEL_TEMPERATURE:float=None
     MAX_OUTPUT_TOKENS:int=None
     EMBEDDING_MODEL_SIZE:int=None
+    VECTOR_DB_DISTANCE_METRIC:str
+    VECTOR_DB_PATH:str
+    VECTOR_DB_BACKEND:str
     
     
     class Config:
