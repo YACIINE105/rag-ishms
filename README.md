@@ -26,11 +26,11 @@ $ pip install -r requirements.txt
 ### Run the FastAPI server
 
 ```bash         
-$ cd ~/rag-ishms/src
+ cd ~/rag-ishms/src
 ```
 
 ```bash
-$ uvicorn main:app --reload --host 0.0.0.0 --port 5001 
+ uvicorn main:app --reload --host 0.0.0.0 --port 5001 
 ```
 
 ### Run Dokcer Compose Service
