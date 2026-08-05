@@ -33,6 +33,8 @@ class Settings(BaseSettings):
     VECTOR_DB_BACKEND:str
     LLAMA_CPP_N_GPU_LAYERS:int
     LLAMA_CPP_N_CTX:int
+    EMBEDDING_MODEL_PATH:str
+    
     
     class Config:
         env_file = ".env"    
