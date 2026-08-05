@@ -92,7 +92,8 @@ class GoogleAIProvider(LLM_Interface):
                                                         contents = text,
                                                         config = types.EmbedContentConfig(
                                                             # For Qdrant, specify the exact task type
-                                                            task_type=task)
+                                                            task_type=task,
+                                                            output_dimensionality=self.embedding_size)
                                                         )
             
             if not response or not response.embeddings or len(response.embeddings) == 0:
