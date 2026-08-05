@@ -28,6 +28,7 @@ class LlamaCPPProvider(LLM_Interface):
 
         self.logger = logging.getLogger(__name__)
 
+
     def set_generation_model(self, model_id: str):
         # model_id here = path to the GGUF generation model (e.g. MedGemma)
         self.generation_model_id = model_id
@@ -37,6 +38,7 @@ class LlamaCPPProvider(LLM_Interface):
             n_ctx=self.n_ctx,
             verbose=False
         )
+
 
     def set_embedding_model(self, model_id: str, embedding_size: int):
         # model_id here = path to the GGUF embedding model (e.g. nomic-embed-text)
@@ -50,8 +52,10 @@ class LlamaCPPProvider(LLM_Interface):
             verbose=False
         )
 
+
     def process_text(self, text: str):
         return text[:self.default_generation_max_output_characters].strip()
+
 
     def generate_text(self, prompt: str, chat_history: list = None,
                        max_output_token: int = None, temperature: float = None):
@@ -92,6 +96,7 @@ class LlamaCPPProvider(LLM_Interface):
             self.logger.error(f"Error during text generation: {e}")
             return None
 
+
     def embed_text(self, text: str, document_type: str = None):
         if not self.embedding_client:
             self.logger.error("LlamaCPP embedding client wasn't set")
@@ -119,11 +124,13 @@ class LlamaCPPProvider(LLM_Interface):
             self.logger.error(f"Error during embedding generation: {e}")
             return None
 
+
     def construct_response(self, response):
         return {
             "role": "assistant",
             "content": response
         }
+
 
     def construct_prompt(self, prompt: str, role: str):
         return {

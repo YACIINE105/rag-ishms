@@ -4,6 +4,7 @@ class LLM_Enums(Enum):
     OPENAI = "OPENAI"
     COHERE= "COHERE"
     GOOGLE_AI = "GOOGLE"
+    LlamaCPP = "LlamaCPP"
     
 class OpenAI_Enums(Enum):
     USER = "user"
@@ -25,6 +26,11 @@ class GoogleAI_Enums(Enum):
     ASSISTANT = "model"
 
     
+class LlamaCPP(Enum):
+    USER = "user"
+    SYSTEM = "system"
+    ASSISTANT = "assistant"
+
 class DocumentTypeEnum(Enum):
     DOCUMENT = "document"
     QUERY = "query"
