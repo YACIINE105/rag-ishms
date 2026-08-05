@@ -1,19 +1,19 @@
 from ..LLMinterface import LLM_Interface
 from openai import OpenAI
 import logging
-from LLMEnums import OpenAI_Enums
+from ..LLMEnums import OpenAI_Enums
 
 class OpenAIProvider(LLM_Interface):
     def __init__(self , api_key:str, api_url:str=None, 
                         default_generation_max_output_characters:int=1000,
                         default_generation_max_output_token:int=1000, 
-                        default_generation_temprature:float=0.2):
+                        default_generation_temperature:float=0.2):
         
         self.api_key = api_key
         self.api_url = api_url
         self.default_generation_max_output_characters = default_generation_max_output_characters
         self.default_generation_max_output_token = default_generation_max_output_token
-        self.default_generation_temprature = default_generation_temprature
+        self.default_generation_temperature = default_generation_temperature
 
         self.generation_model_id = None
         
@@ -33,8 +33,6 @@ class OpenAIProvider(LLM_Interface):
 
         self.logger = logging.getLogger(__name__)
      
-     
-     
         
     def set_generation_model(self, model_id:str):
         self.generation_model_id = model_id
@@ -47,8 +45,8 @@ class OpenAIProvider(LLM_Interface):
     
     
     
-    def generate_text(self, prompt:str, chat_history:list=[], 
-                      max_output_token:int=None, temprature:float=None):
+    def generate_text(self, prompt:str, chat_history:list=None, 
+                      max_output_token:int=None, temperature:float=None):
         if not self.client:
             self.logger.error("OpenAI client wasn't set ")
             return None
@@ -58,8 +56,9 @@ class OpenAIProvider(LLM_Interface):
             return None
         
         max_output_token = max_output_token if max_output_token else self.default_generation_max_output_token     
-        temprature = temprature if temprature else self.default_generation_temprature
+        temperature = temperature if temperature else self.default_generation_temperature
         
+        chat_history = chat_history or []
         chat_history.append(self.construct_prompt(prompt=prompt, role=OpenAI_Enums.USER.value))
         
         try:
@@ -67,7 +66,7 @@ class OpenAIProvider(LLM_Interface):
                 model=self.generation_model_id,
                 messages=chat_history,
                 max_tokens=max_output_token,
-                temperature=temprature
+                temperature=temperature
             )
             if not response or not response.choices or not response.choices[0].message.content.strip():
                 self.logger.error("OpenAI returned a successful response, but the text is empty.")
@@ -115,7 +114,7 @@ class OpenAIProvider(LLM_Interface):
         return text[:self.default_generation_max_output_characters].strip()
         
         
-    def construct_response(self, response:dict):
+    def construct_response(self, response):
         return {
             "role" : OpenAI_Enums.ASSISTANT.value,
             "content" : response.choices[0].message.content      

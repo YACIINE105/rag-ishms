@@ -1,5 +1,5 @@
 from ..LLMinterface import LLM_Interface
-from LLMEnums import Cohere_Enums, DocumentTypeEnum
+from ..LLMEnums import Cohere_Enums, DocumentTypeEnum
 import logging
 import cohere
 
@@ -8,11 +8,11 @@ class CohereProvider(LLM_Interface):
     def __init__(self , api_key:str, 
                             default_generation_max_output_characters:int=1000,
                             default_generation_max_output_token:int=1000, 
-                            default_generation_temprature:float=0.2):
+                            default_generation_temperature:float=0.2):
         self.api_key = api_key
         self.default_generation_max_output_characters = default_generation_max_output_characters
         self.default_generation_max_output_token = default_generation_max_output_token
-        self.default_generation_temprature = default_generation_temprature
+        self.default_generation_temperature = default_generation_temperature
 
         self.generation_model_id = None
         
@@ -40,8 +40,8 @@ class CohereProvider(LLM_Interface):
         
         
     
-    def generate_text(self, prompt:str, chat_history:list=[], 
-                      max_output_token:int=None, temprature:float=None):
+    def generate_text(self, prompt:str, chat_history:list=None, 
+                      max_output_token:int=None, temperature:float=None):
         
         if not self.client:
             self.logger.error("CoHere client was not set")
@@ -52,14 +52,18 @@ class CohereProvider(LLM_Interface):
                 return None
             
         max_output_token = max_output_token if max_output_token else self.default_generation_max_output_token     
-        temprature = temprature if temprature else self.default_generation_temprature
+        temperature = temperature if temperature else self.default_generation_temperature
         user_message = self.process_text(text=prompt)
+        chat_history = chat_history or []
         
         try:
+            chat_history.append(self.construct_prompt(prompt=user_message,
+                                                      role=Cohere_Enums.USER.value))
+            
             response =  self.client.chat(
                         model=self.generation_model_id,
                         max_tokens=max_output_token,
-                        temperature=temprature,
+                        temperature=temperature,
                         chat_history=chat_history,
                         message=(user_message)
             )
@@ -69,11 +73,11 @@ class CohereProvider(LLM_Interface):
                 self.logger.error("Cohere returned a successful response, but the text is empty.")
                 return None
             
-            # adding user query to vhat history
-            chat_history.append({
-                "role":Cohere_Enums.USER.value,
-                "content":user_message
-            })
+            # adding user query to chat history
+            # chat_history.append({
+            #     "role":Cohere_Enums.USER.value,
+            #     "content":user_message
+            # })
             
             chat_history.append(self.construct_response(response))
             
@@ -87,7 +91,7 @@ class CohereProvider(LLM_Interface):
             
     def construct_prompt(self, prompt:str, role:str):
         return {"role":role, 
-                "text":self.process_text(prompt)
+                "content":self.process_text(prompt)
                 }
 
 
@@ -111,13 +115,13 @@ class CohereProvider(LLM_Interface):
                    input_type=input_type,
                    embedding_types=['float'])
         
-        if not response or not response.embeddings or len(response.embeddings) == 0 :
+        if not response or not response.embeddings or not response.embeddings.float or len(response.embeddings.float) == 0:
                 self.logger.error("Error while embedding text with CoHere")
                 return None
-        return response.embeddings
+        return response.embeddings.float
         
 
-    def construct_response(self, response:dict):
+    def construct_response(self, response):
         return {
                 "role":Cohere_Enums.ASSISTANT.value,
                 "content":response.message.content[0].text
