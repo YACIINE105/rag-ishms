@@ -14,3 +14,4 @@ openai==2.49.0
 cohere==7.0.8
 qdrant-client==1.18.0
 google-genai==2.16.0
+llama-cpp-python==0.3.34
