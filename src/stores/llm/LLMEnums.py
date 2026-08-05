@@ -4,7 +4,7 @@ class LLM_Enums(Enum):
     OPENAI = "OPENAI"
     COHERE= "COHERE"
     GOOGLE_AI = "GOOGLE"
-    LlamaCPP = "LlamaCPP"
+    LLAMA_CPP = "LLAMA_CPP"
     
 class OpenAI_Enums(Enum):
     USER = "user"
