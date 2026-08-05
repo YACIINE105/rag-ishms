@@ -1,5 +1,5 @@
-from LLMEnums import LLM_Enums
-from .providers import  CohereProvider, OpenAIProvider
+from .LLMEnums import LLM_Enums
+from .providers import  CohereProvider, OpenAIProvider, GoogleAIProvider
 
 
 class LLMProviderFactory:
@@ -19,6 +19,10 @@ class LLMProviderFactory:
                 api_key=self.config.COHERE_API_KEY
             )
         
+        if provider == LLM_Enums.GOOGLE_AI.value:
+            return GoogleAIProvider(
+                api_key=self.config.GOOGLE_AI_API_KEY
+            )
         
         return None
         
