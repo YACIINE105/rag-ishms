@@ -42,18 +42,20 @@ class QdrantDBProvider(VectorDBInterface):
         
     def delete_collection(self, collection_name:str):
         if self.collection_exists(collection_name=collection_name):
-            return self.client.client.delete_collection(collection_name=collection_name)
+            return self.client.delete_collection(collection_name=collection_name)
         else:
-            raise "collection was not found"
+            raise ValueError("collection was not found")
         
-    def create_collection(self, collecrtion_name:str, embedding_size:int, do_reset: bool=False):
-        if do_reset:
-            _ = self.delete_collection(collection_name=collecrtion_name)
+    def create_collection(self, collection_name: str, embedding_size: int, do_reset: bool = False):
+        # Only try to delete if do_reset is True AND the collection actually exists
+        if do_reset and self.collection_exists(collection_name=collection_name):
+            _ = self.delete_collection(collection_name=collection_name)
         
-        if not self.collection_exists(collection_name=collecrtion_name):    
+        if not self.collection_exists(collection_name=collection_name):    
             _ = self.client.create_collection(
-                    collection_name=collecrtion_name,
-                    vectors_config=models.VectorParams(size=embedding_size, distance=self.distance_method),)
+                    collection_name=collection_name,
+                    vectors_config=models.VectorParams(size=embedding_size, distance=self.distance_method),
+            )
             return True
         
         return False
@@ -69,6 +71,7 @@ class QdrantDBProvider(VectorDBInterface):
                                         models.PointStruct(
                                         vector=vector,
                                         payload={"text":text, "metadata":metadata},
+                                        id=[record_id]
                                     )
                                 ])
         
@@ -78,7 +81,10 @@ class QdrantDBProvider(VectorDBInterface):
         return True
     
     
-    def insert_many(self, collection_name:str, texts:list, vectors:list, metadata:list=None,record_ids :list=None, batch_size:int=50):
+    def insert_many(self, collection_name:str, texts:list, vectors:list, 
+                    metadata:list=None,
+                    record_ids :list=None, batch_size:int=50):
+       
         if metadata is None:
             metadata = [None] * len(texts)
         
@@ -91,10 +97,12 @@ class QdrantDBProvider(VectorDBInterface):
             batch_texts = texts[i:batch_end]
             batch_vectors = vectors[i:batch_end]
             batch_metadata = metadata[i:batch_end]
+            batch_record_ids = record_ids[i:batch_end]
             
             batch_points = [models.PointStruct(
                             vector=batch_vectors[x],
-                            payload={"text":batch_texts[x], "metadata":batch_metadata[x]}
+                            payload={"text":batch_texts[x], "metadata":batch_metadata[x]},
+                            id = batch_record_ids[x]
                 ) for x in range(len(batch_texts))]
             
             try:

@@ -10,3 +10,7 @@ class ResponseSignal(Enum):
     File_Empty = "Empty_file"
     FILES_NOT_FOUND_ERROR = "FILES_NOT_FOUND"
     FILE_RECORD_ERROR = "NO_RECORD_WAS_FOUND_FOR_THIS_FILE_ID"
+    PROJECT_NOT_FOUND_ERROR = "Project_not_found_error"
+    INSERT_INTO_VECTOR_DB_ERROR = "Insert_into_vector_db_error"
+    INSERT_INTO_VECTOR_DB_SUCCESS = "Insert_into_vector_db_success"
+    

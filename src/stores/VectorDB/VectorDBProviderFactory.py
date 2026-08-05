@@ -1,5 +1,5 @@
 from .Providers import QdrantDBProvider
-from VectorDBEnums import QdrantEnum
+from .VectorDBEnums import QdrantEnum
 from controllers.BaseController import BaseController
 
 

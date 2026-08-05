@@ -14,9 +14,12 @@ class Settings(BaseSettings):
     GENERATION_PROVIDER:str
     EMBEDDING_PROVIDER:str
     
+    ################ LLM CONFIG ################
+
     OPENAI_BASE_URL:str=None
     OPENAI_API_KEY:str=None
     COHERE_API_KEY:str=None
+    GOOGLE_AI_API_KEY:str=None
     NARA_API_KEY:str=None
     
     GENERATION_MODEL_ID:str=None

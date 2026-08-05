@@ -76,7 +76,7 @@ class ChunkModel(BaseDataModel):
             
             
     async def get_project_chunks(self, project_id:ObjectId,page_number:int,page_size:int=50):
-        records = self.collection.find({
+        records = await self.collection.find({
             "chunk_project_id" : project_id
         
                 }).skip(
