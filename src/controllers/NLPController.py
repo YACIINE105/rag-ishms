@@ -2,7 +2,7 @@ from .BaseController import BaseController
 from models.db_schems import Project, DataChunk
 from stores.llm.LLMEnums import DocumentTypeEnum
 from typing import List
-import time
+import time, json
 
 class NLPController(BaseController):
     def __init__(self, generation_client, embedding_client, vector_db_client):
@@ -67,3 +67,24 @@ class NLPController(BaseController):
         
         return True
     
+    
+    def search_vector_db_collection(self, project:Project, text:str, limit: int=5):
+        collection_name = self.create_collection_name(project_id=project.project_id)
+        
+        vector = self.embedding_client.embed_text(
+                        text=text, 
+                        document_type=DocumentTypeEnum.QUERY.value
+                    )
+        if not vector or len(vector)==0 :
+            return False
+        
+        results = self.vector_db_client.search_by_vector(collection_name=collection_name,
+                                                        vector=vector,
+                                                        limit = limit)
+        
+        if not results:
+            return False
+        
+        return json.loads(
+            json.dumps(results, default=lambda x: x.__dict__)
+        )
