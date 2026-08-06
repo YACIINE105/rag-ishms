@@ -14,9 +14,12 @@ class Settings(BaseSettings):
     GENERATION_PROVIDER:str
     EMBEDDING_PROVIDER:str
     
+    ################ LLM CONFIG ################
+
     OPENAI_BASE_URL:str=None
     OPENAI_API_KEY:str=None
     COHERE_API_KEY:str=None
+    GOOGLE_AI_API_KEY:str=None
     NARA_API_KEY:str=None
     
     GENERATION_MODEL_ID:str=None
@@ -25,6 +28,12 @@ class Settings(BaseSettings):
     GENERATION_MODEL_TEMPERATURE:float=None
     MAX_OUTPUT_TOKENS:int=None
     EMBEDDING_MODEL_SIZE:int=None
+    VECTOR_DB_DISTANCE_METRIC:str
+    VECTOR_DB_PATH:str
+    VECTOR_DB_BACKEND:str
+    LLAMA_CPP_N_GPU_LAYERS:int
+    LLAMA_CPP_N_CTX:int
+    EMBEDDING_MODEL_PATH:str
     
     
     class Config:

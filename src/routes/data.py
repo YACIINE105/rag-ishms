@@ -85,7 +85,7 @@ async def process_endpoint(request :Request, project_id:str, process_request:Pro
     # file_id= process_request.file_id
     chunk_size = process_request.chunk_size
     overlap_size = process_request.overlap_size
-    do_reset  =process_request.reset
+    do_reset  =process_request.do_reset
     
     
     projectmodel = await ProjectModel.create_instance(db_client=request.app.db_client)

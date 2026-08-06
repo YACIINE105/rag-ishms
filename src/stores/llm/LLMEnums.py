@@ -3,6 +3,8 @@ from enum import Enum
 class LLM_Enums(Enum):
     OPENAI = "OPENAI"
     COHERE= "COHERE"
+    GOOGLE_AI = "GOOGLE"
+    LLAMA_CPP = "LLAMA_CPP"
     
 class OpenAI_Enums(Enum):
     USER = "user"
@@ -17,7 +19,18 @@ class Cohere_Enums(Enum):
     DOCUMENT = "search_document"
     QUERY = "search_query"
 
+
+class GoogleAI_Enums(Enum):
+    USER = "user"
+    SYSTEM = "system"
+    ASSISTANT = "model"
+
     
+class LlamaCPP(Enum):
+    USER = "user"
+    SYSTEM = "system"
+    ASSISTANT = "assistant"
+
 class DocumentTypeEnum(Enum):
     DOCUMENT = "document"
     QUERY = "query"
