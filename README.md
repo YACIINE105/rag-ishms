@@ -78,4 +78,3 @@ this is a rag api that was created to serve the ISHMS software.
  cloudflared tunnel run rag-ishms
 ```
 
-### base_url=  "https://router.bynara.id/v1"
