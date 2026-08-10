@@ -19,7 +19,7 @@ class OpenAIProvider(LLM_Interface):
         
         self.embedding_model_id = None
         self.embedding_size = None
-        
+        self.enums = OpenAI_Enums
         # this way of client nitializing is deprecated  
         # self.client = OpenAI(
         #     api_key=self.api_key, api_url = self.api_url
@@ -27,7 +27,7 @@ class OpenAIProvider(LLM_Interface):
         
         client_kwargs = {"api_key": self.api_key}
         if self.api_url:
-            client_kwargs["base_url"] = self.api_url
+            client_kwargs["base_url"] = self.api_url if self.api_url and len(self.api_url)!=0 else None
         
         self.client =OpenAI(**client_kwargs)
 
