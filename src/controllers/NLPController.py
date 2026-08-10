@@ -1,17 +1,18 @@
 from .BaseController import BaseController
 from models.db_schems import Project, DataChunk
 from stores.llm.LLMEnums import DocumentTypeEnum
+from models.enums import DataBaseEnum
 from typing import List
 import time, json
 
 class NLPController(BaseController):
-    def __init__(self, generation_client, embedding_client, vector_db_client):
+    def __init__(self, generation_client, embedding_client, vector_db_client, template_parser = None):
         super().__init__()
         
         self.generation_client = generation_client
         self.embedding_client = embedding_client
         self.vector_db_client = vector_db_client
-
+        self.template_parser = template_parser
 
     def create_collection_name(self, project_id:str):
         return f"collection_{project_id}".strip()
@@ -85,6 +86,50 @@ class NLPController(BaseController):
         if not results:
             return False
         
-        return json.loads(
-            json.dumps(results, default=lambda x: x.__dict__)
-        )
+        return results
+        
+        
+    def answer_rag_query(self, project:Project, query:str, limit:int = 5):
+        # step 1 reterieve related docs 
+        retrieved_docs = self.search_vector_db_collection(project=project, text=query, limit=limit)
+        if not retrieved_docs or len(retrieved_docs)==0:
+            return None
+        
+        
+        # step 2 construct prompt 
+        system_prompt = self.template_parser.get("rag", "system_prompt")
+       
+        document_prompt = "\n".join([ self.template_parser.get(
+                            "rag", "document_prompt", 
+                            {    "document_no":i+1,  
+                                "chunk_text": doc["text"]}) 
+                            for i , doc in enumerate(retrieved_docs) ])
+    
+        footer_prompt = self.template_parser.get("rag", "footer_prompt")
+        
+        full_prompt = "\n\n".join([document_prompt, "\n" , footer_prompt])
+        
+        chat_history = [
+            self.generation_client.construct_prompt(
+                prompt=system_prompt,
+                role = self.generation_client.enums.SYSTEM.value
+            )
+        ]
+        
+        answer  = self.generation_client.generate_text(prompt=full_prompt,
+                                                       chat_history=chat_history)
+        
+        return answer, full_prompt, chat_history
+        
+        
+    def get_conversation_history(project:Project, conversation_id):
+        pass
+    
+    
+    def save_chat_turn(self, project_id:str, chat_history:list):
+        all_collection =  self.db_client.list_collection_names()
+        if DataBaseEnum.COLLECTION_CHUNK_NAME.value not in all_collection:
+            self.collection = self.db_client[DataBaseEnum.COLLECTION_CHATS_NAME.value]
+    
+    
+    
