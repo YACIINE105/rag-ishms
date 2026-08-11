@@ -13,7 +13,6 @@ class DataChunk(BaseModel):
     
     
     class Config:
-        # it fails previously because of a typo
         arbitrary_types_allowed = True  
     
     
