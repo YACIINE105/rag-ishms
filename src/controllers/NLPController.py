@@ -105,7 +105,7 @@ class NLPController(BaseController):
                                 "chunk_text": doc["text"]}) 
                             for i , doc in enumerate(retrieved_docs) ])
     
-        footer_prompt = self.template_parser.get("rag", "footer_prompt")
+        footer_prompt = self.template_parser.get("rag", "footer_prompt", {"query":query})
         
         full_prompt = "\n\n".join([document_prompt, "\n" , footer_prompt])
         
