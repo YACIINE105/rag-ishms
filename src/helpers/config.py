@@ -34,7 +34,9 @@ class Settings(BaseSettings):
     LLAMA_CPP_N_GPU_LAYERS : int
     LLAMA_CPP_N_CTX : int
     EMBEDDING_MODEL_PATH : str
-
+    LLAMA_CPP_URL :str
+    NARA_BASE_URL:str
+    
     DEFAULT_LANG : str = "en"
     PRIMARY_LANG : str = "en" 
     class Config:
