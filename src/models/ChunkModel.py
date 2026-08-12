@@ -20,17 +20,19 @@ class ChunkModel(BaseDataModel):
 
 
     async def init_collection(self):
-        all_collection = await self.db_client.list_collection_names()
-        if DataBaseEnum.COLLECTION_CHUNK_NAME.value not in all_collection:
+        # all_collection = await self.db_client.list_collection_names()
+        # if DataBaseEnum.COLLECTION_CHUNK_NAME.value not in all_collection:
+           
             # i commented this line as i see it not important since we intialized the collection allready.
             # self.collection = self.db_client[DataBaseEnum.COLLECTION_CHUNK_NAME.value]
-            indexes = DataChunk.get_indexes()
-            for index in indexes:
-                await self.collection.create_index(
-                    index["key"],
-                    name=index["name"],
-                    unique = index["unique"]
-                )
+           
+        indexes = DataChunk.get_indexes()
+        for index in indexes:
+            await self.collection.create_index(
+                index["key"],
+                name=index["name"],
+                unique = index["unique"]
+            )
 
 
     async def create_chunk(self, chunk:DataChunk):
@@ -86,3 +88,24 @@ class ChunkModel(BaseDataModel):
         return [
                  DataChunk(**rec)
                  for rec in records ]
+        
+        
+    async def delete_chunk_by_asset_id(self, asset_id):
+        result = await self.collection.delete_many({
+            "chunk_asset_id":asset_id
+        })
+        
+        return result.deleted_count
+    
+    
+    async def reversed_get_chunk_by_asset_id(self, asset_id:ObjectId):
+        result = await self.collection.find_one(
+                    {
+                        "chunk_asset_id":ObjectId(asset_id)
+                    }
+                )
+        if result is None:
+            return True
+        return None
+    
+    
