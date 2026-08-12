@@ -98,3 +98,14 @@ class ChunkModel(BaseDataModel):
         return result.deleted_count
     
     
+    async def reversed_get_chunk_by_asset_id(self, asset_id:ObjectId):
+        result = await self.collection.find_one(
+                    {
+                        "chunk_asset_id":ObjectId(asset_id)
+                    }
+                )
+        if result is None:
+            return True
+        return None
+    
+    

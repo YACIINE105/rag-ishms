@@ -153,6 +153,14 @@ async def process_endpoint(request :Request, project_id:str, process_request:Pro
         _ = await chunk_model.delete_chunk_by_project_id(
             project_id=project.id
         )
+        
+    elif do_reset!=1 and no_file_id:
+        asset_ids = list(project_file_ids.keys())
+        unchunked_ids = [asset_id for asset_id in asset_ids if await  chunk_model.reversed_get_chunk_by_asset_id(asset_id=asset_id)]
+        un_chunked_files = [ project_file_ids[unchunked_id] for unchunked_id in unchunked_ids ]
+        project_file_ids =  dict(zip(unchunked_ids, un_chunked_files))
+        
+        
     for asset_id, file_id in project_file_ids.items():
         file_content = process_controller.get_file_content(file_id=file_id)
         
