@@ -72,7 +72,7 @@ async def upload_data(request:Request, project_id:str, file:UploadFile,
     
     asset_record = await asset_model.create_asset(asset=asset_resource)
     
-    old_asset_ids, deleted_count = await asset_model.delete_asset_by_name(
+    old_asset_info, deleted_count = await asset_model.delete_asset_by_name(
                                         asset_project_id=project.id,
                                         asset_name=file.filename,
                                         exclude_asset_id=asset_record.id  
@@ -81,9 +81,20 @@ async def upload_data(request:Request, project_id:str, file:UploadFile,
     chunk_model = await ChunkModel.create_instance(
                         db_client=request.app.db_client)
     
-    for old_id in old_asset_ids:
-        await chunk_model.delete_chunk_by_asset_id(asset_id=old_id)
+    # old_asset_ids = [id["id"] for id in old_asset_info]
     
+    # old_asset_unique_name = [id["unique_asset_name"] for id in old_asset_info]
+    
+    for old_asset in old_asset_info:
+        await chunk_model.delete_chunk_by_asset_id(asset_id=old_asset["id"])
+        
+        old_file_path = os.path.join(project_dir_path, old_asset["unique_asset_name"])
+        try:
+            if os.path.exists(old_file_path):
+                os.remove(old_file_path)
+        except Exception as e:
+            logger.error(f"Error while deleting old file {old_file_path}: {e}")
+        
     
     return JSONResponse(content={"status":ResponseSignal.File_Upload_Success.value,
              "file_id":str(asset_record.id)
@@ -111,19 +122,19 @@ async def process_endpoint(request :Request, project_id:str, process_request:Pro
     no_file_id = None
     if process_request.file_id:
         asset_record = await asset_model.get_asset_record(asset_project_id=project.id,
-                                                   asset_name=process_request.file_id)
+                                                   unique_asset_name=process_request.file_id)
         
         if asset_record is None:
             return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"signal":ResponseSignal.FILE_RECORD_ERROR.value})
             
         
-        project_file_ids = {asset_record.id:asset_record.asset_name}
+        project_file_ids = {asset_record.id:asset_record.unique_asset_name}
     
     else:
 
         project_files = await asset_model.get_all_project_assets(asset_project_id=project.id,
                                                                  asset_type=AssetTypeEnum.FILE.value)
-        project_file_ids = {record.id:record.asset_name for record in project_files}
+        project_file_ids = {record.id:record.unique_asset_name   for record in project_files}
         no_file_id = True
     
     
@@ -138,7 +149,7 @@ async def process_endpoint(request :Request, project_id:str, process_request:Pro
     chunk_model = await ChunkModel.create_instance(
     db_client=request.app.db_client)
     
-    if do_reset==1 :
+    if do_reset==1 and no_file_id:
         _ = await chunk_model.delete_chunk_by_project_id(
             project_id=project.id
         )
@@ -157,6 +168,8 @@ async def process_endpoint(request :Request, project_id:str, process_request:Pro
                                 content={
                                     "status":ResponseSignal.Processing_Failed.value
                                 })
+
+        await chunk_model.delete_chunk_by_asset_id(asset_id=asset_id)
 
         file_chunks_records = [
             DataChunk(

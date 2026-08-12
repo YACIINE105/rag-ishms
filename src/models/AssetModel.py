@@ -73,11 +73,14 @@ class AssetModel(BaseDataModel):
             query["_id"] = {"$ne": ObjectId(exclude_asset_id) if isinstance(exclude_asset_id, str) else exclude_asset_id}
 
         old_records = await self.collection.find(query).to_list(length=None)
-        old_asset_ids = [record["_id"] for record in old_records]
+        old_assets_info = [
+        {"id": record["_id"], "unique_asset_name": record["unique_asset_name"]}
+        for record in old_records
+                                ]
 
         result = await self.collection.delete_many(query)
 
-        return old_asset_ids, result.deleted_count
+        return old_assets_info, result.deleted_count
             
                
     
