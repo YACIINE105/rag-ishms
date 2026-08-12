@@ -17,24 +17,27 @@ services:
       - backend
 
     restart: always
-  qdrant:
-    image: qdrant/qdrant:v1.15.1
-    container_name: qdrant
 
+  pgvector:
+    image: pgvector/pgvector:0.8.6-pg18-trixie
+    container_name: pgvector
     ports:
-      - "6333:6333"   # REST API
-      - "6334:6334"   # gRPC API
-
+      - "5432:5432"
+    
     volumes:
-      - qdrantdatabase:/qdrant/storage
+      - pgvector_data:/var/lib/postgresql/data
 
+    environment:  
+      - POSTGRES_PASSWORD=${POSTGRESQL_PASS}
+    
     networks:
       - backend
 
     restart: always
+
 networks:
   backend:
 
 volumes:
   mongodatabase:
-  qdrantdatabase:
+  pgvector_data:
