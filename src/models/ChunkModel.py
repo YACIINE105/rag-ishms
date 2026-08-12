@@ -88,3 +88,13 @@ class ChunkModel(BaseDataModel):
         return [
                  DataChunk(**rec)
                  for rec in records ]
+        
+        
+    async def delete_chunk_by_asset_id(self, asset_id):
+        result = await self.collection.delete_many({
+            "chunk_asset_id":asset_id
+        })
+        
+        return result.deleted_count
+    
+    

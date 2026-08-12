@@ -10,9 +10,11 @@ class Asset(BaseModel):
     # sql connection , url , wny file type that has data
     asset_type:str=Field(..., min_length=1)
     # 3 dots means optional
-    asset_name:str = Field(..., min_length=1)
+    unique_asset_name:str = Field(..., min_length=1)
     asset_size:int = Field(ge=0, default=None)
     asset_pushed_at : datetime = Field(default=datetime.utcnow)
+    asset_name:str = Field(..., min_length=1)
+    
     
     
     

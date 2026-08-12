@@ -65,11 +65,25 @@ async def upload_data(request:Request, project_id:str, file:UploadFile,
     asset_resource = Asset(
         asset_project_id=project.id,
         asset_type=AssetTypeEnum.FILE.value,
-        asset_name=file_unique_id,
-        asset_size=os.path.getsize(file_path)
+        unique_asset_name=file_unique_id,
+        asset_size=os.path.getsize(file_path),
+        asset_name=file.filename
     )
     
     asset_record = await asset_model.create_asset(asset=asset_resource)
+    
+    old_asset_ids, deleted_count = await asset_model.delete_asset_by_name(
+                                        asset_project_id=project.id,
+                                        asset_name=file.filename,
+                                        exclude_asset_id=asset_record.id  
+                                    )
+    
+    chunk_model = await ChunkModel.create_instance(
+                        db_client=request.app.db_client)
+    
+    for old_id in old_asset_ids:
+        await chunk_model.delete_chunk_by_asset_id(asset_id=old_id)
+    
     
     return JSONResponse(content={"status":ResponseSignal.File_Upload_Success.value,
              "file_id":str(asset_record.id)
@@ -94,6 +108,7 @@ async def process_endpoint(request :Request, project_id:str, process_request:Pro
     asset_model = await AssetModel.create_instance(db_client=request.app.db_client)
     project_file_ids = {}
     
+    no_file_id = None
     if process_request.file_id:
         asset_record = await asset_model.get_asset_record(asset_project_id=project.id,
                                                    asset_name=process_request.file_id)
@@ -109,6 +124,7 @@ async def process_endpoint(request :Request, project_id:str, process_request:Pro
         project_files = await asset_model.get_all_project_assets(asset_project_id=project.id,
                                                                  asset_type=AssetTypeEnum.FILE.value)
         project_file_ids = {record.id:record.asset_name for record in project_files}
+        no_file_id = True
     
     
     if len(project_file_ids)==0:
@@ -122,7 +138,7 @@ async def process_endpoint(request :Request, project_id:str, process_request:Pro
     chunk_model = await ChunkModel.create_instance(
     db_client=request.app.db_client)
     
-    if do_reset==1:
+    if do_reset==1 :
         _ = await chunk_model.delete_chunk_by_project_id(
             project_id=project.id
         )
