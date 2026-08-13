@@ -9,10 +9,18 @@ class Settings(BaseSettings):
     FILE_MAX_SIZE : int
     FILE_CHHUNK_SIZE : int # as a limit / for memory effiency
     
-    MONGO_URL : str
-    MONGO_DATABASE : str
-    GENERATION_PROVIDER : str
-    EMBEDDING_PROVIDER : str
+    ################ DB CONFIG ################
+    # MONGO_URL : str
+    # MONGO_DATABASE : str
+    # GENERATION_PROVIDER : str
+    # EMBEDDING_PROVIDER : str
+    
+    POSTGRES_USERNAME : str
+    POSTGRES_PASSWORD : str
+    POSTGRES_HOST : str
+    POSTGRES_PORT : int
+    POSTGRES_MAIN_DATABASE : str
+    
     
     ################ LLM CONFIG ################
 
