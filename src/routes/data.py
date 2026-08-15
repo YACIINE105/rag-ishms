@@ -21,7 +21,7 @@ data_router = APIRouter(
 )
 
 @data_router.post("/upload/{project_id}")
-async def upload_data(request:Request, project_id:str, file:UploadFile,
+async def upload_data(request:Request, project_id:int, file:UploadFile,
                       app_settings : Settings =Depends(get_settings)):
     
     
@@ -63,7 +63,7 @@ async def upload_data(request:Request, project_id:str, file:UploadFile,
     asset_model = await AssetModel.create_instance(db_client=request.app.db_client)
    
     asset_resource = Asset(
-        asset_project_id=project.id,
+        asset_project_id=project.project_id,
         asset_type=AssetTypeEnum.FILE.value,
         unique_asset_name=file_unique_id,
         asset_size=os.path.getsize(file_path),
@@ -73,9 +73,9 @@ async def upload_data(request:Request, project_id:str, file:UploadFile,
     asset_record = await asset_model.create_asset(asset=asset_resource)
     
     old_asset_info, deleted_count = await asset_model.delete_asset_by_name(
-                                        asset_project_id=project.id,
+                                        asset_project_id=project.project_id,
                                         asset_name=file.filename,
-                                        exclude_asset_id=asset_record.id  
+                                        exclude_asset_id=asset_record.asset_id  
                                     )
     
     chunk_model = await ChunkModel.create_instance(
@@ -97,14 +97,14 @@ async def upload_data(request:Request, project_id:str, file:UploadFile,
         
     
     return JSONResponse(content={"status":ResponseSignal.File_Upload_Success.value,
-             "file_id":str(asset_record.id)
+             "file_id":str(asset_record.asset_id)
              })
     
     
     
     
 @data_router.post("/process/{project_id}")
-async def process_endpoint(request :Request, project_id:str, process_request:ProcessRequest):
+async def process_endpoint(request :Request, project_id:int, process_request:ProcessRequest):
     
     # file_id is now optional if got it process it else procedss all file in the folder.     
     # file_id= process_request.file_id
@@ -121,20 +121,20 @@ async def process_endpoint(request :Request, project_id:str, process_request:Pro
     
     no_file_id = None
     if process_request.file_id:
-        asset_record = await asset_model.get_asset_record(asset_project_id=project.id,
+        asset_record = await asset_model.get_asset_record(asset_project_id=project.project_id,
                                                    unique_asset_name=process_request.file_id)
         
         if asset_record is None:
             return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"signal":ResponseSignal.FILE_RECORD_ERROR.value})
             
         
-        project_file_ids = {asset_record.id:asset_record.unique_asset_name}
+        project_file_ids = {asset_record.asset_id:asset_record.unique_asset_name}
     
     else:
 
-        project_files = await asset_model.get_all_project_assets(asset_project_id=project.id,
+        project_files = await asset_model.get_all_project_assets(asset_project_id=project.project_id,
                                                                  asset_type=AssetTypeEnum.FILE.value)
-        project_file_ids = {record.id:record.unique_asset_name   for record in project_files}
+        project_file_ids = {record.asset_id: record.unique_asset_name for record in project_files}
         no_file_id = True
     
     
@@ -149,16 +149,34 @@ async def process_endpoint(request :Request, project_id:str, process_request:Pro
     chunk_model = await ChunkModel.create_instance(
     db_client=request.app.db_client)
     
-    if do_reset==1 and no_file_id:
-        _ = await chunk_model.delete_chunk_by_project_id(
-            project_id=project.id
-        )
-        
+    ############## BUG FIX: do_reset==1 previously only cleared chunks when
+    ############## no_file_id was True, so passing a specific file_id with
+    ############## do_reset=1 never cleared that asset's old chunks before
+    ############## reprocessing (would have caused duplicate chunks).
+    if do_reset==1:
+        if no_file_id:
+            _ = await chunk_model.delete_chunk_by_project_id(
+                project_id=project.project_id
+            )
+        else:
+            asset_id = next(iter(project_file_ids))
+            _ = await chunk_model.delete_chunk_by_asset_id(asset_id=asset_id)
+
+    ############## BUG FIX: old logic used delete_chunk_by_asset_id's rowcount
+    ############## as a truthy filter, which meant:
+    ############## - assets that already HAD chunks got deleted+kept (reprocessed
+    #############    every call even with nothing new to do)
+    ############## - brand-new assets with NO chunks yet returned rowcount 0 and
+    #############    got silently dropped, so new files were NEVER processed
+    ############## unless do_reset=1 was passed. Replaced with a pure has-chunks
+    ############## check (has_chunks_for_asset) that doesn't delete anything and
+    ############## correctly keeps only assets that still need processing.
     elif do_reset!=1 and no_file_id:
-        asset_ids = list(project_file_ids.keys())
-        unchunked_ids = [asset_id for asset_id in asset_ids if await  chunk_model.reversed_get_chunk_by_asset_id(asset_id=asset_id)]
-        un_chunked_files = [ project_file_ids[unchunked_id] for unchunked_id in unchunked_ids ]
-        project_file_ids =  dict(zip(unchunked_ids, un_chunked_files))
+        filtered_file_ids = {}
+        for asset_id, unique_name in project_file_ids.items():
+            if not await chunk_model.has_chunks_for_asset(asset_id):
+                filtered_file_ids[asset_id] = unique_name
+        project_file_ids = filtered_file_ids
         
         
     for asset_id, file_id in project_file_ids.items():
@@ -177,13 +195,17 @@ async def process_endpoint(request :Request, project_id:str, process_request:Pro
                                     "status":ResponseSignal.Processing_Failed.value
                                 })
 
+        ############## NOTE: kept as a defensive no-op. With the branch above
+        ############## fixed, any asset reaching this point should have zero
+        ############## existing chunks already, so this delete is a safety net,
+        ############## not load-bearing logic anymore.
         await chunk_model.delete_chunk_by_asset_id(asset_id=asset_id)
 
         file_chunks_records = [
             DataChunk(
                 chunk_metadata=chunk.metadata,
                 chunk_order=i+1,
-                chunk_project_id=project.id,
+                chunk_project_id=project.project_id,
                 chunk_text=chunk.page_content,
                 chunk_asset_id = asset_id
             )

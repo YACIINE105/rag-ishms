@@ -6,6 +6,8 @@ from helpers.config import get_settings
 from stores.llm import LLMProviderFactory
 from stores.VectorDB import VectorDBPRoviderFactory
 from stores.llm.templates import TemplateParser
+from sqlalchemy.ext.asyncio import create_async_engine , AsyncSession
+from sqlalchemy.orm  import sessionmaker
 
 
 
@@ -18,9 +20,15 @@ async def lifespan(app: FastAPI):
     # --- STARTUP LOGIC ---
     settings = get_settings()
      
+    postgres_conn = f"postgresql+asyncpg://{settings.POSTGRES_USERNAME}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_MAIN_DATABASE}"
+    app.db_engine = create_async_engine(postgres_conn)
+    
     # Setup MongoDB
-    app.mongo_db_connection = AsyncIOMotorClient(settings.MONGO_URL)
-    app.db_client = app.mongo_db_connection[settings.MONGO_DATABASE]
+    # app.mongo_db_connection = AsyncIOMotorClient(settings.MONGO_URL)
+    # app.db_client = app.mongo_db_connection[settings.MONGO_DATABASE]
+    app.db_client = sessionmaker(app.db_engine,
+                                 class_=AsyncSession,
+                                 expire_on_commit=False)
     
     # Setup LLM Factory
     llm_provider_factory = LLMProviderFactory(settings)
@@ -53,7 +61,9 @@ async def lifespan(app: FastAPI):
     
     # --- SHUTDOWN LOGIC ---
     # This block runs when the FastAPI application is stopped
-    app.mongo_db_connection.close()
+    # app.mongo_db_connection.close()
+    
+    app.db_engine.dispose()
     app.vector_db_client.disconnect()
 
 
@@ -63,6 +73,6 @@ app = FastAPI(lifespan=lifespan)
 # Include your routers
 app.include_router(base.base_router)
 app.include_router(data.data_router)
-app.include_router(checker.drug_check_router)
-app.include_router(checker.isbar_gen_router)
+# app.include_router(checker.drug_check_router)
+# app.include_router(checker.isbar_gen_router)
 app.include_router(nlp.nlp_router)
