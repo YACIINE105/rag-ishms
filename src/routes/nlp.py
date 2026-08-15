@@ -18,7 +18,7 @@ nlp_router = APIRouter(
     )
 
 @nlp_router.post("/index/push/{project_id}")
-async def index_project(request:Request, project_id:str, push_request:PushRequest):
+async def index_project(request:Request, project_id:int, push_request:PushRequest):
     do_reset = push_request.do_reset
     
     project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
@@ -40,7 +40,7 @@ async def index_project(request:Request, project_id:str, push_request:PushReques
     inserted_items_count = 0
     idx = 0 
     while has_records:
-        page_chunks = await chunk_model.get_project_chunks(project_id=project.id, page_number=page_number)
+        page_chunks = await chunk_model.get_project_chunks(project_id=project.project_id, page_number=page_number)
         
             
         if not page_chunks or len(page_chunks) == 0:
@@ -71,7 +71,7 @@ async def index_project(request:Request, project_id:str, push_request:PushReques
     
     
 @nlp_router.get("/index/info/{project_id}")
-async def get_project_index_info(request:Request, project_id:str):
+async def get_project_index_info(request:Request, project_id:int):
     project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
     project = await project_model.get_project_or_create_one(project_id=project_id)
 
@@ -95,7 +95,7 @@ async def get_project_index_info(request:Request, project_id:str):
     
     
 @nlp_router.get("/index/search/{project_id}")
-async def search_index(request:Request, project_id:str, search_request:SearchRequest):
+async def search_index(request:Request, project_id:int, search_request:SearchRequest):
     project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
     project = await project_model.get_project_or_create_one(project_id=project_id)
 
@@ -130,7 +130,7 @@ async def search_index(request:Request, project_id:str, search_request:SearchReq
     
 
 @nlp_router.get("/index/answer/{project_id}")
-async def answer_index(request:Request, project_id:str, search_request:SearchRequest):
+async def answer_index(request:Request, project_id:int, search_request:SearchRequest):
     project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
     project = await project_model.get_project_or_create_one(project_id=project_id)
 

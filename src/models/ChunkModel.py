@@ -1,111 +1,90 @@
 from .BaseDataModel import BaseDataModel
 from .enums.DataBaseEnum import DataBaseEnum
-from .db_schems.data_chunk import DataChunk
-from bson.objectid import ObjectId
+from .db_schems.rag_ishms.schemes import DataChunk
+from sqlalchemy import exists
+from sqlalchemy.future import select
+from sqlalchemy import func, delete
+
 # the operation type not the operation it self
-from pymongo import InsertOne
+
 
 class ChunkModel(BaseDataModel):
     def __init__(self, db_client):
         super().__init__(db_client)
         # for collection we get the chunk name instead of project name.
-        self.collection = self.db_client[DataBaseEnum.COLLECTION_CHUNK_NAME.value]
-
+        self.db_client = db_client
 
     @classmethod
-    async def create_instance(cls, db_client:object):
+    async def create_instance(cls, db_client: object):
         instance = cls(db_client)
-        await instance.init_collection()    
         return instance
 
 
-    async def init_collection(self):
-        # all_collection = await self.db_client.list_collection_names()
-        # if DataBaseEnum.COLLECTION_CHUNK_NAME.value not in all_collection:
-           
-            # i commented this line as i see it not important since we intialized the collection allready.
-            # self.collection = self.db_client[DataBaseEnum.COLLECTION_CHUNK_NAME.value]
-           
-        indexes = DataChunk.get_indexes()
-        for index in indexes:
-            await self.collection.create_index(
-                index["key"],
-                name=index["name"],
-                unique = index["unique"]
-            )
-
-
-    async def create_chunk(self, chunk:DataChunk):
-        result = self.collection.insert_one(chunk.model_dump(exclude_none=True))
-        chunk.id = result.inserted_id
+    async def create_chunk(self, chunk: DataChunk):
+        async with self.db_client() as session:
+            async with session.begin():
+                session.add(chunk)
+            await session.refresh(chunk)
 
         return chunk
-    
-    
-    async def get_chunk(self, chunk_id:str):
-        result = await self.collection.find_one(
-            {
-                "_id":ObjectId(chunk_id)
-            }
-        )
 
-        if result is None:
-            return None
-        
-        return DataChunk(**result)
-        
+
+    async def get_chunk(self, chunk_id: int):
+        async with self.db_client() as session:
+            query = select(DataChunk).where(DataChunk.chunk_id == chunk_id)
+            results = await session.execute(query)
+            return results.scalar_one_or_none()
+
+
     # this funciton insert a batch of chunk at once rather than inserting chunk by chunk ,
     # returns the amount of chunks inserted.
-    async def insert_many_chunks(self,chunks:list, batch_size:int=100):
-        for i in range (0, len(chunks),batch_size ):
-            batch = chunks[i:i+batch_size]
-            
-            operations = [
-            InsertOne(chunk.dict(exclude_none=True))
-            for chunk in batch     
-            ]
-            await self.collection.bulk_write(operations)
-            
+    async def insert_many_chunks(self, chunks: list, batch_size: int = 100):
+        async with self.db_client() as session:
+            async with session.begin():
+                for i in range(0, len(chunks), batch_size):
+                    batch = chunks[i:i + batch_size]
+                    session.add_all(batch)
+
         return len(chunks)
-    
-    
-    async def delete_chunk_by_project_id(self, project_id:ObjectId):
-        result = await self.collection.delete_many({
-            "chunk_project_id":project_id
-        })
-        
-        return result.deleted_count
-            
-            
-    async def get_project_chunks(self, project_id:ObjectId,page_number:int,page_size:int=50):
-        records = await self.collection.find({
-            "chunk_project_id" : project_id
-        
-                }).skip(
-                    (page_number-1) * page_size
-                ).limit(page_size).to_list(length=None ) 
-                
-        return [
-                 DataChunk(**rec)
-                 for rec in records ]
-        
-        
+
+
+    async def delete_chunk_by_project_id(self, project_id: int):
+        async with self.db_client() as session:
+            async with session.begin():
+                query = delete(DataChunk).where(DataChunk.chunk_project_id == project_id)
+                results = await session.execute(query)
+
+        return results.rowcount
+
+
     async def delete_chunk_by_asset_id(self, asset_id):
-        result = await self.collection.delete_many({
-            "chunk_asset_id":asset_id
-        })
+        async with self.db_client() as session:
+            async with session.begin():
+                query = delete(DataChunk).where(DataChunk.chunk_asset_id == asset_id)
+                results = await session.execute(query)
+
+        return results.rowcount
+
+
+    async def get_project_chunks(self, project_id: int, page_number: int, page_size: int = 50):
+        async with self.db_client() as session:
+            query = (
+                select(DataChunk)
+                .where(DataChunk.chunk_project_id == project_id)
+                .offset((page_number - 1) * page_size)
+                .limit(page_size)
+            )
+            result = await session.execute(query)
+            return result.scalars().all()
+
+
+    async def has_chunks_for_asset(self, asset_id: int) -> bool:
+        """
+        Returns True if at least one chunk exists for this asset, False otherwise.
+        Useful for checking whether an asset still needs processing.
+        """
+        async with self.db_client() as session:
+            query = select(exists().where(DataChunk.chunk_asset_id == asset_id))
+            result = await session.execute(query)
+            return result.scalar()
         
-        return result.deleted_count
-    
-    
-    async def reversed_get_chunk_by_asset_id(self, asset_id:ObjectId):
-        result = await self.collection.find_one(
-                    {
-                        "chunk_asset_id":ObjectId(asset_id)
-                    }
-                )
-        if result is None:
-            return True
-        return None
-    
-    

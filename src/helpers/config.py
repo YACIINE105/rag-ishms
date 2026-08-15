@@ -10,10 +10,10 @@ class Settings(BaseSettings):
     FILE_CHHUNK_SIZE : int # as a limit / for memory effiency
     
     ################ DB CONFIG ################
-    # MONGO_URL : str
-    # MONGO_DATABASE : str
-    # GENERATION_PROVIDER : str
-    # EMBEDDING_PROVIDER : str
+    MONGO_URL: str | None = None
+    MONGO_DATABASE: str | None = None
+    GENERATION_PROVIDER : str
+    EMBEDDING_PROVIDER : str
     
     POSTGRES_USERNAME : str
     POSTGRES_PASSWORD : str

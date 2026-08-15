@@ -6,6 +6,16 @@ this is a rag api that was created to serve the ISHMS software.
 ## REQUIREMENTS
 - Python 3.12
 
+#### Install Dependencies
+
+```bash
+sudo apt update
+```
+```bash
+sudo apt install libpq-dev gcc python3-dev
+```
+
+
 ### Install Python using Miniconda
 1) Download and install mini coda from [here](https://docs.anaconda.com/free/miniconda/#quick-command-line-install)
 
