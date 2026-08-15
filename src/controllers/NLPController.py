@@ -42,12 +42,18 @@ class NLPController(BaseController):
         texts = [c.chunk_text for c in chunks]
         metadata = [c.chunk_metadata for c in chunks]
         vectors = []
-        for text in texts:
-            vector = self.embedding_client.embed_text(
-                text=text, 
+
+        batch_size = 32
+        for i in range(0, len(texts), batch_size):
+            batch_texts = texts[i:i + batch_size]
+            batch_vectors = self.embedding_client.embed_texts(
+                texts=batch_texts,
                 document_type=DocumentTypeEnum.DOCUMENT.value
             )
-            vectors.append(vector)
+            if batch_vectors is None:
+                self.logger.error(f"Failed to embed batch starting at index {i}")
+                continue
+            vectors.extend(batch_vectors)
                 
         
         # step 3 : create collection if not exists (if do reset : delete collections)

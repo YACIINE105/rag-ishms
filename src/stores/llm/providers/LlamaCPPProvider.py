@@ -138,3 +138,32 @@ class LlamaCPPProvider(LLM_Interface):
             "content": self.process_text(prompt)
         }
         
+    def embed_texts(self, texts: list, document_type: str = None):
+        if not self.embedding_client:
+            self.logger.error("LlamaCPP embedding client wasn't set")
+            return None
+        if not self.embedding_model_id:
+            self.logger.error("Embedding model for LlamaCPP client wasn't set")
+            return None
+
+        try:
+            results = self.embedding_client.embed(texts)  # texts is a list -> batched internally
+
+            if not results:
+                self.logger.error("LlamaCPP returned an empty embedding response.")
+                return None
+
+            if self.embedding_size:
+                for r in results:
+                    if len(r) != self.embedding_size:
+                        self.logger.warning(
+                            f"Expected dimension {self.embedding_size}, but got {len(r)}"
+                        )
+            return results
+
+        except Exception as e:
+            self.logger.error(f"Error during batch embedding generation: {e}")
+            return None
+        
+        
+    
