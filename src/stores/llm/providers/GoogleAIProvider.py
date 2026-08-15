@@ -49,7 +49,7 @@ class GoogleAIProvider(LLM_Interface):
             
         max_output_token = max_output_token if max_output_token else self.default_generation_max_output_token     
         temperature = temperature if temperature else self.default_generation_temperature
-        user_message = self.construct_prompt(prompt=self.process_text(text=prompt), 
+        user_message = self.construct_prompt(prompt=prompt, 
                                              role=GoogleAI_Enums.USER.value)
         chat_history = chat_history or []
         

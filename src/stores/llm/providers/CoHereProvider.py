@@ -53,7 +53,7 @@ class CohereProvider(LLM_Interface):
             
         max_output_token = max_output_token if max_output_token else self.default_generation_max_output_token     
         temperature = temperature if temperature else self.default_generation_temperature
-        user_message = self.process_text(text=prompt)
+        user_message = prompt
         chat_history = chat_history or []
         
         try:
