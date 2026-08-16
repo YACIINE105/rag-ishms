@@ -43,7 +43,7 @@ class NLPController(BaseController):
         metadata = [c.chunk_metadata for c in chunks]
         vectors = []
 
-        batch_size = 32
+        batch_size = 24
         for i in range(0, len(texts), batch_size):
             batch_texts = texts[i:i + batch_size]
             batch_vectors = self.embedding_client.embed_texts(
@@ -69,7 +69,8 @@ class NLPController(BaseController):
             texts = texts,
             vectors = vectors,
             metadata = metadata,
-            record_ids = chunks_ids
+            record_ids = chunks_ids,
+            batch_size=batch_size
         )
         
         return True

@@ -63,7 +63,7 @@ async def lifespan(app: FastAPI):
     # This block runs when the FastAPI application is stopped
     # app.mongo_db_connection.close()
     
-    app.db_engine.dispose()
+    await app.db_engine.dispose()
     app.vector_db_client.disconnect()
 
 

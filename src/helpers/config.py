@@ -42,6 +42,7 @@ class Settings(BaseSettings):
     LLAMA_CPP_N_GPU_LAYERS : int
     LLAMA_CPP_N_CTX : int
     EMBEDDING_MODEL_PATH : str
+    LLama_CPP_API_KEY:str
     LLAMA_CPP_URL :str
     NARA_BASE_URL:str
     
