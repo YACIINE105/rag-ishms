@@ -3,6 +3,7 @@ from ..LLMinterface import LLM_Interface
 from ..LLMEnums import DocumentTypeEnum
 import logging
 from llama_cpp import Llama
+from typing import List, Union
 
 
 class LlamaCPPProvider(LLM_Interface):
@@ -36,7 +37,7 @@ class LlamaCPPProvider(LLM_Interface):
             model_path=self.generation_model_id,
             n_gpu_layers=self.n_gpu_layers,
             n_ctx=self.n_ctx,
-            verbose=False
+            verbose=True
         )
 
 
@@ -97,28 +98,32 @@ class LlamaCPPProvider(LLM_Interface):
             return None
 
 
-    def embed_text(self, text: str, document_type: str = None):
+    def embed_text(self, text: Union[str, List[str]], document_type: str = None):
         if not self.embedding_client:
             self.logger.error("LlamaCPP embedding client wasn't set")
             return None
-
         if not self.embedding_model_id:
             self.logger.error("Embedding model for LlamaCPP client wasn't set")
             return None
 
-        try:
-            result = self.embedding_client.embed(text)
+        if isinstance(text, str):
+            text = [text]
 
-            if not result:
+        try:
+            results = self.embedding_client.embed(text)
+
+            if not results:
                 self.logger.error("LlamaCPP returned an empty embedding response.")
                 return None
 
-            if self.embedding_size and len(result) != self.embedding_size:
-                self.logger.warning(
-                    f"Expected dimension {self.embedding_size}, but got {len(result)}"
-                )
+            if self.embedding_size:
+                for r in results:
+                    if len(r) != self.embedding_size:
+                        self.logger.warning(
+                            f"Expected dimension {self.embedding_size}, but got {len(r)}"
+                        )
 
-            return result
+            return results
 
         except Exception as e:
             self.logger.error(f"Error during embedding generation: {e}")

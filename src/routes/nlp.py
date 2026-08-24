@@ -7,6 +7,7 @@ from models.enums import ResponseSignal
 from bson.objectid import ObjectId
 import logging
 
+from tqdm.auto import tqdm
 
 
 logger = logging.getLogger('uvicorn.error')
@@ -39,6 +40,23 @@ async def index_project(request:Request, project_id:int, push_request:PushReques
     page_number = 1
     inserted_items_count = 0
     idx = 0 
+    
+    
+    collection_name = nlp_controller.create_collection_name(project_id=project.project_id)
+    # creating collection 
+    _ = await request.app.vector_db_client.create_collection(collection_name=collection_name, 
+                                                             embedding_size=request.app.embedding_client.embedding_size,
+                                                             do_reset=do_reset)
+    
+    #setup batching 
+    total_records_count = await chunk_model.get_all_chunks_count(project_id=project.project_id)
+    
+    progress_bar = tqdm(total=total_records_count, desc="Vector Indexing", position=0)
+    
+    
+    
+    
+    
     while has_records:
         page_chunks = await chunk_model.get_project_chunks(project_id=project.project_id, page_number=page_number)
         
@@ -47,10 +65,10 @@ async def index_project(request:Request, project_id:int, push_request:PushReques
             has_records=False
             break
         
-        chunks_ids = list(range(idx, (idx + len(page_chunks))))
+        chunks_ids = [chunk.chunk_id for chunk in page_chunks]
         
         idx += len(page_chunks)
-        is_inserted = nlp_controller.index_into_vector_db(project=project, chunks=page_chunks, 
+        is_inserted = await nlp_controller.index_into_vector_db(project=project, chunks=page_chunks, 
                                                           chunks_ids =chunks_ids, 
                                                           do_reset=do_reset if page_number == 1 else False)
         page_number+=1
@@ -61,8 +79,14 @@ async def index_project(request:Request, project_id:int, push_request:PushReques
                             content={"signal":ResponseSignal.INSERT_INTO_VECTOR_DB_ERROR.value}
             )
         
+        progress_bar.update(len(page_chunks))
+        
         inserted_items_count += len(page_chunks)
         
+    # indexing created vectors 
+    
+    _ = await request.app.vector_db_client.create_vector_index(collection_name=collection_name,)
+    
     return JSONResponse(status_code=status.HTTP_200_OK,
                         content={"signal":ResponseSignal.INSERT_INTO_VECTOR_DB_SUCCESS.value,
                                  "inserted_items_count":inserted_items_count
@@ -84,12 +108,12 @@ async def get_project_index_info(request:Request, project_id:int):
                                 generation_client=request.app.generation_client,
                                 embedding_client=request.app.embedding_client)
     
-    collection_info = nlp_controller.get_vector_db_collection_info(project=project)
+    collection_info = await nlp_controller.get_vector_db_collection_info(project=project)
     
     
     return JSONResponse(status_code=status.HTTP_200_OK,
                         content={"signal":ResponseSignal.VECTOR_DB_COLLECTION_RETRIEVED.value,
-                                 "collection_info":collection_info.model_dump()
+                                 "collection_info":collection_info
                                 }
                 )
     
@@ -109,7 +133,7 @@ async def search_index(request:Request, project_id:int, search_request:SearchReq
                                 embedding_client=request.app.embedding_client,
                                 template_parser=request.app.template_parser,)
     
-    indexed_vectors =  nlp_controller.search_vector_db_collection(project=project,
+    indexed_vectors =  await nlp_controller.search_vector_db_collection(project=project,
                                                                   text=search_request.text,
                                                                   limit=search_request.limit)
     
@@ -123,7 +147,7 @@ async def search_index(request:Request, project_id:int, search_request:SearchReq
     
     return JSONResponse(status_code=status.HTTP_200_OK,
                         content={"signal":ResponseSignal.VECTORS_SEARCH_Success.value,
-                                 "indexed_vectors":indexed_vectors
+                                 "indexed_vectors":[doc.model_dump() for doc in indexed_vectors]
                                 }
                 )
     
@@ -144,7 +168,7 @@ async def answer_index(request:Request, project_id:int, search_request:SearchReq
                                 embedding_client=request.app.embedding_client,
                                 template_parser=request.app.template_parser,)
     
-    answer, full_prompt, chat_history = nlp_controller.answer_rag_query(project=project,
+    answer, full_prompt, chat_history = await nlp_controller.answer_rag_query(project=project,
                                     query = search_request.text,
                                     limit=search_request.limit)
     

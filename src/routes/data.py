@@ -2,7 +2,7 @@ from fastapi import  APIRouter, Depends, UploadFile, status, Request
 from fastapi.responses import JSONResponse
 import os
 from helpers.config import get_settings, Settings
-from controllers import DataController, ProjectController, ProcessController
+from controllers import DataController, ProjectController, ProcessController, NLPController
 import aiofiles #    مكتبة تُستخدم للتعامل مع الملفات بشكل غير متزامن 
 from models.enums import ResponseSignal
 import logging
@@ -119,6 +119,17 @@ async def process_endpoint(request :Request, project_id:int, process_request:Pro
     asset_model = await AssetModel.create_instance(db_client=request.app.db_client)
     project_file_ids = {}
     
+    nlp_controller = NLPController(generation_client=request.app.generation_client,
+                                   embedding_client=request.app.embedding_client,
+                                   vector_db_client=request.app.vector_db_client,
+                                   template_parser=request.app.template_parser)
+
+    ##### EDIT 1: hoisted collection_name computation here, out of the
+    ##### do_reset branches, so it's in scope for the loop's per-asset
+    ##### vector delete below (previously it was only computed inside
+    ##### the do_reset==1 branches and undefined everywhere else).
+    collection_name = nlp_controller.create_collection_name(project_id=project.project_id)
+    
     no_file_id = None
     if process_request.file_id:
         asset_record = await asset_model.get_asset_record(asset_project_id=project.project_id,
@@ -149,28 +160,23 @@ async def process_endpoint(request :Request, project_id:int, process_request:Pro
     chunk_model = await ChunkModel.create_instance(
     db_client=request.app.db_client)
     
-    ############## BUG FIX: do_reset==1 previously only cleared chunks when
-    ############## no_file_id was True, so passing a specific file_id with
-    ############## do_reset=1 never cleared that asset's old chunks before
-    ############## reprocessing (would have caused duplicate chunks).
     if do_reset==1:
         if no_file_id:
+            #deleting associated vectors collection 
+            _ = await request.app.vector_db_client.delete_collection(collection_name=collection_name)
+            
+            #deleting associated chunks 
             _ = await chunk_model.delete_chunk_by_project_id(
                 project_id=project.project_id
             )
+            
+            
         else:
             asset_id = next(iter(project_file_ids))
+            _ = await request.app.vector_db_client.delete_vectors_by_asset_id(collection_name = collection_name,
+                                                                              asset_id = asset_id)
             _ = await chunk_model.delete_chunk_by_asset_id(asset_id=asset_id)
 
-    ############## BUG FIX: old logic used delete_chunk_by_asset_id's rowcount
-    ############## as a truthy filter, which meant:
-    ############## - assets that already HAD chunks got deleted+kept (reprocessed
-    #############    every call even with nothing new to do)
-    ############## - brand-new assets with NO chunks yet returned rowcount 0 and
-    #############    got silently dropped, so new files were NEVER processed
-    ############## unless do_reset=1 was passed. Replaced with a pure has-chunks
-    ############## check (has_chunks_for_asset) that doesn't delete anything and
-    ############## correctly keeps only assets that still need processing.
     elif do_reset!=1 and no_file_id:
         filtered_file_ids = {}
         for asset_id, unique_name in project_file_ids.items():
@@ -189,16 +195,18 @@ async def process_endpoint(request :Request, project_id:int, process_request:Pro
         file_chunks = process_controller.process_file_content(file_content=file_content, file_id=file_id,
                                                         chunk_size=chunk_size, overlap_size=overlap_size)
 
-        if file_chunks is None or  len(file_chunks)==0:
-            return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,
-                                content={
-                                    "status":ResponseSignal.Processing_Failed.value
-                                })
+        if file_chunks is None or len(file_chunks) == 0:
+            logger.error(f"no chunks produced for file: {file_id}")
+            continue
 
-        ############## NOTE: kept as a defensive no-op. With the branch above
-        ############## fixed, any asset reaching this point should have zero
-        ############## existing chunks already, so this delete is a safety net,
-        ############## not load-bearing logic anymore.
+        ##### EDIT 2: this used to be chunk-only, which left orphaned
+        ##### vector rows in the specific-file_id + do_reset=0 case
+        ##### (the one combination that falls through both branches
+        ##### above untouched). Also fixes the stray/incomplete
+        ##### `await` that was left dangling on its own line.
+        await request.app.vector_db_client.delete_vectors_by_asset_id(
+            collection_name=collection_name, asset_id=asset_id
+        )
         await chunk_model.delete_chunk_by_asset_id(asset_id=asset_id)
 
         file_chunks_records = [
@@ -223,7 +231,7 @@ async def process_endpoint(request :Request, project_id:int, process_request:Pro
             "processed_files":number_of_files
         }
     )
-
+    
 # , JSONResponse(status_code=status.HTTP_200_OK,
 #                             content={
 #                                 "status":ResponseSignal.Peocessing_Success.value

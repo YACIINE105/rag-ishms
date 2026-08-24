@@ -30,7 +30,7 @@ class VectorDBInterface(ABC):
         pass
     
     @abstractmethod
-    def create_collection(self, collecrtion_name:str, embedding_size:int, do_reset: bool=False):
+    def create_collection(self, collection_name:str, embedding_size:int, do_reset: bool=False):
         pass
     
     @abstractmethod
@@ -43,6 +43,6 @@ class VectorDBInterface(ABC):
         pass
     
     @abstractmethod
-    def search_by_vector(self, collecrtion_name:str, vector:list, k:int):
+    def search_by_vector(self, collection_name:str, vector:list, k:int):
         pass
     

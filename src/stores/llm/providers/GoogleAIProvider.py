@@ -3,6 +3,8 @@ from ..LLMEnums import GoogleAI_Enums, DocumentTypeEnum
 import logging
 from google import genai
 from google.genai import types
+from typing import List, Union
+
 
 class GoogleAIProvider(LLM_Interface):
     def __init__(self , api_key:str, 
