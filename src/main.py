@@ -49,7 +49,10 @@ async def lifespan(app: FastAPI):
     
     #setup vector db client 
     app.vector_db_client = vector_db_provider_factory.create(settings.VECTOR_DB_BACKEND)
-    app.vector_db_client.connect()
+    
+    app.vector_db_client.db_client = app.db_client
+    
+    await app.vector_db_client.connect()
     
     app.template_parser = TemplateParser(language =settings.PRIMARY_LANG,
                                          default_language = settings.DEFAULT_LANG)
@@ -63,8 +66,8 @@ async def lifespan(app: FastAPI):
     # This block runs when the FastAPI application is stopped
     # app.mongo_db_connection.close()
     
-    app.db_engine.dispose()
-    app.vector_db_client.disconnect()
+    await app.db_engine.dispose()
+    await app.vector_db_client.disconnect()
 
 
 # Pass the lifespan context manager into the FastAPI instance

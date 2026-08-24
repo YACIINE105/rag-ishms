@@ -15,22 +15,22 @@ class NLPController(BaseController):
         self.template_parser = template_parser
 
     def create_collection_name(self, project_id:str):
-        return f"collection_{project_id}".strip()
+        return f"collection_{self.vector_db_client.default_vector_size}_{project_id}".strip()
     
 
-    def reset_vector_db_colection(self,project:Project):
+    async def reset_vector_db_colection(self,project:Project):
         collection_name = self.create_collection_name(project_id=project.project_id)
-        self.vector_db_client.delete_collection(collection_name=collection_name)
+        await self.vector_db_client.delete_collection(collection_name=collection_name)
 
     
-    def get_vector_db_collection_info(self, project:Project):
+    async def get_vector_db_collection_info(self, project:Project):
         collection_name = self.create_collection_name(project_id=project.project_id)
-        collection_info = self.vector_db_client.get_collection_info(collection_name=collection_name)
+        collection_info = await self.vector_db_client.get_collection_info(collection_name=collection_name)
         
         return collection_info
         
         
-    def index_into_vector_db(self, project:Project, chunks:List[DataChunk], 
+    async def index_into_vector_db(self, project:Project, chunks:List[DataChunk], 
                              chunks_ids:List[int], 
                              do_reset:bool = False):
         # step 1 : get collection name
@@ -41,53 +41,64 @@ class NLPController(BaseController):
         
         texts = [c.chunk_text for c in chunks]
         metadata = [c.chunk_metadata for c in chunks]
-        vectors = []
-
-        batch_size = 32
-        for i in range(0, len(texts), batch_size):
-            batch_texts = texts[i:i + batch_size]
-            batch_vectors = self.embedding_client.embed_texts(
-                texts=batch_texts,
-                document_type=DocumentTypeEnum.DOCUMENT.value
-            )
-            if batch_vectors is None:
-                self.logger.error(f"Failed to embed batch starting at index {i}")
-                continue
-            vectors.extend(batch_vectors)
-                
+        vectors = self.embedding_client.embed_text(text=texts, 
+                                                   document_type = DocumentTypeEnum.DOCUMENT.value)
+        batch_size = 50
+        
+        ###################
+        # for i in range(0, len(texts), batch_size):
+        #     batch_texts = texts[i:i + batch_size]
+        #     batch_vectors = self.embedding_client.embed_texts(
+        #         texts=batch_texts,
+        #         document_type=DocumentTypeEnum.DOCUMENT.value
+        #     )
+        #     if batch_vectors is None:
+        #         self.logger.error(f"Failed to embed batch starting at index {i}")
+        #         continue
+        #     vectors.extend(batch_vectors)
+        #####################        
         
         # step 3 : create collection if not exists (if do reset : delete collections)
         
-        _ = self.vector_db_client.create_collection(collection_name=collection_name,
+        _ = await self.vector_db_client.create_collection(collection_name=collection_name,
                                                 embedding_size = self.embedding_client.embedding_size,
                                                 do_reset = do_reset                                     
                 )
         # step 4 : insert into  vector db 
         
-        _ = self.vector_db_client.insert_many(
+        _ = await self.vector_db_client.insert_many(
             collection_name = self.create_collection_name(project_id=project.project_id),
             texts = texts,
             vectors = vectors,
             metadata = metadata,
-            record_ids = chunks_ids
+            record_ids = chunks_ids,
+            batch_size=batch_size
         )
         
         return True
     
     
-    def search_vector_db_collection(self, project:Project, text:str, limit: int=5):
+    async def search_vector_db_collection(self, project:Project, text:str, limit: int=5):
         collection_name = self.create_collection_name(project_id=project.project_id)
         
-        vector = self.embedding_client.embed_text(
+        query_vector = None
+        vectors = self.embedding_client.embed_text(
                         text=text, 
                         document_type=DocumentTypeEnum.QUERY.value
                     )
-        if not vector or len(vector)==0 :
+        if not vectors or len(vectors)==0 :
             return False
         
-        results = self.vector_db_client.search_by_vector(collection_name=collection_name,
-                                                        vector=vector,
-                                                        limit = limit)
+        if isinstance(vectors, list) and len(vectors)>0:
+            query_vector = vectors[0]
+            
+        if not query_vector:
+            return False
+        
+        
+        results = await self.vector_db_client.search_by_vector(collection_name=collection_name,
+                                                        vector=query_vector,
+                                                        k = limit)
         
         if not results:
             return False
@@ -95,9 +106,9 @@ class NLPController(BaseController):
         return results
         
         
-    def answer_rag_query(self, project:Project, query:str, limit:int = 5):
+    async def answer_rag_query(self, project:Project, query:str, limit:int = 5):
         # step 1 reterieve related docs 
-        retrieved_docs = self.search_vector_db_collection(project=project, text=query, limit=limit)
+        retrieved_docs = await self.search_vector_db_collection(project=project, text=query, limit=limit)
         if not retrieved_docs or len(retrieved_docs)==0:
             return None
         
@@ -108,7 +119,7 @@ class NLPController(BaseController):
         document_prompt = "\n".join([ self.template_parser.get(
                             "rag", "document_prompt", 
                             {    "document_no":i+1,  
-                                "chunk_text": doc["text"]}) 
+                                "chunk_text": doc.text}) 
                             for i , doc in enumerate(retrieved_docs) ])
     
         footer_prompt = self.template_parser.get("rag", "footer_prompt", {"query":query})
