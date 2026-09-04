@@ -45,8 +45,9 @@ class Settings(BaseSettings):
     GENERATION_MODEL_PATH:str = None
     GENERATION_MODEL_TEMPERATURE : float = None
     
+    EMBEDDING_MODEL_ID_LITTERAL:List[str] = None
     EMBEDDING_MODEL_ID : str = None
-    EMBEDDING_MODEL_PATH : str
+    EMBEDDING_MODEL_PATH : str = None
     EMBEDDING_MODEL_SIZE : int = None
     
     INPUT_MAX_CHARACTERS : int = None

@@ -4,6 +4,11 @@ import os
 # from langchain_text_splitters  import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import TextLoader
 from langchain_community.document_loaders import PyMuPDFLoader
+
+from docling.document_converter import DocumentConverter
+from docling.chunking import HybridChunker
+from transformers import AutoTokenizer
+
 from models.enums import ProcessingSgnal
 from typing import List
 from dataclasses import dataclass
@@ -21,6 +26,7 @@ class ProcessController(BaseController):
         
         self.project_id = project_id
         self.project_path = ProjectController().get_project_path(project_id=project_id)
+        # self.tokenizer = AutoTokenizer.from_pretrained("nomic-ai/nomic-embed-text-v1.5")
         
         
         
@@ -42,6 +48,8 @@ class ProcessController(BaseController):
         
         if file_extension == ProcessingSgnal.PDF.value:
             return PyMuPDFLoader(file_path=file_path)
+            # converter = DocumentConverter()
+            # return converter.convert(source=file_path)
         return None
 
 
@@ -51,6 +59,15 @@ class ProcessController(BaseController):
             return loader.load()
         else:
             return None
+        
+        
+    def get_file_content_2(self, file_id:str):
+        loader = self.get_file_loader(file_id=file_id)
+        if loader:
+            return loader.document
+        else:
+            return None
+        
         
         
     def process_file_content(self, file_content:list, file_id:str, chunk_size:int=100, overlap_size:int=20):
@@ -91,9 +108,25 @@ class ProcessController(BaseController):
                 current_chunk = ""
                 
                 
-        if len(current_chunk) >= 0 :
+        if len(current_chunk) > 0 :
                         
                         chunks.append(Document(page_content=current_chunk.strip(), 
                                                metadata={}))
                         
         return chunks                
+
+
+
+    def process_file_content_using_docling(self, file_content, file_id:str, chunk_size:int=100, overlap_size:int=20):
+        tokenizer = AutoTokenizer.from_pretrained(self.tokenizer)
+
+        # 3. Chunk
+        chunker = HybridChunker(
+            tokenizer=tokenizer,
+            max_tokens=chunk_size
+                                )
+        
+        chunks = list(chunker.chunk(file_content))
+        
+        return chunks
+

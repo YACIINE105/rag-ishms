@@ -196,10 +196,10 @@ async def process_endpoint(request :Request, project_id:int, process_request:Pro
             continue
         
         if do_emantic_chunk == 1:
-            file_chunks = process_controller.process_file_content_semantic(file_content=file_content, file_id=file_id,
+            file_chunks = process_controller.process_file_content_using_docling(file_content=file_content, file_id=file_id,
                                                                            breakpoint_threshold_type=breakpoint_threshold_type,
                                                                            breakpoint_threshold_amount=breakpoint_threshold_amount)
-            logger.info(f"STARTING SEMANTIC CHUNKING")
+            logger.info(f"STARTING SPECIAL CHUNKING")
         else:
             file_chunks = process_controller.process_file_content(file_content=file_content, file_id=file_id,
                                                         chunk_size=chunk_size, overlap_size=overlap_size)
