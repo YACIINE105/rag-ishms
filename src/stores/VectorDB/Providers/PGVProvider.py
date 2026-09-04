@@ -384,3 +384,4 @@ class PGVectorProvider(VectorDBInterface):
             self.logger.error(f"failed to search {collection_name}: {e}")
             return None
                 
+    
