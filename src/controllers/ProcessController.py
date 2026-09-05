@@ -5,8 +5,6 @@ import os
 from langchain_community.document_loaders import TextLoader
 from langchain_community.document_loaders import PyMuPDFLoader
 
-from docling.document_converter import DocumentConverter
-from docling.chunking import HybridChunker
 from transformers import AutoTokenizer
 
 from models.enums import ProcessingSgnal
