@@ -8,6 +8,7 @@ from stores.VectorDB import VectorDBPRoviderFactory
 from stores.llm.templates import TemplateParser
 from sqlalchemy.ext.asyncio import create_async_engine , AsyncSession
 from sqlalchemy.orm  import sessionmaker
+from utils.metrics import setup_metrics
 
 
 
@@ -16,6 +17,8 @@ from sqlalchemy.orm  import sessionmaker
 # load_dotenv(".env")
 
 @asynccontextmanager
+
+
 async def lifespan(app: FastAPI):
     # --- STARTUP LOGIC ---
     settings = get_settings()
@@ -72,6 +75,9 @@ async def lifespan(app: FastAPI):
 
 # Pass the lifespan context manager into the FastAPI instance
 app = FastAPI(lifespan=lifespan)
+
+# addiung the middleware
+setup_metrics(app=app)
 
 # Include your routers
 app.include_router(base.base_router)
