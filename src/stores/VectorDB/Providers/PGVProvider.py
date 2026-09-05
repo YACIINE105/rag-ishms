@@ -23,7 +23,18 @@ class PGVectorProvider(VectorDBInterface):
         
         self.default_index_name = lambda collection_name:f"{collection_name}_vector_idx"
 
-        self.distance_method = PGVectorDistanceMethodEnums.COSINE.value if self.distance_method == "cosine" else PGVectorDistanceMethodEnums.L2.value
+        if self.default_vector_size > 2000:  
+            self.distance_method = (
+                PGVectorDistanceMethodEnums.HALFVEC_COSINE.value 
+                if self.distance_method == "cosine" 
+                else PGVectorDistanceMethodEnums.HALFVEC_L2.value
+            )
+        else:
+            self.distance_method = (
+                PGVectorDistanceMethodEnums.COSINE.value 
+                if self.distance_method == "cosine" 
+                else PGVectorDistanceMethodEnums.L2.value
+            )
         
 
      
@@ -136,10 +147,13 @@ class PGVectorProvider(VectorDBInterface):
 
             async with self.db_client() as session:
                 async with session.begin(): 
+                    # Determine whether to use standard vector or halfvec
+                    vector_type = f"halfvec({embedding_size})" if embedding_size > 2000 else f"vector({embedding_size})"
+                    
                     columns = [
                                 f'{PGVectorTableSchemeEnums.ID.value} bigserial PRIMARY KEY',
                                 f'{PGVectorTableSchemeEnums.TEXT.value} text',
-                                f'{PGVectorTableSchemeEnums.VECTOR.value} vector({embedding_size})',
+                                f'{PGVectorTableSchemeEnums.VECTOR.value} {vector_type}', # Use the dynamic type here
                                 f"{PGVectorTableSchemeEnums.METADATA.value} jsonb DEFAULT '{{}}'::jsonb",
                                 f'{PGVectorTableSchemeEnums.CHUNK_ID.value} integer',
                                 f'FOREIGN KEY ({PGVectorTableSchemeEnums.CHUNK_ID.value}) REFERENCES chunks(chunk_id)',]
@@ -171,7 +185,7 @@ class PGVectorProvider(VectorDBInterface):
     
     
     async def create_vector_index(self, collection_name : str, 
-                                  index_type : str = PGVectorIndexTypeEnums.HNSW.value):
+                                  index_type : str = PGVectorIndexTypeEnums.HNSW.value, is_halfvec: bool = False):
         
         is_collection = await self.collection_exists(collection_name=collection_name)
         
@@ -321,8 +335,11 @@ class PGVectorProvider(VectorDBInterface):
 
         operator_map = {
             PGVectorDistanceMethodEnums.COSINE: "<=>",
+            PGVectorDistanceMethodEnums.HALFVEC_COSINE: "<=>", # Add halfvec equivalent
             PGVectorDistanceMethodEnums.L2: "<->",
+            PGVectorDistanceMethodEnums.HALFVEC_L2: "<->",     # Add halfvec equivalent
             PGVectorDistanceMethodEnums.IP: "<#>",
+            # Add PGVectorDistanceMethodEnums.HALFVEC_IP: "<#>" here if you added it to your enums!
         }
         operator = operator_map.get(distance_method)
         if operator is None:
@@ -331,12 +348,16 @@ class PGVectorProvider(VectorDBInterface):
 
         vector_str = "[" + ",".join(str(v) for v in vector) + "]"
 
+        # Dynamically determine the cast type (no colons)
+        cast_type = "halfvec" if len(vector) > 2000 else "vector"
         # always alias as "score" so the Python side has one consistent name
-        # regardless of which distance method was used
-        if distance_method == PGVectorDistanceMethodEnums.COSINE:
-            score_expr = f'1 - ({PGVectorTableSchemeEnums.VECTOR.value} {operator} :query_vector) AS score'
+        # Append the cast_type directly to the :query_vector placeholder
+        
+        # Use standard SQL CAST() to avoid SQLAlchemy colon parsing errors
+        if distance_method in [PGVectorDistanceMethodEnums.COSINE, PGVectorDistanceMethodEnums.HALFVEC_COSINE]:
+            score_expr = f'1 - ({PGVectorTableSchemeEnums.VECTOR.value} {operator} CAST(:query_vector AS {cast_type})) AS score'
         else:
-            score_expr = f'{PGVectorTableSchemeEnums.VECTOR.value} {operator} :query_vector AS score'
+            score_expr = f'{PGVectorTableSchemeEnums.VECTOR.value} {operator} CAST(:query_vector AS {cast_type}) AS score'
 
         search_sql = sql_text(
             f'SELECT {PGVectorTableSchemeEnums.ID.value}, '
@@ -344,7 +365,7 @@ class PGVectorProvider(VectorDBInterface):
             f'{PGVectorTableSchemeEnums.METADATA.value}, '
             f'{score_expr} '
             f'FROM {collection_name} '
-            f'ORDER BY {PGVectorTableSchemeEnums.VECTOR.value} {operator} :query_vector '
+            f'ORDER BY {PGVectorTableSchemeEnums.VECTOR.value} {operator} CAST(:query_vector AS {cast_type}) ' 
             f'LIMIT :limit'
         )
 
@@ -363,3 +384,4 @@ class PGVectorProvider(VectorDBInterface):
             self.logger.error(f"failed to search {collection_name}: {e}")
             return None
                 
+    

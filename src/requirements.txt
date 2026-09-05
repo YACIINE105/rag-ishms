@@ -21,3 +21,13 @@ alembic==1.19.1
 psycopg2==2.9.12
 pgvector==0.5.0
 nltk==3.10.3
+transformers==5.16.1
+docling==2.123.0
+
+# Monitoring and Metrics
+prometheus-client==0.26.0
+starlette-exporter==0.24.0
+
+# Health check 
+fastapi-health==0.4.0
+

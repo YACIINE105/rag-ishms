@@ -95,6 +95,7 @@ class NLPController(BaseController):
         if not query_vector:
             return False
         
+        # print(query_vector, "\n", "\n")
         
         results = await self.vector_db_client.search_by_vector(collection_name=collection_name,
                                                         vector=query_vector,

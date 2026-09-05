@@ -111,6 +111,9 @@ async def process_endpoint(request :Request, project_id:int, process_request:Pro
     chunk_size = process_request.chunk_size
     overlap_size = process_request.overlap_size
     do_reset  =process_request.do_reset
+    breakpoint_threshold_type = process_request.breakpoint_threshold_type
+    breakpoint_threshold_amount = process_request.breakpoint_threshold_amount
+    do_emantic_chunk = process_request.do_emantic_chunk
     
     
     projectmodel = await ProjectModel.create_instance(db_client=request.app.db_client)
@@ -192,7 +195,13 @@ async def process_endpoint(request :Request, project_id:int, process_request:Pro
             logger.error(f"error while processing  file: {file_id}")
             continue
         
-        file_chunks = process_controller.process_file_content(file_content=file_content, file_id=file_id,
+        if do_emantic_chunk == 1:
+            file_chunks = process_controller.process_file_content_using_docling(file_content=file_content, file_id=file_id,
+                                                                           breakpoint_threshold_type=breakpoint_threshold_type,
+                                                                           breakpoint_threshold_amount=breakpoint_threshold_amount)
+            logger.info(f"STARTING SPECIAL CHUNKING")
+        else:
+            file_chunks = process_controller.process_file_content(file_content=file_content, file_id=file_id,
                                                         chunk_size=chunk_size, overlap_size=overlap_size)
 
         if file_chunks is None or len(file_chunks) == 0:
