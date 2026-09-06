@@ -1,2 +1,5 @@
-mongodb
-.env
+env/.env.*
+env/.env
+rag_ishms/alembic.ini
+
+!env/.env.example.*

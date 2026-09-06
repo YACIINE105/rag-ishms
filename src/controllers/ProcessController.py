@@ -5,10 +5,6 @@ import os
 from langchain_community.document_loaders import TextLoader
 from langchain_community.document_loaders import PyMuPDFLoader
 
-from docling.document_converter import DocumentConverter
-from docling.chunking import HybridChunker
-from transformers import AutoTokenizer
-
 from models.enums import ProcessingSgnal
 from typing import List
 from dataclasses import dataclass
@@ -26,7 +22,6 @@ class ProcessController(BaseController):
         
         self.project_id = project_id
         self.project_path = ProjectController().get_project_path(project_id=project_id)
-        # self.tokenizer = AutoTokenizer.from_pretrained("nomic-ai/nomic-embed-text-v1.5")
         
         
         
@@ -116,17 +111,4 @@ class ProcessController(BaseController):
         return chunks                
 
 
-
-    def process_file_content_using_docling(self, file_content, file_id:str, chunk_size:int=100, overlap_size:int=20):
-        tokenizer = AutoTokenizer.from_pretrained(self.tokenizer)
-
-        # 3. Chunk
-        chunker = HybridChunker(
-            tokenizer=tokenizer,
-            max_tokens=chunk_size
-                                )
-        
-        chunks = list(chunker.chunk(file_content))
-        
-        return chunks
 
