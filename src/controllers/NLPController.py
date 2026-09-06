@@ -42,7 +42,7 @@ class NLPController(BaseController):
         texts = [c.chunk_text for c in chunks]
         metadata = [c.chunk_metadata for c in chunks]
         vectors = self.embedding_client.embed_text(text=texts, 
-                                                   document_type = DocumentTypeEnum.DOCUMENT.value)
+                                                   document_type = DocumentTypeEnum.DOCUMENT.value, input_type="passage")
         batch_size = 50
         
         ###################
@@ -84,7 +84,7 @@ class NLPController(BaseController):
         query_vector = None
         vectors = self.embedding_client.embed_text(
                         text=text, 
-                        document_type=DocumentTypeEnum.QUERY.value
+                        document_type=DocumentTypeEnum.QUERY.value, input_type="query"
                     )
         if not vectors or len(vectors)==0 :
             return False
