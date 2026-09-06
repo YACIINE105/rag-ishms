@@ -119,11 +119,18 @@ class PGVectorProvider(VectorDBInterface):
 
 
     async def delete_vectors_by_asset_id(self, collection_name: str, asset_id: int) -> bool:
+        exists = await self.collection_exists(collection_name=collection_name)
+        if not exists:
+            self.logger.info(
+                f"Collection {collection_name} does not exist yet, skipping vector deletion for asset {asset_id}"
+            )
+            return True  # nothing to delete, not a failure
+
         sql_query = sql_text(
             f'DELETE FROM {collection_name} WHERE {PGVectorTableSchemeEnums.CHUNK_ID.value} IN '
             f'(SELECT chunk_id FROM chunks WHERE chunk_asset_id = :asset_id)'
         )
-        
+
         try:
             async with self.db_client() as session:
                 async with session.begin():
@@ -205,7 +212,7 @@ class PGVectorProvider(VectorDBInterface):
                 self.logger.info(f"START: creating vector index for collection:{collection_name}")
 
                 index_name = self.default_index_name(collection_name=collection_name)
-                create_index_sql = sql_text(f'CREATE INDEX {index_name} ON {collection_name} '
+                create_index_sql = sql_text(f'CREATE INDEX IF NOT EXISTS {index_name} ON {collection_name} '
                                             f'USING {index_type} ({PGVectorTableSchemeEnums.VECTOR.value} {self.distance_method})'
                                             )
                 

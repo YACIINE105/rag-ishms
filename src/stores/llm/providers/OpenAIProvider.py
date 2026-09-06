@@ -84,7 +84,7 @@ class OpenAIProvider(LLM_Interface):
         
         
         
-    def embed_text(self, text:Union[str, List[str]], document_type:str=None):
+    def embed_text(self, text:Union[str, List[str]], input_type:str=None, document_type:str=None):
         
         if not self.client:
             self.logger.error("OpenAI client wasn't set ")
@@ -98,9 +98,11 @@ class OpenAIProvider(LLM_Interface):
             text = [text]
         
         response = self.client.embeddings.create(
-            model=self.embedding_model_id, input=text,
-            encoding_format="float"
-        ) 
+        model=self.embedding_model_id,
+        input=text,
+        encoding_format="float",
+        extra_body={"input_type": input_type}
+    ) 
         
         if not response or not response.data or len(response.data) == 0 or not response.data[0].embedding:
             self.logger.error("Error while embedding text with OpenAI")

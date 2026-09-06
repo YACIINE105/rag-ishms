@@ -7,6 +7,10 @@ services:
     container_name: fastapi
     ports:
       - "8000:8000"
+    
+    volumes:
+      - fast_api_data:/app/assets
+
     networks:
       - backend
     restart: always
@@ -143,4 +147,5 @@ volumes:
   qdrant_data:
   prometheus_data:
   grafana_data:
+  fast_api_data:
   

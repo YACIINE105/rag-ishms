@@ -28,6 +28,9 @@ async def upload_data(request:Request, project_id:int, file:UploadFile,
     projectmodel = await ProjectModel.create_instance(db_client=request.app.db_client)
     
     project = await projectmodel.get_project_or_create_one(project_id=project_id)
+    nlp_controller = NLPController(vector_db_client=request.app.vector_db_client,
+                                       generation_client=request.app.generation_client,
+                                       embedding_client=request.app.embedding_client)
     # Vaildating the uploaded file properities.
     data_controller = DataController()
     
@@ -72,28 +75,35 @@ async def upload_data(request:Request, project_id:int, file:UploadFile,
     
     asset_record = await asset_model.create_asset(asset=asset_resource)
     
-    old_asset_info, deleted_count = await asset_model.delete_asset_by_name(
-                                        asset_project_id=project.project_id,
-                                        asset_name=file.filename,
-                                        exclude_asset_id=asset_record.asset_id  
-                                    )
-    
-    chunk_model = await ChunkModel.create_instance(
-                        db_client=request.app.db_client)
+    old_asset_info = await asset_model.get_old_assets(
+    asset_project_id=project.project_id,
+    asset_name=file.filename,
+    exclude_asset_id=asset_record.asset_id
+                    )
+
+    chunk_model = await ChunkModel.create_instance(db_client=request.app.db_client)
     
     # old_asset_ids = [id["id"] for id in old_asset_info]
     
     # old_asset_unique_name = [id["unique_asset_name"] for id in old_asset_info]
     
+    collection_name = nlp_controller.create_collection_name(project_id=project.project_id)
+
     for old_asset in old_asset_info:
+        await nlp_controller.vector_db_client.delete_vectors_by_asset_id(
+            collection_name=collection_name, asset_id=old_asset["id"]
+        )
         await chunk_model.delete_chunk_by_asset_id(asset_id=old_asset["id"])
-        
+
         old_file_path = os.path.join(project_dir_path, old_asset["unique_asset_name"])
         try:
             if os.path.exists(old_file_path):
                 os.remove(old_file_path)
         except Exception as e:
             logger.error(f"Error while deleting old file {old_file_path}: {e}")
+
+    old_asset_ids = [a["id"] for a in old_asset_info]
+    deleted_count = await asset_model.delete_assets_by_ids(old_asset_ids)
         
     
     return JSONResponse(content={"status":ResponseSignal.File_Upload_Success.value,
