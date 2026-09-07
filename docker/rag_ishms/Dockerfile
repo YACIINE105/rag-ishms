@@ -21,6 +21,12 @@ RUN uv pip install --no-cache-dir -r requirements.txt --system
 
 COPY src/ .
 
+# Copy the pre-downloaded HF cache from the WSL host into the image,
+# so models are baked in and never re-downloaded at container startup.
+ENV HF_HOME=/app/.hf_cache
+COPY hf_cache/ /app/.hf_cache/
+ENV HF_HUB_OFFLINE=1
+
 RUN mkdir -p /app/models/db_schems/rag_ishms
 
 COPY docker/rag_ishms/alembic.ini /app/models/db_schems/rag_ishms/alembic.ini
