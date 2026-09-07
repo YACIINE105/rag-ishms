@@ -3,7 +3,7 @@ from fastapi import FastAPI
 from routes import base, data, checker, nlp
 from motor.motor_asyncio import AsyncIOMotorClient
 from helpers.config import get_settings
-from stores.llm import LLMProviderFactory
+from stores.llm import LLMProviderFactory, CrossEncoderReranker
 from stores.VectorDB import VectorDBPRoviderFactory
 from stores.llm.templates import TemplateParser
 from sqlalchemy.ext.asyncio import create_async_engine , AsyncSession
@@ -54,6 +54,8 @@ async def lifespan(app: FastAPI):
     app.vector_db_client = vector_db_provider_factory.create(settings.VECTOR_DB_BACKEND)
     
     app.vector_db_client.db_client = app.db_client
+    
+    app.reranker_client = CrossEncoderReranker()
     
     await app.vector_db_client.connect()
     
