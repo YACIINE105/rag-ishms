@@ -4,15 +4,20 @@ from stores.llm.LLMEnums import DocumentTypeEnum
 from models.enums import DataBaseEnum
 from typing import List
 import time, json
+import logging
+
 
 class NLPController(BaseController):
-    def __init__(self, generation_client, embedding_client, vector_db_client, template_parser = None):
+    def __init__(self, generation_client, embedding_client, vector_db_client, reranker_client=None, template_parser = None):
         super().__init__()
         
         self.generation_client = generation_client
         self.embedding_client = embedding_client
         self.vector_db_client = vector_db_client
         self.template_parser = template_parser
+        self.reranker_client = reranker_client
+        self.logger = logging.getLogger('uvicorn.error')
+
 
     def create_collection_name(self, project_id:str):
         return f"collection_{self.vector_db_client.default_vector_size}_{project_id}".strip()
@@ -78,7 +83,7 @@ class NLPController(BaseController):
         return True
     
     
-    async def search_vector_db_collection(self, project:Project, text:str, limit: int=5):
+    async def search_vector_db_collection(self, project:Project, text:str, limit: int=5, rerank_pool: int = 30):
         collection_name = self.create_collection_name(project_id=project.project_id)
         
         query_vector = None
@@ -97,14 +102,32 @@ class NLPController(BaseController):
         
         # print(query_vector, "\n", "\n")
         
-        results = await self.vector_db_client.search_by_vector(collection_name=collection_name,
-                                                        vector=query_vector,
-                                                        k = limit)
-        
-        if not results:
+        candidates = await self.vector_db_client.search_by_vector(collection_name=collection_name,
+                                                            vector=query_vector, k=rerank_pool
+                                                )
+              
+        if not candidates:
             return False
         
-        return results
+        texts = [c.text for c in candidates]
+        
+        self.logger.info(f"starting rerank process")
+        
+        reranked = self.reranker_client.rerank(query=text, documents=texts, top_n=limit)
+        if not reranked:
+            return candidates[:limit]  # fallback: no rerank, just truncate
+
+        return [candidates[i] for i, _ in reranked]
+    
+    
+        # results = await self.vector_db_client.search_by_vector(collection_name=collection_name,
+        #                                                 vector=query_vector,
+        #                                                 k = limit)
+        
+        # if not results:
+        #     return False
+        
+        # return results
         
         
     async def answer_rag_query(self, project:Project, query:str, limit:int = 5):
