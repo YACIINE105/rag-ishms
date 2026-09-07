@@ -19,13 +19,15 @@ COPY src/requirements.txt .
 
 RUN uv pip install --no-cache-dir -r requirements.txt --system
 
-COPY src/ .
-
 # Copy the pre-downloaded HF cache from the WSL host into the image,
 # so models are baked in and never re-downloaded at container startup.
+# Placed BEFORE the volatile src/ copy below so this large layer stays
+# cached across rebuilds instead of being re-created every time src/ changes.
 ENV HF_HOME=/app/.hf_cache
 COPY hf_cache/ /app/.hf_cache/
 ENV HF_HUB_OFFLINE=1
+
+COPY src/ .
 
 RUN mkdir -p /app/models/db_schems/rag_ishms
 
