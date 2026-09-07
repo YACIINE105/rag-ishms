@@ -40,7 +40,7 @@ sudo apt install libpq-dev gcc python3-dev
 ```
 
 ```bash
- uvicorn main:app --reload --host 0.0.0.0 --port 5001 
+ uvicorn main:app --reload --host 0.0.0.0 --port 8000 
 ```
 
 ### Run Dokcer Compose Service
