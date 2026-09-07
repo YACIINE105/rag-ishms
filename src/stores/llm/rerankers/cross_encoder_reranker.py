@@ -3,8 +3,7 @@ import torch
 import logging
 
 class CrossEncoderReranker:
-    def __init__(self, model_name: str = "BAAI/bge-reranker-v2-m3"):
-        self.model = CrossEncoder(model_name)
+    def __init__(self, model_name: str = "BAAI/bge-reranker-v2-m3", device: str = None):
         device = device or ("cuda" if torch.cuda.is_available() else "cpu")
         self.model = CrossEncoder(model_name, device=device)
         self.logger = logging.getLogger(__name__)
@@ -15,6 +14,3 @@ class CrossEncoderReranker:
         scores = self.model.predict(pairs)
         ranked = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)
         return ranked[:top_n]
-    
-    
-    

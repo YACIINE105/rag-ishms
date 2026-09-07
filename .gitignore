@@ -2,3 +2,4 @@ notes.txt
 drug_checker.py
 ai-models/
 q-data/
+src/stores/llm/rerankers/test.py
