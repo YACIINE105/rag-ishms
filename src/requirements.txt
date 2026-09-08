@@ -32,3 +32,4 @@ starlette-exporter==0.24.0
 # Health check 
 fastapi-health==0.4.0
 
+sentence-transformers==<that_version>
