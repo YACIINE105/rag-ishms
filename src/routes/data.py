@@ -30,7 +30,8 @@ async def upload_data(request:Request, project_id:int, file:UploadFile,
     project = await projectmodel.get_project_or_create_one(project_id=project_id)
     nlp_controller = NLPController(vector_db_client=request.app.vector_db_client,
                                        generation_client=request.app.generation_client,
-                                       embedding_client=request.app.embedding_client)
+                                       embedding_client=request.app.embedding_client, 
+                                       reranker_client=request.app.reranker_client)
     # Vaildating the uploaded file properities.
     data_controller = DataController()
     
@@ -135,7 +136,8 @@ async def process_endpoint(request :Request, project_id:int, process_request:Pro
     nlp_controller = NLPController(generation_client=request.app.generation_client,
                                    embedding_client=request.app.embedding_client,
                                    vector_db_client=request.app.vector_db_client,
-                                   template_parser=request.app.template_parser)
+                                   template_parser=request.app.template_parser, 
+                                   reranker_client=request.app.reranker_client)
 
     ##### EDIT 1: hoisted collection_name computation here, out of the
     ##### do_reset branches, so it's in scope for the loop's per-asset

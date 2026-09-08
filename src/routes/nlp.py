@@ -34,7 +34,8 @@ async def index_project(request:Request, project_id:int, push_request:PushReques
     
     nlp_controller = NLPController(vector_db_client=request.app.vector_db_client,
                                    generation_client=request.app.generation_client,
-                                   embedding_client=request.app.embedding_client)
+                                   embedding_client=request.app.embedding_client, 
+                                   reranker_client=request.app.reranker_client)
         
     has_records = True
     page_number = 1
@@ -106,7 +107,8 @@ async def get_project_index_info(request:Request, project_id:int):
 
     nlp_controller = NLPController(vector_db_client=request.app.vector_db_client,
                                 generation_client=request.app.generation_client,
-                                embedding_client=request.app.embedding_client)
+                                embedding_client=request.app.embedding_client, 
+                                reranker_client=request.app.reranker_client)
     
     collection_info = await nlp_controller.get_vector_db_collection_info(project=project)
     
@@ -167,7 +169,8 @@ async def answer_index(request:Request, project_id:int, search_request:SearchReq
     nlp_controller = NLPController(vector_db_client=request.app.vector_db_client,
                                 generation_client=request.app.generation_client,
                                 embedding_client=request.app.embedding_client,
-                                template_parser=request.app.template_parser,)
+                                template_parser=request.app.template_parser,
+                                reranker_client=request.app.reranker_client)
     
     answer, full_prompt, chat_history = await nlp_controller.answer_rag_query(project=project,
                                     query = search_request.text,

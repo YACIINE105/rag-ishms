@@ -113,7 +113,7 @@ class NLPController(BaseController):
         
         self.logger.info(f"starting rerank process")
         
-        reranked = self.reranker_client.rerank(query=text, documents=texts, top_n=limit)
+        reranked = self.reranker_client.rerank(query=text, documents=texts, top_n=limit)    
         if not reranked:
             return candidates[:limit]  # fallback: no rerank, just truncate
 
