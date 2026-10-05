@@ -10,6 +10,7 @@ services:
     
     volumes:
       - fast_api_data:/app/assets
+      - ${MODEL_DIR:-../ai-models}:/app/ai-models:ro
 
     networks:
       - backend
@@ -57,8 +58,19 @@ services:
 
   # Qdrant (VectorDB)
   qdrant:
+    profiles: ["qdrant"]
     image: qdrant/qdrant:v1.19
     container_name: qdrant
+    healthcheck:
+      test:
+        - CMD
+        - bash
+        - -ec
+        - 'exec 3<>/dev/tcp/127.0.0.1/6333; printf "GET /readyz HTTP/1.0\r\nHost: localhost\r\n\r\n" >&3; IFS= read -r line <&3; [[ "$$line" == *" 200 "* ]]'
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     ports:
       - "6333:6333"
       # for the grpc service
