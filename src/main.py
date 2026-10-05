@@ -30,7 +30,9 @@ async def lifespan(app: FastAPI):
         password=settings.POSTGRES_PASSWORD, host=settings.POSTGRES_HOST,
         port=int(settings.POSTGRES_PORT), database=settings.POSTGRES_MAIN_DATABASE,
     )
-    app.db_engine = create_async_engine(postgres_conn)
+    app.db_engine = create_async_engine(
+        postgres_conn, connect_args={"timeout": 3, "command_timeout": 3},
+    )
 
     # Setup MongoDB
     # app.mongo_db_connection = AsyncIOMotorClient(settings.MONGO_URL)

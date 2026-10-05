@@ -27,9 +27,25 @@ class HealthResponse(BaseModel):
     version: str
 
 
+def consume_check_result(task):
+    # Timed-out operations may finish cancelling after the response is sent.
+    if not task.cancelled():
+        task.exception()
+
+
 async def checked(name, operation):
+    task = asyncio.create_task(operation())
     try:
-        return "ok", await asyncio.wait_for(operation(), timeout=CHECK_TIMEOUT)
+        done, _ = await asyncio.wait({task}, timeout=CHECK_TIMEOUT)
+        if not done:
+            task.cancel()
+            task.add_done_callback(consume_check_result)
+            raise TimeoutError("Readiness deadline exceeded")
+        return "ok", task.result()
+    except asyncio.CancelledError:
+        task.cancel()
+        task.add_done_callback(consume_check_result)
+        raise
     except Exception:
         logger.warning("Readiness check failed: %s", name)
         return "error", None
