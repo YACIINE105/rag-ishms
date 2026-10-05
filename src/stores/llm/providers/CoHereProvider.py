@@ -96,7 +96,7 @@ class CohereProvider(LLM_Interface):
                 }
 
 
-    def embed_text(self, text:Union[str, List[str]], document_type:str=None):
+    def embed_text(self, text:Union[str, List[str]], document_type:str=None, input_type:str=None):
 
         if not self.client:
             self.logger.error("CoHere client wasn't set ")

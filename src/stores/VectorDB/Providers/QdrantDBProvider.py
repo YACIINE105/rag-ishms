@@ -123,11 +123,11 @@ class QdrantDBProvider(VectorDBInterface):
         return True
     
     
-    async def search_by_vector(self, collection_name: str, vector: list, limit: int = 5):
+    async def search_by_vector(self, collection_name: str, vector: list, k: int = 5):
         results = self.client.query_points(
             collection_name=collection_name,
             query=vector,
-            limit=limit,
+            limit=k,
         )
 
         return [RetrievedDocuments(

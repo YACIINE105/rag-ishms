@@ -80,7 +80,7 @@ class GoogleAIProvider(LLM_Interface):
             return None
         
 
-    def embed_text(self, text:str, document_type:str=None):
+    def embed_text(self, text:str, document_type:str=None, input_type:str=None):
         if not self.client:
             self.logger.error("OpenAI client wasn't set ")
             return None

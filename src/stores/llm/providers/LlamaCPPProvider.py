@@ -98,7 +98,7 @@ class LlamaCPPProvider(LLM_Interface):
             return None
 
 
-    def embed_text(self, text: Union[str, List[str]], document_type: str = None):
+    def embed_text(self, text: Union[str, List[str]], document_type: str = None, input_type:str=None):
         if not self.embedding_client:
             self.logger.error("LlamaCPP embedding client wasn't set")
             return None
