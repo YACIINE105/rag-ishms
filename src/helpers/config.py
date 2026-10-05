@@ -1,5 +1,6 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from typing import List
+from functools import lru_cache
 
 class Settings(BaseSettings):
     
@@ -65,9 +66,9 @@ class Settings(BaseSettings):
     VECTOR_DB_PATH : str
     VECTOR_DB_PGVEC_INDEX_THRESHOLD:int
     
-    class Config:
-        env_file = ".env"    
+    model_config = SettingsConfigDict(env_file=".env")    
     
     
-def get_settings():
+@lru_cache(maxsize=1)
+def get_settings() -> Settings:
     return Settings()
