@@ -83,3 +83,38 @@ The production image does not enable reload. Rebuild after code changes.
 The entrypoint runs migrations and then executes the supplied command, so CMD
 or Compose `command` controls server flags. The runtime image contains the
 virtual environment and runtime libraries, without builder compilers.
+
+
+## Building from WSL
+
+Run Docker commands inside the WSL distribution containing the repository.
+Building from a Windows `\\wsl.localhost` path can fail when Docker transfers
+Hugging Face snapshot symlinks. The native Linux client preserves those links.
+
+The default image installs CPU-only PyTorch because this Compose configuration
+does not request a GPU. `TORCH_VERSION` and `TORCH_INDEX_URL` are Docker build
+arguments for an alternative PyTorch wheel source. GPU deployment also requires
+matching drivers, runtime configuration, and GPU access in Compose. Native llama
+builds are limited to two compiler jobs to reduce peak build memory.
+
+For container settings, use `POSTGRES_HOST=pgvector` and `HF_HOME=/app/.hf_cache`.
+Each environment assignment must occupy its own line; do not copy host cache
+paths into the application container configuration.
+
+
+## Runtime smoke checks
+
+After the stack becomes healthy, run these checks from the repository root:
+
+```bash
+python docker/smoke_test.py --base-url http://localhost:8000
+python docker/smoke_test.py --base-url http://localhost
+```
+
+They verify real readiness signals, request ID headers, POST routes, answer
+schema and 422 validation through both FastAPI and nginx. They do not upload
+documents or invoke text generation. Real readiness probes still contact the
+configured model services. Use `--expect-unhealthy` to verify HTTP 503 only when
+deliberately testing a dependency outage in an isolated environment.
+
+See [recorded verification](VERIFICATION.md) for the tested image behavior and remaining scope.

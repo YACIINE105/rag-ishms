@@ -6,8 +6,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
+# Compose does not expose a GPU; avoid shipping CUDA libraries in the default image.
+ARG TORCH_VERSION=2.14.1
+ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cpu
+RUN pip install --no-cache-dir "torch==${TORCH_VERSION}" --index-url "${TORCH_INDEX_URL}"
 COPY src/requirements.txt ./requirements.txt
-RUN pip install --no-cache-dir -r requirements.txt
+RUN CMAKE_BUILD_PARALLEL_LEVEL=2 pip install --no-cache-dir -r requirements.txt
 
 FROM python:3.12-slim-bookworm AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \
@@ -26,7 +30,7 @@ COPY --chown=appuser:appuser src/ /app/
 COPY --chown=appuser:appuser docker/rag_ishms/alembic.example.ini /app/models/db_schems/rag_ishms/alembic.ini
 COPY --chmod=755 docker/rag_ishms/entrypoint.sh /entrypoint.sh
 RUN mkdir -p /app/assets /app/ai-models /app/.hf_cache /home/appuser \
-    && chown -R appuser:appuser /app/assets /app/ai-models /app/.hf_cache /home/appuser
+    && chown appuser:appuser /app/assets /app/ai-models /app/.hf_cache /home/appuser
 USER appuser
 HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \
     CMD curl --fail --silent http://localhost:8000/health || exit 1
