@@ -1,6 +1,12 @@
 from fastapi import  APIRouter, Depends, UploadFile, status, Request
 from fastapi.responses import JSONResponse
-from .schemes import PushRequest, SearchRequest
+from .schemes import (
+    PushRequest,
+    SearchRequest,
+    AnswerResponse,
+    SearchResponse,
+)
+from uuid import uuid4
 from models import ProjectModel, ChunkModel
 from controllers import NLPController
 from models.enums import ResponseSignal
@@ -120,7 +126,9 @@ async def get_project_index_info(request:Request, project_id:int):
                 )
     
     
-@nlp_router.get("/index/search/{project_id}")
+@nlp_router.post("/index/search/{project_id}",
+    response_model=SearchResponse,)
+
 async def search_index(request:Request, project_id:int, search_request:SearchRequest):
     project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
     project = await project_model.get_project_or_create_one(project_id=project_id)
@@ -148,15 +156,16 @@ async def search_index(request:Request, project_id:int, search_request:SearchReq
                                 }
                 )
     
-    return JSONResponse(status_code=status.HTTP_200_OK,
-                        content={"signal":ResponseSignal.VECTORS_SEARCH_Success.value,
-                                 "indexed_vectors":[doc.model_dump() for doc in indexed_vectors]
-                                }
-                )
+    return SearchResponse(
+                    signal=ResponseSignal.VECTORS_SEARCH_Success.value,
+                    indexed_vectors=indexed_vectors,
+                        )
     
     
 
-@nlp_router.get("/index/answer/{project_id}")
+@nlp_router.post("/index/answer/{project_id}",
+    response_model=AnswerResponse,)
+
 async def answer_index(request:Request, project_id:int, search_request:SearchRequest):
     project_model = await ProjectModel.create_instance(db_client=request.app.db_client)
     project = await project_model.get_project_or_create_one(project_id=project_id)
@@ -172,21 +181,26 @@ async def answer_index(request:Request, project_id:int, search_request:SearchReq
                                 template_parser=request.app.template_parser,
                                 reranker_client=request.app.reranker_client)
     
-    answer, full_prompt, chat_history = await nlp_controller.answer_rag_query(project=project,
-                                    query = search_request.text,
-                                    limit=search_request.limit)
+    result = await nlp_controller.answer_rag_query(
+        project=project,
+        query=search_request.text,
+        limit=search_request.limit,
+    )
     
-    if not answer:
+    
+    if result is None:
         return JSONResponse(
-                    status_code=status.HTTP_400_BAD_REQUEST,
-                    content={"signal":ResponseSignal.RAG_ANSWER_FAILED.value})  
-        
-    return JSONResponse(status_code=status.HTTP_200_OK,
-                        content={"signal" : ResponseSignal.RAG_ANSWER_SUCCESS.value,
-                                 "Answer" : answer,
-                                 "full_prompt" : full_prompt,
-                                 "chat_history" : chat_history
-                                }
-                )
-    
-    
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "signal": ResponseSignal.RAG_ANSWER_FAILED.value,
+            },
+        )
+
+
+    return AnswerResponse(
+        signal=ResponseSignal.RAG_ANSWER_SUCCESS.value,
+        answer=result["answer"],
+        sources=result["sources"],
+        request_id=str(uuid4()),
+        prompt_version=result["prompt_version"],
+    )

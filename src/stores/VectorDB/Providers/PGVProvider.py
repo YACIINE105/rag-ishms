@@ -66,8 +66,8 @@ class PGVectorProvider(VectorDBInterface):
         async with self.db_client() as session:
             records = []
             async with session.begin():
-                tables = sql_text('SELECT tablename FROM pg_tables WHERE tablename LIKE :prefix')
-                results = await session.execute(tables, {"prefix": f"{self.pgvector_table_prefix}%"})
+                tables = sql_text('SELECT tablename FROM pg_tables WHERE schemaname = current_schema() AND tablename ~ :pattern')
+                results = await session.execute(tables, {"pattern": r"^collection_[0-9]+_[0-9]+$"})
                 records = results.scalars().all()
             
             return records
@@ -384,11 +384,29 @@ class PGVectorProvider(VectorDBInterface):
                 records = result.fetchall()
 
                 return [
-                    RetrievedDocuments(text=record.text, score=record.score)
-                    for record in records
-                ]
+                        RetrievedDocuments(text=record.text, score=record.score,
+                                           metadata=record.metadata or {},)
+                            for record in records
+                        ]
+
         except Exception as e:
             self.logger.error(f"failed to search {collection_name}: {e}")
             return None
                 
-    
+
+    async def get_indexed_documents_count(self) -> int:
+        tables = await self.list_collections()
+        if not tables:
+            return 0
+        if not all(re.fullmatch(r"collection_[0-9]+_[0-9]+", table) for table in tables):
+            raise ValueError("Invalid vector collection name")
+        indexed_chunks = " UNION ".join(
+            f'SELECT {PGVectorTableSchemeEnums.CHUNK_ID.value} AS chunk_id FROM "{table}"'
+            for table in tables
+        )
+        query = sql_text(
+            "SELECT COUNT(DISTINCT c.chunk_asset_id) FROM chunks c "
+            f"JOIN ({indexed_chunks}) indexed ON indexed.chunk_id = c.chunk_id"
+        )
+        async with self.db_client() as session:
+            return int((await session.execute(query)).scalar_one())

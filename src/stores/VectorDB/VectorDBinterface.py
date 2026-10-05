@@ -3,6 +3,11 @@ from abc import ABC, abstractmethod
 from typing import List
 
 class VectorDBInterface(ABC):
+    @abstractmethod
+    async def get_indexed_documents_count(self) -> int:
+        """Probe the index and count distinct indexed assets, not chunks."""
+        pass
+
     
     @abstractmethod
     def connect(self):
@@ -45,4 +50,3 @@ class VectorDBInterface(ABC):
     @abstractmethod
     def search_by_vector(self, collection_name:str, vector:list, k:int):
         pass
-    

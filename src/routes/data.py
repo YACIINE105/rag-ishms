@@ -154,13 +154,15 @@ async def process_endpoint(request :Request, project_id:int, process_request:Pro
             return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST, content={"signal":ResponseSignal.FILE_RECORD_ERROR.value})
             
         
-        project_file_ids = {asset_record.asset_id:asset_record.unique_asset_name}
+        project_file_ids = {asset_record.asset_id: {"file_id": asset_record.unique_asset_name,
+                                                    "asset_name": asset_record.asset_name,}}
     
     else:
 
         project_files = await asset_model.get_all_project_assets(asset_project_id=project.project_id,
                                                                  asset_type=AssetTypeEnum.FILE.value)
-        project_file_ids = {record.asset_id: record.unique_asset_name for record in project_files}
+        project_file_ids = { record.asset_id: {"file_id": record.unique_asset_name,"asset_name": record.asset_name,}
+                            for record in project_files }
         no_file_id = True
     
     
@@ -192,19 +194,27 @@ async def process_endpoint(request :Request, project_id:int, process_request:Pro
                                                                               asset_id = asset_id)
             _ = await chunk_model.delete_chunk_by_asset_id(asset_id=asset_id)
 
-    elif do_reset!=1 and no_file_id:
+    elif do_reset != 1 and no_file_id:
         filtered_file_ids = {}
-        for asset_id, unique_name in project_file_ids.items():
+
+        for asset_id, file_info in project_file_ids.items():
             if not await chunk_model.has_chunks_for_asset(asset_id):
-                filtered_file_ids[asset_id] = unique_name
+                filtered_file_ids[asset_id] = file_info
+
         project_file_ids = filtered_file_ids
         
         
-    for asset_id, file_id in project_file_ids.items():
-        file_content = process_controller.get_file_content(file_id=file_id)
+    for asset_id, file_info in project_file_ids.items():
+
+        file_id = file_info["file_id"]
+        asset_name = file_info["asset_name"]
+
+        file_content = process_controller.get_file_content(
+            file_id=file_id
+        )
         
         if not file_content:
-            logger.error(f"error while processing  file: {file_id}")
+            logger.error(f"error while processing file: {file_id}")
             continue
         
         # if do_emantic_chunk == 1:
@@ -232,15 +242,17 @@ async def process_endpoint(request :Request, project_id:int, process_request:Pro
         await chunk_model.delete_chunk_by_asset_id(asset_id=asset_id)
 
         file_chunks_records = [
-            DataChunk(
-                chunk_metadata=chunk.metadata,
-                chunk_order=i+1,
-                chunk_project_id=project.project_id,
-                chunk_text=chunk.page_content,
-                chunk_asset_id = asset_id
-            )
-            for i, chunk in enumerate(file_chunks)
-        ]
+                                DataChunk(
+                                    chunk_metadata={
+                                        **chunk.metadata,
+                                        "asset_name": asset_name,
+                                    },
+                                    chunk_order=i+1,
+                                    chunk_project_id=project.project_id,
+                                    chunk_text=chunk.page_content,
+                                    chunk_asset_id=asset_id
+                                )
+                                for i, chunk in enumerate(file_chunks) ]
 
         # is the number of inserted chunks.
         number_of_records += await chunk_model.insert_many_chunks(chunks=file_chunks_records)

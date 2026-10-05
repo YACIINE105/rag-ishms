@@ -1,5 +1,5 @@
 from .rag_ishms_base import SQLAlchemyBase
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import Column, Integer, DateTime, func, String, ForeignKey
 from sqlalchemy.dialects.postgresql import UUID, JSONB
 from sqlalchemy.orm import relationship
@@ -32,5 +32,4 @@ class DataChunk(SQLAlchemyBase):
 class RetrievedDocuments(BaseModel):
     text:str
     score:float
-    
-    
+    metadata: dict = Field(default_factory=dict)

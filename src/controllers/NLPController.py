@@ -5,6 +5,7 @@ from models.enums import DataBaseEnum
 from typing import List
 import time, json
 import logging
+from utils.inference import run_serialized
 
 
 class NLPController(BaseController):
@@ -45,9 +46,11 @@ class NLPController(BaseController):
         # step 2 : manage items
         
         texts = [c.chunk_text for c in chunks]
-        metadata = [c.chunk_metadata for c in chunks]
-        vectors = self.embedding_client.embed_text(text=texts, 
+        metadata = [{**(c.chunk_metadata or {}), "asset_id": c.chunk_asset_id} for c in chunks]
+        vectors = await run_serialized(self.embedding_client, self.embedding_client.embed_text, text=texts,
                                                    document_type = DocumentTypeEnum.DOCUMENT.value, input_type="passage")
+        if not vectors or len(vectors) != len(texts):
+            return False
         batch_size = 50
         
         ###################
@@ -71,7 +74,7 @@ class NLPController(BaseController):
                 )
         # step 4 : insert into  vector db 
         
-        _ = await self.vector_db_client.insert_many(
+        is_inserted = await self.vector_db_client.insert_many(
             collection_name = self.create_collection_name(project_id=project.project_id),
             texts = texts,
             vectors = vectors,
@@ -80,14 +83,14 @@ class NLPController(BaseController):
             batch_size=batch_size
         )
         
-        return True
+        return bool(is_inserted)
     
     
     async def search_vector_db_collection(self, project:Project, text:str, limit: int=5, rerank_pool: int = 30):
         collection_name = self.create_collection_name(project_id=project.project_id)
         
         query_vector = None
-        vectors = self.embedding_client.embed_text(
+        vectors = await run_serialized(self.embedding_client, self.embedding_client.embed_text,
                         text=text, 
                         document_type=DocumentTypeEnum.QUERY.value, input_type="query"
                     )
@@ -113,7 +116,9 @@ class NLPController(BaseController):
         
         self.logger.info(f"starting rerank process")
         
-        reranked = self.reranker_client.rerank(query=text, documents=texts, top_n=limit)    
+        if self.reranker_client is None:
+            return candidates[:limit]
+        reranked = await run_serialized(self.reranker_client, self.reranker_client.rerank, query=text, documents=texts, top_n=limit)
         if not reranked:
             return candidates[:limit]  # fallback: no rerank, just truncate
 
@@ -136,6 +141,37 @@ class NLPController(BaseController):
         if not retrieved_docs or len(retrieved_docs)==0:
             return None
         
+        sources = []
+        seen = set()
+
+        for doc in retrieved_docs:
+            metadata = doc.metadata or {}
+
+            asset_name = metadata.get("asset_name")
+
+            if not asset_name:
+                continue
+
+            raw_page = metadata.get("page")
+
+            if isinstance(raw_page, int):
+                page = raw_page + 1
+            else:
+                page = None
+
+            key = (asset_name, page)
+
+            if key in seen:
+                continue
+
+            seen.add(key)
+
+            sources.append({
+                "asset_name": asset_name,
+                "page": page,
+            })
+
+
         
         # step 2 construct prompt 
         system_prompt = self.template_parser.get("rag", "system_prompt")
@@ -153,14 +189,22 @@ class NLPController(BaseController):
         chat_history = [
             self.generation_client.construct_prompt(
                 prompt=system_prompt,
-                role = self.generation_client.enums.SYSTEM.value
+                role = "system"
             )
         ]
         
-        answer  = self.generation_client.generate_text(prompt=full_prompt,
-                                                       chat_history=chat_history)
+        answer = await run_serialized(self.generation_client, self.generation_client.generate_text,
+                                                prompt=full_prompt,
+                                                chat_history=chat_history)
         
-        return answer, full_prompt, chat_history
+        if not answer:
+            return None
+
+        return {
+            "answer": answer,
+            "sources": sources,
+            "prompt_version": "rag-v1",
+        }
         
         
     def get_conversation_history(project:Project, conversation_id):
@@ -171,6 +215,3 @@ class NLPController(BaseController):
         all_collection =  self.db_client.list_collection_names()
         if DataBaseEnum.COLLECTION_CHUNK_NAME.value not in all_collection:
             self.collection = self.db_client[DataBaseEnum.COLLECTION_CHATS_NAME.value]
-    
-    
-    
