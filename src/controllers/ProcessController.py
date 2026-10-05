@@ -85,30 +85,52 @@ class ProcessController(BaseController):
         return chunks
     
     
-    def process_simple_splitter(self, texts:List[str], metadatas:List[dict], chunk_size:int=100, splitter_tag:str="\n"):
-        full_text = "".join(texts)
+    def process_simple_splitter(self, texts: List[str], metadatas: List[dict], 
+                                chunk_size: int = 100, splitter_tag: str = "\n",):
         
-        lines = [doc.strip() for doc in full_text.split(splitter_tag) if len(doc.strip()) > 1] 
+        if len(texts) != len(metadatas):
+            raise ValueError("Each text must have matching metadata")
 
         chunks = []
-        current_chunk = ""
-        
-        for line in lines:
-            current_chunk += line + splitter_tag
-            
-            if len(current_chunk) >= chunk_size:
-                
-                chunks.append(Document(page_content=current_chunk.strip(), 
-                                       metadata={}))
-                current_chunk = ""
-                
-                
-        if len(current_chunk) > 0 :
-                        
-                        chunks.append(Document(page_content=current_chunk.strip(), 
-                                               metadata={}))
-                        
-        return chunks                
+
+        for text, metadata in zip(texts, metadatas):
+            lines = [
+                line.strip()
+                for line in text.split(splitter_tag)
+                if len(line.strip()) > 1
+            ]
+
+            current_chunk = ""
+            chunk_index = 0
+
+            for line in lines:
+                current_chunk += line + splitter_tag
+
+                if len(current_chunk) >= chunk_size:
+                    chunks.append(
+                        Document(
+                            page_content=current_chunk.strip(),
+                            metadata={
+                                **metadata,
+                                "chunk_index": chunk_index,
+                            },
+                        )
+                    )
+                    chunk_index += 1
+                    current_chunk = ""
+
+            if current_chunk.strip():
+                chunks.append(
+                    Document(
+                        page_content=current_chunk.strip(),
+                        metadata={
+                            **metadata,
+                            "chunk_index": chunk_index,
+                        },
+                    )
+                )
+
+        return chunks               
 
 
 
