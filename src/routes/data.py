@@ -207,14 +207,15 @@ async def process_endpoint(request :Request, project_id:int, process_request:Pro
             logger.error(f"error while processing  file: {file_id}")
             continue
         
-        if do_emantic_chunk == 1:
-            file_chunks = process_controller.process_file_content_using_docling(file_content=file_content, file_id=file_id,
-                                                                           breakpoint_threshold_type=breakpoint_threshold_type,
-                                                                           breakpoint_threshold_amount=breakpoint_threshold_amount)
-            logger.info(f"STARTING SPECIAL CHUNKING")
-        else:
-            file_chunks = process_controller.process_file_content(file_content=file_content, file_id=file_id,
-                                                        chunk_size=chunk_size, overlap_size=overlap_size)
+        # if do_emantic_chunk == 1:
+        #     file_chunks = process_controller.process_file_content_using_docling(file_content=file_content, file_id=file_id,
+        #                                                                    breakpoint_threshold_type=breakpoint_threshold_type,
+        #                                                                    breakpoint_threshold_amount=breakpoint_threshold_amount)
+        #     logger.info(f"STARTING SPECIAL CHUNKING")
+        # else:
+        
+        file_chunks = process_controller.process_file_content(file_content=file_content, file_id=file_id,
+                                                    chunk_size=chunk_size, overlap_size=overlap_size)
 
         if file_chunks is None or len(file_chunks) == 0:
             logger.error(f"no chunks produced for file: {file_id}")
