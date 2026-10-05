@@ -129,4 +129,11 @@ class OpenAIProvider(LLM_Interface):
             "content" : response.choices[0].message.content      
         }
         
-              
+
+    def health_check(self, role="generation"):
+        model_id = self.generation_model_id if role == "generation" else self.embedding_model_id
+        if not model_id or self.client is None:
+            return False
+        # Probe authentication and service reachability without generating tokens.
+        self.client.with_options(timeout=3.0, max_retries=0).models.list()
+        return True

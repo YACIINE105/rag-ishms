@@ -133,3 +133,10 @@ class GoogleAIProvider(LLM_Interface):
         return {"role":role, 
                 "parts":[self.process_text(prompt)]
                 }
+    def health_check(self, role="generation"):
+        model_id = self.generation_model_id if role == "generation" else self.embedding_model_id
+        if not model_id or self.client is None:
+            return False
+        self.client.models.get(model=model_id, config=types.GetModelConfig(
+            http_options=types.HttpOptions(timeout=3000)))
+        return True

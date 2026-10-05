@@ -133,3 +133,10 @@ class CohereProvider(LLM_Interface):
                 "role":Cohere_Enums.ASSISTANT.value,
                 "content":response.message.content[0].text
             }
+    def health_check(self, role="generation"):
+        model_id = self.generation_model_id if role == "generation" else self.embedding_model_id
+        if not model_id or self.client is None:
+            return False
+        self.client.models.list(page_size=1, request_options={
+            "timeout_in_seconds": 3, "max_retries": 0})
+        return True

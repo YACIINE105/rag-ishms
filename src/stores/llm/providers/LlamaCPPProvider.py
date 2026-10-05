@@ -171,4 +171,7 @@ class LlamaCPPProvider(LLM_Interface):
             return None
         
         
-    
+
+    def health_check(self, role="generation"):
+        model = self.generation_client if role == "generation" else self.embedding_client
+        return model is not None and model.n_ctx() > 0

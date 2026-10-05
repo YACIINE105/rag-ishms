@@ -2,6 +2,11 @@ from abc import ABC, abstractmethod
 
 class LLM_Interface(ABC):
     @abstractmethod
+    def health_check(self, role="generation") -> bool:
+        """Check local model readiness or remote service availability."""
+        pass
+
+    @abstractmethod
     def set_generation_model(self, model_id:str):
         pass
     
@@ -24,4 +29,3 @@ class LLM_Interface(ABC):
     @abstractmethod
     def construct_response(self, response):
         pass
-    
