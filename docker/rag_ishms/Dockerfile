@@ -38,7 +38,10 @@ COPY docker/rag_ishms/entrypoint.sh /entrypoint.sh
 
 RUN chmod +x /entrypoint.sh
 
+HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \
+    CMD curl --fail --silent http://localhost:8000/health || exit 1
+
 ENTRYPOINT ["/entrypoint.sh"]
 
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "5"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

@@ -88,3 +88,44 @@ sudo apt install libpq-dev gcc python3-dev
  cloudflared tunnel run rag-ishms
 ```
 
+
+
+## API responses and readiness
+
+Search and answer requests use POST with a JSON body containing `text` and an
+optional `limit` (default 5, range 1–20). Empty/blank questions and questions over
+`INPUT_MAX_CHARACTERS` return 422.
+
+`POST /api/v1/nlp/index/answer/{project_id}` returns `signal`, `answer`,
+`sources` (original `asset_name` and one-based PDF `page`), `request_id`, and
+`prompt_version`. Text files have a null page. Sources identify the retrieved
+context supplied to the model; they do not assert which passage supports each
+individual generated claim. Prompt text and chat history are not public response
+fields. Reprocess and rebuild indexes for legacy documents missing metadata;
+new vector records also include `asset_id` for counting and asset deletion.
+
+`GET /health` returns 200 when PostgreSQL, the vector store, generation and
+embedding providers, and the reranker are ready; otherwise it returns 503.
+`documents_indexed` counts distinct assets represented in the vector index,
+not uploaded files or chunks. It is null if the vector check fails. Checks are
+bounded to five seconds and errors do not expose connection strings or API keys.
+Local model checks inspect the loaded model context; remote model probes check
+authentication/reachability without generating tokens. These checks do not prove
+that every remote model supports successful inference. Qdrant counting scans
+payloads; large indexes may require a dedicated indexed asset registry later.
+
+Synchronous embedding, reranking, and generation run in worker threads with
+one lock per shared provider. The container uses one worker to keep one copy of
+each model and allow exclusive access to embedded Qdrant storage. Docker probes
+`/health` every 30 seconds after a 180-second startup allowance. Nginx waits for
+initial application health through Compose; this is not ongoing traffic gating.
+
+Run focused regression checks from the repository root:
+
+```bash
+.venv/bin/python -m unittest discover -s tests -v
+```
+
+The tests use stubbed model providers and temporary local Qdrant storage; no
+model weights or paid API calls are needed. Deployment verification still needs
+the real PostgreSQL service, configured models, and an indexed PDF.
