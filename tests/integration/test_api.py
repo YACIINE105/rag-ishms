@@ -10,7 +10,7 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 from uuid import UUID
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -26,6 +26,7 @@ with patch.object(config, "get_settings", return_value=SETTINGS):
 
 from models.db_schems import RetrievedDocuments
 from utils.inference import run_serialized
+from utils.logging import RequestContextMiddleware
 
 
 class Session:
@@ -86,6 +87,7 @@ def make_app():
     app.template_parser = Templates()
     app.include_router(nlp.nlp_router)
     app.include_router(health.health_router)
+    app.add_middleware(RequestContextMiddleware, access_sample_rate=1.0)
     app.dependency_overrides[health.get_settings] = lambda: SETTINGS
     return app
 
@@ -122,6 +124,8 @@ class ApiContractTests(unittest.TestCase):
         body = response.json()
         self.assertEqual(body["sources"], [{"asset_name": "report.pdf", "page": 1}])
         self.assertEqual(body["answer"], "The document contains a test fact.")
+        self.assertEqual(set(body), {"signal", "answer", "sources", "request_id", "prompt_version"})
+        self.assertEqual(body["request_id"], response.headers["x-request-id"])
         self.assertEqual(body["prompt_version"], "rag-v1")
         UUID(body["request_id"])
         self.assertNotIn("full_prompt", body)
@@ -132,10 +136,10 @@ class ApiContractTests(unittest.TestCase):
         self.assertEqual(response.status_code, 200, response.text)
         self.assertEqual(response.json()["indexed_vectors"][0]["metadata"]["page"], 0)
 
-    def test_no_results_is_controlled_error(self):
+    def test_no_results_returns_no_information(self):
         self.app.vector_db_client.search_by_vector = AsyncMock(return_value=[])
         self.assertEqual(self.client.post("/api/v1/nlp/index/answer/1",
-                         json={"text": "question"}).status_code, 400)
+                         json={"text": "question"}).status_code, 200)
 
     def test_documented_response_models(self):
         paths = self.client.get("/openapi.json").json()["paths"]
@@ -236,7 +240,7 @@ class AsyncChecks(unittest.IsolatedAsyncioTestCase):
         result = await controller.index_into_vector_db(SimpleNamespace(project_id=1), [chunk], [1])
         self.assertFalse(result)
         self.assertEqual(controller.vector_db_client.insert_many.call_args.kwargs["metadata"],
-                         [{"asset_id": 7}])
+                         [{"asset_id": 7, "chunk_id": 1}])
 
     async def test_postgres_count_uses_indexed_assets(self):
         provider = PGVectorProvider(Session, default_vector_size=2, distance_method="cosine")

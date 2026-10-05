@@ -1,6 +1,7 @@
 from ..LLMinterface import LLM_Interface
 from ..LLMEnums import Cohere_Enums, DocumentTypeEnum
 import logging
+from utils.generation import GenerationText, truncate_text
 import cohere
 from typing import List, Union
 
@@ -37,7 +38,7 @@ class CohereProvider(LLM_Interface):
     
     
     def process_text(self, text:str):
-        return text[:self.default_generation_max_output_characters].strip()
+        return truncate_text(text, self.default_generation_max_output_characters, self.logger)
         
         
     
@@ -58,9 +59,6 @@ class CohereProvider(LLM_Interface):
         chat_history = chat_history or []
         
         try:
-            chat_history.append(self.construct_prompt(prompt=user_message,
-                                                      role=Cohere_Enums.USER.value))
-            
             response =  self.client.chat(
                         model=self.generation_model_id,
                         max_tokens=max_output_token,
@@ -70,7 +68,7 @@ class CohereProvider(LLM_Interface):
             )
             
             
-            if not response or not response.message.content or not response.message.content[0].text.strip():
+            if not response or not response.text or not response.text.strip():
                 self.logger.error("Cohere returned a successful response, but the text is empty.")
                 return None
             
@@ -80,9 +78,12 @@ class CohereProvider(LLM_Interface):
             #     "content":user_message
             # })
             
+            chat_history.append(self.construct_prompt(user_message, Cohere_Enums.USER.value))
             chat_history.append(self.construct_response(response))
             
-            return response.message.content[0].text
+            usage = getattr(getattr(response, "meta", None), "tokens", None)
+            return GenerationText(response.text, tokens_in=getattr(usage, "input_tokens", None),
+                                  tokens_out=getattr(usage, "output_tokens", None))
         
         except Exception as e:
             self.logger.error(f"Error during text generation: {e}")
@@ -91,9 +92,8 @@ class CohereProvider(LLM_Interface):
             
             
     def construct_prompt(self, prompt:str, role:str):
-        return {"role":role, 
-                "content":self.process_text(prompt)
-                }
+        role = {"system": "SYSTEM", "user": "USER", "assistant": "CHATBOT"}.get(role, role)
+        return {"role": role, "message": self.process_text(prompt)}
 
 
     def embed_text(self, text:Union[str, List[str]], document_type:str=None, input_type:str=None):
@@ -130,8 +130,8 @@ class CohereProvider(LLM_Interface):
 
     def construct_response(self, response):
         return {
-                "role":Cohere_Enums.ASSISTANT.value,
-                "content":response.message.content[0].text
+                "role": "CHATBOT",
+                "message": response.text
             }
     def health_check(self, role="generation"):
         model_id = self.generation_model_id if role == "generation" else self.embedding_model_id

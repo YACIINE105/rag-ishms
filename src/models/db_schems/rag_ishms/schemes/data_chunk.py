@@ -32,4 +32,5 @@ class DataChunk(SQLAlchemyBase):
 class RetrievedDocuments(BaseModel):
     text:str
     score:float
+    id: int | str | None = None
     metadata: dict = Field(default_factory=dict)

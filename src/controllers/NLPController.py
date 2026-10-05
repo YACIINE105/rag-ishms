@@ -6,6 +6,10 @@ from typing import List
 import time, json
 import logging
 from utils.inference import run_serialized
+from time import perf_counter
+
+NO_INFORMATION = "I could not find information in the indexed documents to answer your question."
+prediction_logger = logging.getLogger("rag.prediction")
 
 
 class NLPController(BaseController):
@@ -46,7 +50,8 @@ class NLPController(BaseController):
         # step 2 : manage items
         
         texts = [c.chunk_text for c in chunks]
-        metadata = [{**(c.chunk_metadata or {}), "asset_id": c.chunk_asset_id} for c in chunks]
+        metadata = [{**(c.chunk_metadata or {}), "asset_id": c.chunk_asset_id, "chunk_id": chunk_id}
+                    for c, chunk_id in zip(chunks, chunks_ids)]
         vectors = await run_serialized(self.embedding_client, self.embedding_client.embed_text, text=texts,
                                                    document_type = DocumentTypeEnum.DOCUMENT.value, input_type="passage")
         if not vectors or len(vectors) != len(texts):
@@ -86,60 +91,51 @@ class NLPController(BaseController):
         return bool(is_inserted)
     
     
-    async def search_vector_db_collection(self, project:Project, text:str, limit: int=5, rerank_pool: int = 30):
+    async def search_vector_db_collection(self, project: Project, text: str,
+                                          limit: int = 5, rerank_pool: int = 30):
         collection_name = self.create_collection_name(project_id=project.project_id)
-        
-        query_vector = None
-        vectors = await run_serialized(self.embedding_client, self.embedding_client.embed_text,
-                        text=text, 
-                        document_type=DocumentTypeEnum.QUERY.value, input_type="query"
-                    )
-        if not vectors or len(vectors)==0 :
-            return False
-        
-        if isinstance(vectors, list) and len(vectors)>0:
-            query_vector = vectors[0]
-            
-        if not query_vector:
-            return False
-        
-        # print(query_vector, "\n", "\n")
-        
-        candidates = await self.vector_db_client.search_by_vector(collection_name=collection_name,
-                                                            vector=query_vector, k=rerank_pool
-                                                )
-              
+        start = perf_counter()
+        try:
+            vectors = await run_serialized(self.embedding_client, self.embedding_client.embed_text,
+                text=text, document_type=DocumentTypeEnum.QUERY.value, input_type="query")
+            if not vectors or not vectors[0]:
+                raise RuntimeError("Embedding provider returned no vector")
+            candidates = await self.vector_db_client.search_by_vector(
+                collection_name=collection_name, vector=vectors[0], k=max(limit, rerank_pool))
+            if candidates is None or candidates is False:
+                raise RuntimeError("Vector provider failed")
+        except Exception:
+            self.logger.exception("retrieve.failed")
+            raise
+        self.logger.info("retrieve.done", extra={"n_candidates": len(candidates),
+            "top1_score": candidates[0].score if candidates else None,
+            "latency_ms": round((perf_counter()-start)*1000, 2)})
         if not candidates:
-            return False
-        
-        texts = [c.text for c in candidates]
-        
-        self.logger.info(f"starting rerank process")
-        
+            self.logger.warning("retrieve.zero_hits")
+            return []
         if self.reranker_client is None:
             return candidates[:limit]
-        reranked = await run_serialized(self.reranker_client, self.reranker_client.rerank, query=text, documents=texts, top_n=limit)
-        if not reranked:
-            return candidates[:limit]  # fallback: no rerank, just truncate
+        start = perf_counter()
+        try:
+            reranked = await run_serialized(self.reranker_client, self.reranker_client.rerank,
+                query=text, documents=[c.text for c in candidates], top_n=limit)
+        except Exception:
+            self.logger.exception("rerank.failed")
+            raise
+        top_score = float(reranked[0][1]) if reranked else None
+        self.logger.info("rerank.done", extra={"top1_score": top_score,
+            "latency_ms": round((perf_counter()-start)*1000, 2)})
+        if top_score is not None and top_score < getattr(self.app_settings, "RERANK_WARNING_THRESHOLD", 0.0):
+            self.logger.warning("rerank.low_score", extra={"top1_score": top_score})
+        return [candidates[i] for i, _ in reranked[:limit]] if reranked else candidates[:limit]
 
-        return [candidates[i] for i, _ in reranked]
-    
-    
-        # results = await self.vector_db_client.search_by_vector(collection_name=collection_name,
-        #                                                 vector=query_vector,
-        #                                                 k = limit)
-        
-        # if not results:
-        #     return False
-        
-        # return results
-        
-        
     async def answer_rag_query(self, project:Project, query:str, limit:int = 5):
         # step 1 reterieve related docs 
         retrieved_docs = await self.search_vector_db_collection(project=project, text=query, limit=limit)
-        if not retrieved_docs or len(retrieved_docs)==0:
-            return None
+        if not retrieved_docs:
+            prediction_logger.info("prediction.done", extra={"query": query,
+                "retrieved_ids": [], "answer": NO_INFORMATION})
+            return {"answer": NO_INFORMATION, "sources": [], "prompt_version": "rag-v1"}
         
         sources = []
         seen = set()
@@ -193,12 +189,26 @@ class NLPController(BaseController):
             )
         ]
         
-        answer = await run_serialized(self.generation_client, self.generation_client.generate_text,
-                                                prompt=full_prompt,
-                                                chat_history=chat_history)
+        self.logger.debug("generate.prompt", extra={"prompt": full_prompt})
+        start = perf_counter()
+        try:
+            answer = await run_serialized(self.generation_client, self.generation_client.generate_text,
+                                          prompt=full_prompt, chat_history=chat_history)
+        except Exception:
+            self.logger.exception("generate.failed")
+            raise
+        self.logger.info("generate.done", extra={
+            "tokens_in": getattr(answer, "tokens_in", None),
+            "tokens_out": getattr(answer, "tokens_out", None),
+            "latency_ms": round((perf_counter()-start)*1000, 2),
+        })
         
         if not answer:
+            self.logger.error("generate.failed")
             return None
+        prediction_logger.info("prediction.done", extra={"query": query,
+            "retrieved_ids": [doc.metadata.get("chunk_id", doc.id) for doc in retrieved_docs],
+            "answer": str(answer)})
 
         return {
             "answer": answer,

@@ -120,12 +120,40 @@ each model and allow exclusive access to embedded Qdrant storage. Docker probes
 `/health` every 30 seconds after a 180-second startup allowance. Nginx waits for
 initial application health through Compose; this is not ongoing traffic gating.
 
-Run focused regression checks from the repository root:
+Run the test suite and coverage gate from the repository root:
 
 ```bash
-.venv/bin/python -m unittest discover -s tests -v
+uv sync --group dev
+uv run pytest --cov=src --cov-fail-under=70
 ```
 
 The tests use stubbed model providers and temporary local Qdrant storage; no
 model weights or paid API calls are needed. Deployment verification still needs
 the real PostgreSQL service, configured models, and an indexed PDF.
+
+
+## Structured logging and tests
+
+Responses return `X-Request-ID`; `/answer` uses the same value in `request_id`.
+An incoming ID is reused when it contains 1–128 letters, digits, dots, underscores,
+colons or hyphens; otherwise a new UUID is generated. JSON records include
+`timestamp`, `level`, `logger`, `message`, `request_id`, and `project_id` (null
+outside a project request). Worker-thread model logs keep the request context.
+
+`retrieve.done`, `rerank.done`, and `generate.done` report scores/counts and
+latency. Token counts come from provider usage when available, otherwise null.
+`prediction.done` always logs query, retrieved IDs and answer; these records are
+never sampled. `HTTP_ACCESS_LOG_SAMPLE_RATE` (default 0.1) only samples successful
+HTTP access events. Errors are retained. `LOG_LEVEL=DEBUG` enables prompt logs.
+
+Zero retrieval hits return HTTP 200 with an explicit no-information answer and
+empty sources. Provider failures remain errors. Chunking now honors both size
+and overlap within each page and preserves citation metadata; reprocess existing
+documents to use the new chunk boundaries.
+
+Pytest uses mocked model SDKs and temporary Qdrant storage, without downloading
+weights. The default run enforces 70% source coverage; mark tests needing real
+services or weights with `@pytest.mark.slow`. Only standalone demo scripts and
+Alembic migration scripts are excluded from the coverage calculation.
+See [Docker setup](docker/README.md) for non-root permissions, cache/model files,
+and the optional Qdrant service profile.

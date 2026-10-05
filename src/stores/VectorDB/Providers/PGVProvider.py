@@ -384,7 +384,7 @@ class PGVectorProvider(VectorDBInterface):
                 records = result.fetchall()
 
                 return [
-                        RetrievedDocuments(text=record.text, score=record.score,
+                        RetrievedDocuments(text=record.text, score=record.score, id=record.id,
                                            metadata=record.metadata or {},)
                             for record in records
                         ]

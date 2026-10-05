@@ -1,6 +1,7 @@
 from ..LLMinterface import LLM_Interface
 from ..LLMEnums import GoogleAI_Enums, DocumentTypeEnum
 import logging
+from utils.generation import GenerationText, truncate_text
 from google import genai
 from google.genai import types
 from typing import List, Union
@@ -35,7 +36,7 @@ class GoogleAIProvider(LLM_Interface):
         
         
     def process_text(self, text:str):
-        return text[:self.default_generation_max_output_characters].strip()
+        return truncate_text(text, self.default_generation_max_output_characters, self.logger)
     
 
     def generate_text(self, prompt:str, chat_history:list=None, 
@@ -56,13 +57,17 @@ class GoogleAIProvider(LLM_Interface):
         chat_history = chat_history or []
         
         chat_history.append(user_message)
+        system_parts = [part["text"] for message in chat_history if message["role"] == "system"
+                        for part in message["parts"]]
+        contents = [message for message in chat_history if message["role"] != "system"]
 
         try:
             response = self.client.models.generate_content(
                         model = self.generation_model_id,
-                        contents = chat_history,
+                        contents = contents,
                         config=types.GenerateContentConfig(
                     temperature=temperature,
+                    system_instruction="\n".join(system_parts) or None,
                     max_output_tokens=max_output_token
                 )
                     )
@@ -73,7 +78,10 @@ class GoogleAIProvider(LLM_Interface):
 
             chat_history.append(self.construct_response(response=response.text))
             
-            return response.text
+            usage = response.usage_metadata
+            return GenerationText(response.text,
+                tokens_in=getattr(usage, "prompt_token_count", None),
+                tokens_out=getattr(usage, "candidates_token_count", None))
         
         except Exception as e:
             self.logger.error(f"Error during text generation: {e}")
@@ -82,11 +90,11 @@ class GoogleAIProvider(LLM_Interface):
 
     def embed_text(self, text:str, document_type:str=None, input_type:str=None):
         if not self.client:
-            self.logger.error("OpenAI client wasn't set ")
+            self.logger.error("GoogleAI client wasn't set ")
             return None
         
         if not self.embedding_model_id:
-            self.logger.error("Embedding model for OpenAI client wasn't set ")
+            self.logger.error("Embedding model for GoogleAI client wasn't set ")
             return None
         task = "RETRIEVAL_DOCUMENT" if document_type == DocumentTypeEnum.DOCUMENT.value else "RETRIEVAL_QUERY"
         try:
@@ -115,7 +123,7 @@ class GoogleAIProvider(LLM_Interface):
                     f"Expected dimension {self.embedding_size}, but got {len(first_embedding.values)}"
                 )
 
-            return first_embedding.values
+            return [embedding.values for embedding in response.embeddings]
 
         except Exception as e:
             self.logger.error(f"Error during embedding generation: {e}")
@@ -125,13 +133,13 @@ class GoogleAIProvider(LLM_Interface):
     def construct_response(self, response):
         return {
             "role" : GoogleAI_Enums.ASSISTANT.value,
-            "parts" : response      
+            "parts" : [{"text": response}]
         }
      
          
     def construct_prompt(self, prompt:str, role:str):
         return {"role":role, 
-                "parts":[self.process_text(prompt)]
+                "parts": [{"text": self.process_text(prompt)}]
                 }
     def health_check(self, role="generation"):
         model_id = self.generation_model_id if role == "generation" else self.embedding_model_id

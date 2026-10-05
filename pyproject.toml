@@ -3,6 +3,7 @@ name = "rag-ishms"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [
+    "python-json-logger==4.2.0",
     "aiofiles==25.1.0",
     "alembic==1.19.1",
     "asyncpg==0.31.0",
@@ -32,3 +33,21 @@ dependencies = [
     "transformers>=4.41.0,<5.0.0",
     "uvicorn[standard]==0.41.0",
 ]
+
+[dependency-groups]
+dev = ["pytest==9.1.1", "pytest-cov==7.1.0", "pytest-asyncio==1.4.0"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+asyncio_mode = "auto"
+markers = ["slow: tests requiring real models or external services"]
+addopts = "--strict-markers --cov=src --cov-fail-under=70"
+
+[tool.coverage.run]
+source = ["src"]
+omit = ["src/test_file_.py", "src/stores/llm/rerankers/test.py", "*/alembic/*"]
+
+[tool.coverage.report]
+fail_under = 70
+show_missing = true

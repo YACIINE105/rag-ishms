@@ -9,8 +9,11 @@ from utils.inference import run_serialized
 
 class QdrantDBProvider(VectorDBInterface):
     def __init__(self, db_client: str, default_vector_size: int = 768,
-                 distance_method: str = None, index_threshold: int = 1000):
+                 distance_method: str = None, index_threshold: int = 1000,
+                 url: str = None, api_key: str = None):
         self.db_client = db_client
+        self.url = url
+        self.api_key = api_key
         self.client = None
         self.default_vector_size = default_vector_size
         self.index_threshold = index_threshold
@@ -21,7 +24,8 @@ class QdrantDBProvider(VectorDBInterface):
         self.logger = logging.getLogger("uvicorn")
         
     async def connect(self):
-        self.client = await run_serialized(self, QdrantClient, path=self.db_client)
+        options = {"url": self.url, "api_key": self.api_key, "timeout": 3} if self.url else {"path": self.db_client}
+        self.client = await run_serialized(self, QdrantClient, **options)
         return self.client
         
     async def disconnect(self):
@@ -95,7 +99,7 @@ class QdrantDBProvider(VectorDBInterface):
                                       collection_name=collection_name, query=vector,
                                       limit=k, with_payload=True)
         return [RetrievedDocuments(
-            text=result.payload["text"], score=result.score,
+            text=result.payload["text"], score=result.score, id=result.id,
             metadata=result.payload.get("metadata") or {},
         ) for result in results.points]
 

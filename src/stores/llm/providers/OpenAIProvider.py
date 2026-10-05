@@ -1,6 +1,7 @@
 from ..LLMinterface import LLM_Interface
 from openai import OpenAI
 import logging
+from utils.generation import GenerationText, truncate_text
 from ..LLMEnums import OpenAI_Enums
 from typing import List, Union
 
@@ -76,7 +77,10 @@ class OpenAIProvider(LLM_Interface):
 
             chat_history.append(self.construct_response(response=response))
 
-            return response.choices[0].message.content
+            usage = response.usage
+            return GenerationText(response.choices[0].message.content,
+                tokens_in=getattr(usage, "prompt_tokens", None),
+                tokens_out=getattr(usage, "completion_tokens", None))
         
         except Exception as e:
             self.logger.error(f"Error during text generation: {e}")
@@ -120,7 +124,7 @@ class OpenAIProvider(LLM_Interface):
         
         
     def process_text(self, text:str):
-        return text[:self.default_generation_max_output_characters].strip()
+        return truncate_text(text, self.default_generation_max_output_characters, self.logger)
         
         
     def construct_response(self, response):

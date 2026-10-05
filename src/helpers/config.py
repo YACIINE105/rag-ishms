@@ -6,6 +6,11 @@ class Settings(BaseSettings):
     
     APP_NAME : str
     APP_VERSION : str
+    LOG_LEVEL: str = "INFO"
+    HTTP_ACCESS_LOG_SAMPLE_RATE: float = 0.1
+    RERANK_WARNING_THRESHOLD: float = 0.0
+    QDRANT_URL: str | None = None
+    QDRANT_API_KEY: str | None = None
     
     FILE_ALLOWED_TYPES : list
     FILE_MAX_SIZE : int

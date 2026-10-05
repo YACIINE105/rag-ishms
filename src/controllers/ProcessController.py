@@ -79,58 +79,34 @@ class ProcessController(BaseController):
         
 
         chunks = self.process_simple_splitter(texts=file_content_texts, metadatas=file_content_metadata,
-                                              chunk_size=chunk_size)
+                                              chunk_size=chunk_size, overlap_size=overlap_size)
         
         
         return chunks
     
     
-    def process_simple_splitter(self, texts: List[str], metadatas: List[dict], 
-                                chunk_size: int = 100, splitter_tag: str = "\n",):
-        
+    def process_simple_splitter(self, texts: List[str], metadatas: List[dict],
+                                chunk_size: int = 100, splitter_tag: str = "\n",
+                                overlap_size: int = 0):
         if len(texts) != len(metadatas):
             raise ValueError("Each text must have matching metadata")
-
+        if chunk_size < 1 or not 0 <= overlap_size < chunk_size:
+            raise ValueError("Require chunk_size > overlap_size >= 0")
+        if not splitter_tag:
+            raise ValueError("splitter_tag must not be empty")
         chunks = []
-
         for text, metadata in zip(texts, metadatas):
-            lines = [
-                line.strip()
-                for line in text.split(splitter_tag)
-                if len(line.strip()) > 1
-            ]
-
-            current_chunk = ""
+            content = splitter_tag.join(part.strip() for part in text.split(splitter_tag) if part.strip())
+            start = 0
             chunk_index = 0
-
-            for line in lines:
-                current_chunk += line + splitter_tag
-
-                if len(current_chunk) >= chunk_size:
-                    chunks.append(
-                        Document(
-                            page_content=current_chunk.strip(),
-                            metadata={
-                                **metadata,
-                                "chunk_index": chunk_index,
-                            },
-                        )
-                    )
+            while start < len(content):
+                end = min(start + chunk_size, len(content))
+                chunk_text = content[start:end]
+                if chunk_text.strip():
+                    chunks.append(Document(page_content=chunk_text,
+                        metadata={**metadata, "chunk_index": chunk_index}))
                     chunk_index += 1
-                    current_chunk = ""
-
-            if current_chunk.strip():
-                chunks.append(
-                    Document(
-                        page_content=current_chunk.strip(),
-                        metadata={
-                            **metadata,
-                            "chunk_index": chunk_index,
-                        },
-                    )
-                )
-
-        return chunks               
-
-
-
+                if end == len(content):
+                    break
+                start = end - overlap_size
+        return chunks

@@ -13,7 +13,7 @@ from models.enums import ResponseSignal
 from bson.objectid import ObjectId
 import logging
 
-from tqdm.auto import tqdm
+from utils.logging import request_id_context
 
 
 logger = logging.getLogger('uvicorn.error')
@@ -58,7 +58,7 @@ async def index_project(request:Request, project_id:int, push_request:PushReques
     #setup batching 
     total_records_count = await chunk_model.get_all_chunks_count(project_id=project.project_id)
     
-    progress_bar = tqdm(total=total_records_count, desc="Vector Indexing", position=0)
+    logger.info("index.started", extra={"total_chunks": total_records_count})
     
     
     
@@ -86,7 +86,11 @@ async def index_project(request:Request, project_id:int, push_request:PushReques
                             content={"signal":ResponseSignal.INSERT_INTO_VECTOR_DB_ERROR.value}
             )
         
-        progress_bar.update(len(page_chunks))
+        logger.info("index.batch.done", extra={
+            "batch_chunks": len(page_chunks),
+            "indexed_chunks": inserted_items_count + len(page_chunks),
+            "total_chunks": total_records_count,
+        })
         
         inserted_items_count += len(page_chunks)
         
@@ -149,13 +153,6 @@ async def search_index(request:Request, project_id:int, search_request:SearchReq
                                                                   limit=search_request.limit)
     
     
-    if not indexed_vectors:
-        return JSONResponse(status_code=status.HTTP_400_BAD_REQUEST,
-                        content={"signal":ResponseSignal.VECTORS_SEARCH_Failed.value,
-                                    "indexed_vectors":indexed_vectors
-                                }
-                )
-    
     return SearchResponse(
                     signal=ResponseSignal.VECTORS_SEARCH_Success.value,
                     indexed_vectors=indexed_vectors,
@@ -201,6 +198,6 @@ async def answer_index(request:Request, project_id:int, search_request:SearchReq
         signal=ResponseSignal.RAG_ANSWER_SUCCESS.value,
         answer=result["answer"],
         sources=result["sources"],
-        request_id=str(uuid4()),
+        request_id=request_id_context.get() or str(uuid4()),
         prompt_version=result["prompt_version"],
     )

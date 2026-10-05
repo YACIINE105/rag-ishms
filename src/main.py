@@ -1,13 +1,15 @@
 from contextlib import asynccontextmanager
+from utils.logging import configure_logging, RequestContextMiddleware
 from fastapi import FastAPI
 from routes import base, data, checker, nlp, health
-from motor.motor_asyncio import AsyncIOMotorClient
 from helpers.config import get_settings
+configure_logging(get_settings().LOG_LEVEL)
 from stores.llm import LLMProviderFactory, CrossEncoderReranker
 from stores.VectorDB import VectorDBPRoviderFactory
 from stores.llm.templates import TemplateParser
 from sqlalchemy.ext.asyncio import create_async_engine , AsyncSession
-from sqlalchemy.orm  import sessionmaker
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.engine import URL
 from utils.metrics import setup_metrics
 
 
@@ -23,7 +25,11 @@ async def lifespan(app: FastAPI):
     # --- STARTUP LOGIC ---
     settings = get_settings()
 
-    postgres_conn = f"postgresql+asyncpg://{settings.POSTGRES_USERNAME}:{settings.POSTGRES_PASSWORD}@{settings.POSTGRES_HOST}:{settings.POSTGRES_PORT}/{settings.POSTGRES_MAIN_DATABASE}"
+    postgres_conn = URL.create(
+        "postgresql+asyncpg", username=settings.POSTGRES_USERNAME,
+        password=settings.POSTGRES_PASSWORD, host=settings.POSTGRES_HOST,
+        port=int(settings.POSTGRES_PORT), database=settings.POSTGRES_MAIN_DATABASE,
+    )
     app.db_engine = create_async_engine(postgres_conn)
 
     # Setup MongoDB
@@ -66,15 +72,13 @@ async def lifespan(app: FastAPI):
 
 
 
-    # Yield control back to FastAPI. The app starts serving requests here.
-    yield
-
-    # --- SHUTDOWN LOGIC ---
-    # This block runs when the FastAPI application is stopped
-    # app.mongo_db_connection.close()
-
-    await app.db_engine.dispose()
-    await app.vector_db_client.disconnect()
+    try:
+        yield
+    finally:
+        try:
+            await app.vector_db_client.disconnect()
+        finally:
+            await app.db_engine.dispose()
 
 
 # Pass the lifespan context manager into the FastAPI instance
@@ -82,6 +86,8 @@ app = FastAPI(lifespan=lifespan)
 
 # addiung the middleware
 setup_metrics(app=app)
+app.add_middleware(RequestContextMiddleware,
+    access_sample_rate=get_settings().HTTP_ACCESS_LOG_SAMPLE_RATE)
 
 # Include your routers
 app.include_router(base.base_router)

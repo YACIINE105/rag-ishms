@@ -2,6 +2,7 @@
 from ..LLMinterface import LLM_Interface
 from ..LLMEnums import DocumentTypeEnum
 import logging
+from utils.generation import GenerationText, truncate_text
 from llama_cpp import Llama
 from typing import List, Union
 
@@ -37,7 +38,7 @@ class LlamaCPPProvider(LLM_Interface):
             model_path=self.generation_model_id,
             n_gpu_layers=self.n_gpu_layers,
             n_ctx=self.n_ctx,
-            verbose=True
+            verbose=False
         )
 
 
@@ -55,7 +56,7 @@ class LlamaCPPProvider(LLM_Interface):
 
 
     def process_text(self, text: str):
-        return text[:self.default_generation_max_output_characters].strip()
+        return truncate_text(text, self.default_generation_max_output_characters, self.logger)
 
 
     def generate_text(self, prompt: str, chat_history: list = None,
@@ -91,7 +92,9 @@ class LlamaCPPProvider(LLM_Interface):
 
             chat_history.append(self.construct_response(response=response_text))
 
-            return response_text
+            usage = response.get("usage") or {}
+            return GenerationText(response_text, tokens_in=usage.get("prompt_tokens"),
+                                  tokens_out=usage.get("completion_tokens"))
 
         except Exception as e:
             self.logger.error(f"Error during text generation: {e}")

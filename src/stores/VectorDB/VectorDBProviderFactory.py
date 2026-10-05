@@ -19,6 +19,9 @@ class VectorDBPRoviderFactory:
         
             return QdrantDBProvider(
                     db_client=qdrant_db_client,
+                    url=self.config.QDRANT_URL,
+                    api_key=self.config.QDRANT_API_KEY,
+                    default_vector_size=self.config.EMBEDDING_MODEL_SIZE,
                     distance_method=self.config.VECTOR_DB_DISTANCE_METRIC,
             )
         

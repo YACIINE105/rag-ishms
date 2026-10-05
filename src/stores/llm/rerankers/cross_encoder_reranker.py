@@ -11,6 +11,6 @@ class CrossEncoderReranker:
 
     def rerank(self, query: str, documents: list[str], top_n: int = 5):
         pairs = [(query, doc) for doc in documents]
-        scores = self.model.predict(pairs)
+        scores = self.model.predict(pairs, show_progress_bar=False)
         ranked = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)
         return ranked[:top_n]

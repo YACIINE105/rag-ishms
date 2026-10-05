@@ -5,3 +5,8 @@ q-data/
 hf_cache/
 src/stores/llm/rerankers/test.py
 notes/
+__pycache__/
+.pytest_cache/
+.coverage
+htmlcov/
+coverage.xml
