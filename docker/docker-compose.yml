@@ -7,7 +7,7 @@ services:
     container_name: fastapi
     ports:
       - "8000:8000"
-    
+
     volumes:
       - fast_api_data:/app/assets
       - ${MODEL_DIR:-../ai-models}:/app/ai-models:ro
@@ -161,4 +161,3 @@ volumes:
   prometheus_data:
   grafana_data:
   fast_api_data:
-  
