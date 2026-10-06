@@ -192,5 +192,6 @@ in the Docker job. A published image is not an automatic server deployment.
 Open a pull request to `main` to verify installation and builds on a fresh
 GitHub runner. After merging, check the Actions run and GHCR package tags.
 The workflow is considered externally verified only after those runs succeed.
-The manual RAG evaluation requires a reviewed dataset and isolated service
+Main image publishing also requires the RAGAS evaluation gate to pass. Configure
+its protected GitHub environment before merging. The evaluation requires model
 configuration; see [evaluation setup](eval/README.md).

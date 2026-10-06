@@ -77,7 +77,7 @@ Add secrets `RAG_EVAL_APP_ENV` (the full application settings file) and
 Select **Actions > CI > Run workflow** and enable **Run the reviewed RAG
 evaluation**. The manual job rebuilds the temporary index and saves the report
 as an artifact for seven days, including failed evaluations. It does not publish
-images. Evaluation remains manual until model access and the dataset baseline
-are verified. To make it a release gate later, arrange trusted evaluation on
-main pushes and make publishing depend on its success. Never expose evaluation
+images. Main pushes must pass the same evaluation gate before publishing.
+Missing configuration or failed scoring blocks publishing. Configure the
+environment before merging this workflow into main. Never expose evaluation
 secrets to untrusted pull-request code.
