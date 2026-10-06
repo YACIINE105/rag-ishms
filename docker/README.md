@@ -17,13 +17,15 @@ Edit those files for your configuration. Never commit credentials. Set
 PostgreSQL credentials. The image installs `alembic.example.ini`; migrations
 read the database connection from the application environment variables.
 
-Put the reranker's downloaded Hugging Face files in `hf_cache/hub/` before
-building. The image is offline by default and only includes that hub cache.
+The reranker downloads its Hugging Face model on first startup. The cache is
+kept in the `hf_cache` named volume mounted at `/app/.hf_cache`. The first
+startup requires internet access and may take several minutes; later starts
+reuse the cache. Local Hugging Face weights are excluded from the build context.
 GGUF weights are excluded from the image: place them in `ai-models/` (or set
 `MODEL_DIR` to another host directory) and configure model IDs with container
 paths such as `/app/ai-models/model.gguf`. This directory is mounted read-only;
 the host files must be readable by UID 10001. The application assets and the
-copied HF cache are owned by appuser and remain writable.
+HF cache directory are owned by appuser and remain writable.
 
 ```bash
 docker compose -f docker/docker-compose.yml config --quiet
@@ -118,3 +120,10 @@ configured model services. Use `--expect-unhealthy` to verify HTTP 503 only when
 deliberately testing a dependency outage in an isolated environment.
 
 See [recorded verification](VERIFICATION.md) for the tested image behavior and remaining scope.
+
+For the first model download, leave `HF_HUB_OFFLINE` and `TRANSFORMERS_OFFLINE`
+unset in the application environment. A new cache volume inherits the writable
+image directory owned by UID 10001. Existing volumes with other owners need a
+separate ownership migration. Do not use `docker compose down -v` when retaining
+the model cache. If a cold download exceeds the 180-second healthcheck startup
+allowance, increase the allowance based on the observed download time.

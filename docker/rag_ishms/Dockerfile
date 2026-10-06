@@ -20,17 +20,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && addgroup --system --gid 10001 appuser \
     && adduser --system --uid 10001 --ingroup appuser --home /home/appuser appuser
 WORKDIR /app
+
 ENV PATH="/opt/venv/bin:$PATH" \
-    PYTHONUNBUFFERED=1 PYTHONDONTWRITEBYTECODE=1 \
-    HF_HOME=/app/.hf_cache HF_HUB_OFFLINE=1
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    HF_HOME=/app/.hf_cache
+
 COPY --from=builder /opt/venv /opt/venv
-# Only the whitelisted Hugging Face hub cache is included in the build context.
-COPY --chown=appuser:appuser hf_cache/ /app/.hf_cache/
+
+# No longer copy the local Hugging Face cache into the image.
+# COPY --chown=appuser:appuser hf_cache/ /app/.hf_cache/
+
 COPY --chown=appuser:appuser src/ /app/
 COPY --chown=appuser:appuser docker/rag_ishms/alembic.example.ini /app/models/db_schems/rag_ishms/alembic.ini
 COPY --chmod=755 docker/rag_ishms/entrypoint.sh /entrypoint.sh
+
 RUN mkdir -p /app/assets /app/ai-models /app/.hf_cache /home/appuser \
     && chown appuser:appuser /app/assets /app/ai-models /app/.hf_cache /home/appuser
+
 USER appuser
 HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \
     CMD curl --fail --silent http://localhost:8000/health || exit 1

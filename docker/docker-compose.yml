@@ -10,6 +10,7 @@ services:
 
     volumes:
       - fast_api_data:/app/assets
+      - hf_cache:/app/.hf_cache
       - ${MODEL_DIR:-../ai-models}:/app/ai-models:ro
 
     networks:
@@ -161,3 +162,4 @@ volumes:
   prometheus_data:
   grafana_data:
   fast_api_data:
+  hf_cache:

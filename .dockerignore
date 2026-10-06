@@ -14,8 +14,8 @@ ai-models/
 q-data/
 src/assets/
 **/alembic.ini
-hf_cache/*
-!hf_cache/hub/
-!hf_cache/hub/**
-hf_cache/hub/.locks/
-hf_cache/hub/**/.locks/
+hf_cache/
+eval/
+scripts/
+.github/
+.ruff_cache/
