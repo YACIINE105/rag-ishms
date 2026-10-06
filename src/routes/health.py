@@ -1,4 +1,5 @@
 """Readiness checks without generating text or exposing dependency errors."""
+
 import asyncio
 import logging
 from typing import Literal
@@ -52,8 +53,9 @@ async def checked(name, operation):
 
 
 @health_router.get("/health", response_model=HealthResponse)
-async def health(request: Request, response: Response,
-                 settings: Settings = Depends(get_settings)):
+async def health(
+    request: Request, response: Response, settings: Settings = Depends(get_settings)
+):
     async def database():
         async with request.app.db_client() as session:
             await session.execute(text("SELECT 1"))
@@ -78,8 +80,10 @@ async def health(request: Request, response: Response,
             raise RuntimeError("Reranker unavailable")
 
     db, vector, llm, embed, rank = await asyncio.gather(
-        checked("db", database), checked("vector_db", vector_database),
-        checked("llm", generation), checked("embedding", embedding),
+        checked("db", database),
+        checked("vector_db", vector_database),
+        checked("llm", generation),
+        checked("embedding", embedding),
         checked("reranker", reranker),
     )
     healthy = all(item[0] == "ok" for item in (db, vector, llm, embed, rank))
@@ -87,8 +91,11 @@ async def health(request: Request, response: Response,
     response.headers["Cache-Control"] = "no-store"
     return HealthResponse(
         status="healthy" if healthy else "unhealthy",
-        db=db[0], vector_db=vector[0], llm=llm[0],
-        embedding=embed[0], reranker=rank[0],
+        db=db[0],
+        vector_db=vector[0],
+        llm=llm[0],
+        embedding=embed[0],
+        reranker=rank[0],
         documents_indexed=vector[1],
         embedding_model=settings.EMBEDDING_MODEL_ID,
         version=settings.APP_VERSION,

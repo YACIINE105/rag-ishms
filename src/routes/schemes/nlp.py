@@ -1,8 +1,9 @@
+from typing import Annotated, Optional
+
 from pydantic import BaseModel, Field, StringConstraints
-from typing import Optional, Annotated
+
 from helpers.config import get_settings  # Adjust to your import path
 from models.db_schems import RetrievedDocuments
-
 
 settings = get_settings()
 

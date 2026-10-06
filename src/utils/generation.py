@@ -1,4 +1,5 @@
 """Keep generation compatible with string callers while retaining actual token usage."""
+
 import logging
 
 
@@ -12,6 +13,8 @@ class GenerationText(str):
 
 def truncate_text(text, limit, logger=None):
     if len(text) > limit:
-        (logger or logging.getLogger(__name__)).warning("query.truncated", extra={
-            "original_characters": len(text), "retained_characters": limit})
+        (logger or logging.getLogger(__name__)).warning(
+            "query.truncated",
+            extra={"original_characters": len(text), "retained_characters": limit},
+        )
     return text[:limit].strip()

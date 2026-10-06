@@ -1,93 +1,101 @@
-from .BaseController import BaseController
-from .ProjectController import ProjectController
 import os
+from dataclasses import dataclass
+from typing import List
+
 # from langchain_text_splitters  import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import TextLoader
-from langchain_community.document_loaders import PyMuPDFLoader
+from langchain_community.document_loaders import PyMuPDFLoader, TextLoader
 
 from models.enums import ProcessingSgnal
-from typing import List
-from dataclasses import dataclass
+
+from .BaseController import BaseController
+from .ProjectController import ProjectController
 
 
 @dataclass
 class Document:
     page_content: str
-    metadata : dict
+    metadata: dict
 
 
 class ProcessController(BaseController):
-    def __init__(self, project_id:str):
+    def __init__(self, project_id: str):
         super().__init__()
-        
+
         self.project_id = project_id
         self.project_path = ProjectController().get_project_path(project_id=project_id)
-        
-        
-        
-        
-    def get_file_extension(self, file_id:str):
-         return os.path.splitext(file_id)[-1]   
-        
- 
-    def get_file_loader(self, file_id:str):
-        
+
+    def get_file_extension(self, file_id: str):
+        return os.path.splitext(file_id)[-1]
+
+    def get_file_loader(self, file_id: str):
+
         file_extension = self.get_file_extension(file_id=file_id)
         file_path = os.path.join(self.project_path, file_id)
-        
+
         if not os.path.exists(file_path):
             return None
-        
+
         if file_extension == ProcessingSgnal.TXT.value:
             return TextLoader(file_path=file_path, encoding="utf-8")
-        
+
         if file_extension == ProcessingSgnal.PDF.value:
             return PyMuPDFLoader(file_path=file_path)
             # converter = DocumentConverter()
             # return converter.convert(source=file_path)
         return None
 
-
-    def get_file_content(self, file_id:str):
+    def get_file_content(self, file_id: str):
         loader = self.get_file_loader(file_id=file_id)
         if loader:
             return loader.load()
         else:
             return None
-        
-        
-    def get_file_content_2(self, file_id:str):
+
+    def get_file_content_2(self, file_id: str):
         loader = self.get_file_loader(file_id=file_id)
         if loader:
             return loader.document
         else:
             return None
-        
-        
-        
-    def process_file_content(self, file_content:list, file_id:str, chunk_size:int=100, overlap_size:int=20):
 
+    def process_file_content(
+        self,
+        file_content: list,
+        file_id: str,
+        chunk_size: int = 100,
+        overlap_size: int = 20,
+    ):
 
         # text_splitter = RecursiveCharacterTextSplitter(chunk_size=chunk_size, chunk_overlap=overlap_size
         #                                                , length_function = len)
-        
-        file_content_texts =[record.page_content for record in file_content] # extracting texts 
-        file_content_metadata =[record.metadata for record in file_content]  # extracting meta-data
-        # splitting  content and putting each texts with its meta data .
-        
-        # chunks = text_splitter.create_documents(file_content_texts, metadatas=file_content_metadata) 
-        
 
-        chunks = self.process_simple_splitter(texts=file_content_texts, metadatas=file_content_metadata,
-                                              chunk_size=chunk_size, overlap_size=overlap_size)
-        
-        
+        file_content_texts = [
+            record.page_content for record in file_content
+        ]  # extracting texts
+        file_content_metadata = [
+            record.metadata for record in file_content
+        ]  # extracting meta-data
+        # splitting  content and putting each texts with its meta data .
+
+        # chunks = text_splitter.create_documents(file_content_texts, metadatas=file_content_metadata)
+
+        chunks = self.process_simple_splitter(
+            texts=file_content_texts,
+            metadatas=file_content_metadata,
+            chunk_size=chunk_size,
+            overlap_size=overlap_size,
+        )
+
         return chunks
-    
-    
-    def process_simple_splitter(self, texts: List[str], metadatas: List[dict],
-                                chunk_size: int = 100, splitter_tag: str = "\n",
-                                overlap_size: int = 0):
+
+    def process_simple_splitter(
+        self,
+        texts: List[str],
+        metadatas: List[dict],
+        chunk_size: int = 100,
+        splitter_tag: str = "\n",
+        overlap_size: int = 0,
+    ):
         if len(texts) != len(metadatas):
             raise ValueError("Each text must have matching metadata")
         if chunk_size < 1 or not 0 <= overlap_size < chunk_size:
@@ -96,15 +104,21 @@ class ProcessController(BaseController):
             raise ValueError("splitter_tag must not be empty")
         chunks = []
         for text, metadata in zip(texts, metadatas):
-            content = splitter_tag.join(part.strip() for part in text.split(splitter_tag) if part.strip())
+            content = splitter_tag.join(
+                part.strip() for part in text.split(splitter_tag) if part.strip()
+            )
             start = 0
             chunk_index = 0
             while start < len(content):
                 end = min(start + chunk_size, len(content))
                 chunk_text = content[start:end]
                 if chunk_text.strip():
-                    chunks.append(Document(page_content=chunk_text,
-                        metadata={**metadata, "chunk_index": chunk_index}))
+                    chunks.append(
+                        Document(
+                            page_content=chunk_text,
+                            metadata={**metadata, "chunk_index": chunk_index},
+                        )
+                    )
                     chunk_index += 1
                 if end == len(content):
                     break

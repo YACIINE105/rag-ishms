@@ -1,23 +1,29 @@
 # src/stores/llm/providers/LlamaCPPProvider.py
-from ..LLMinterface import LLM_Interface
-from ..LLMEnums import DocumentTypeEnum
 import logging
-from utils.generation import GenerationText, truncate_text
-from llama_cpp import Llama
 from typing import List, Union
+
+from llama_cpp import Llama
+
+from utils.generation import GenerationText, truncate_text
+
+from ..LLMinterface import LLM_Interface
 
 
 class LlamaCPPProvider(LLM_Interface):
-    def __init__(self,
-                 n_gpu_layers: int = -1,
-                 n_ctx: int = 2048,
-                 default_generation_max_output_characters: int = 1000,
-                 default_generation_max_output_token: int = 1000,
-                 default_generation_temperature: float = 0.2):
+    def __init__(
+        self,
+        n_gpu_layers: int = -1,
+        n_ctx: int = 2048,
+        default_generation_max_output_characters: int = 1000,
+        default_generation_max_output_token: int = 1000,
+        default_generation_temperature: float = 0.2,
+    ):
 
         self.n_gpu_layers = n_gpu_layers
         self.n_ctx = n_ctx
-        self.default_generation_max_output_characters = default_generation_max_output_characters
+        self.default_generation_max_output_characters = (
+            default_generation_max_output_characters
+        )
         self.default_generation_max_output_token = default_generation_max_output_token
         self.default_generation_temperature = default_generation_temperature
 
@@ -30,7 +36,6 @@ class LlamaCPPProvider(LLM_Interface):
 
         self.logger = logging.getLogger(__name__)
 
-
     def set_generation_model(self, model_id: str):
         # model_id here = path to the GGUF generation model (e.g. MedGemma)
         self.generation_model_id = model_id
@@ -38,9 +43,8 @@ class LlamaCPPProvider(LLM_Interface):
             model_path=self.generation_model_id,
             n_gpu_layers=self.n_gpu_layers,
             n_ctx=self.n_ctx,
-            verbose=False
+            verbose=False,
         )
-
 
     def set_embedding_model(self, model_id: str, embedding_size: int):
         # model_id here = path to the GGUF embedding model (e.g. nomic-embed-text)
@@ -51,16 +55,21 @@ class LlamaCPPProvider(LLM_Interface):
             embedding=True,
             n_gpu_layers=self.n_gpu_layers,
             n_ctx=self.n_ctx,
-            verbose=False
+            verbose=False,
         )
 
-
     def process_text(self, text: str):
-        return truncate_text(text, self.default_generation_max_output_characters, self.logger)
+        return truncate_text(
+            text, self.default_generation_max_output_characters, self.logger
+        )
 
-
-    def generate_text(self, prompt: str, chat_history: list = None,
-                       max_output_token: int = None, temperature: float = None):
+    def generate_text(
+        self,
+        prompt: str,
+        chat_history: list = None,
+        max_output_token: int = None,
+        temperature: float = None,
+    ):
 
         if not self.generation_client:
             self.logger.error("LlamaCPP generation client was not set")
@@ -70,10 +79,15 @@ class LlamaCPPProvider(LLM_Interface):
             self.logger.error("Generation model for LlamaCPP client wasn't set")
             return None
 
-        max_output_token = max_output_token if max_output_token else self.default_generation_max_output_token
-        temperature = temperature if temperature else self.default_generation_temperature
-        user_message = self.construct_prompt(prompt=prompt,
-                                              role="user")
+        max_output_token = (
+            max_output_token
+            if max_output_token
+            else self.default_generation_max_output_token
+        )
+        temperature = (
+            temperature if temperature else self.default_generation_temperature
+        )
+        user_message = self.construct_prompt(prompt=prompt, role="user")
         chat_history = chat_history or []
         chat_history.append(user_message)
 
@@ -81,27 +95,36 @@ class LlamaCPPProvider(LLM_Interface):
             response = self.generation_client.create_chat_completion(
                 messages=chat_history,
                 max_tokens=max_output_token,
-                temperature=temperature
+                temperature=temperature,
             )
 
             response_text = response["choices"][0]["message"]["content"]
 
             if not response_text or not response_text.strip():
-                self.logger.error("LlamaCPP returned a successful response, but the text is empty.")
+                self.logger.error(
+                    "LlamaCPP returned a successful response, but the text is empty."
+                )
                 return None
 
             chat_history.append(self.construct_response(response=response_text))
 
             usage = response.get("usage") or {}
-            return GenerationText(response_text, tokens_in=usage.get("prompt_tokens"),
-                                  tokens_out=usage.get("completion_tokens"))
+            return GenerationText(
+                response_text,
+                tokens_in=usage.get("prompt_tokens"),
+                tokens_out=usage.get("completion_tokens"),
+            )
 
         except Exception as e:
             self.logger.error(f"Error during text generation: {e}")
             return None
 
-
-    def embed_text(self, text: Union[str, List[str]], document_type: str = None, input_type:str=None):
+    def embed_text(
+        self,
+        text: Union[str, List[str]],
+        document_type: str = None,
+        input_type: str = None,
+    ):
         if not self.embedding_client:
             self.logger.error("LlamaCPP embedding client wasn't set")
             return None
@@ -132,20 +155,12 @@ class LlamaCPPProvider(LLM_Interface):
             self.logger.error(f"Error during embedding generation: {e}")
             return None
 
-
     def construct_response(self, response):
-        return {
-            "role": "assistant",
-            "content": response
-        }
-
+        return {"role": "assistant", "content": response}
 
     def construct_prompt(self, prompt: str, role: str):
-        return {
-            "role": role,
-            "content": self.process_text(prompt)
-        }
-        
+        return {"role": role, "content": self.process_text(prompt)}
+
     def embed_texts(self, texts: list, document_type: str = None):
         if not self.embedding_client:
             self.logger.error("LlamaCPP embedding client wasn't set")
@@ -155,7 +170,9 @@ class LlamaCPPProvider(LLM_Interface):
             return None
 
         try:
-            results = self.embedding_client.embed(texts)  # texts is a list -> batched internally
+            results = self.embedding_client.embed(
+                texts
+            )  # texts is a list -> batched internally
 
             if not results:
                 self.logger.error("LlamaCPP returned an empty embedding response.")
@@ -172,9 +189,9 @@ class LlamaCPPProvider(LLM_Interface):
         except Exception as e:
             self.logger.error(f"Error during batch embedding generation: {e}")
             return None
-        
-        
 
     def health_check(self, role="generation"):
-        model = self.generation_client if role == "generation" else self.embedding_client
+        model = (
+            self.generation_client if role == "generation" else self.embedding_client
+        )
         return model is not None and model.n_ctx() > 0

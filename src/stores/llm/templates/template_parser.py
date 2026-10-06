@@ -10,13 +10,19 @@ class TemplateParser:
 
     def set_language(self, language):
         language = language or self.default_language
-        self.language = language if (Path(self.current_path)/"locales"/language).is_dir() else self.default_language
+        self.language = (
+            language
+            if (Path(self.current_path) / "locales" / language).is_dir()
+            else self.default_language
+        )
 
     def get(self, group, key, vars=None):
         if not group or not key:
             return None
         for language in dict.fromkeys((self.language, self.default_language)):
-            if not (Path(self.current_path)/"locales"/language/f"{group}.py").is_file():
+            if not (
+                Path(self.current_path) / "locales" / language / f"{group}.py"
+            ).is_file():
                 continue
             module = import_module(f"stores.llm.templates.locales.{language}.{group}")
             template = getattr(module, key, None)

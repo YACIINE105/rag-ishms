@@ -1,6 +1,8 @@
-from sentence_transformers import CrossEncoder
-import torch
 import logging
+
+import torch
+from sentence_transformers import CrossEncoder
+
 
 class CrossEncoderReranker:
     def __init__(self, model_name: str = "BAAI/bge-reranker-v2-m3", device: str = None):

@@ -1,102 +1,126 @@
-from ..LLMinterface import LLM_Interface
-from ..LLMEnums import Cohere_Enums, DocumentTypeEnum
 import logging
-from utils.generation import GenerationText, truncate_text
-import cohere
 from typing import List, Union
+
+import cohere
+
+from utils.generation import GenerationText, truncate_text
+
+from ..LLMEnums import Cohere_Enums, DocumentTypeEnum
+from ..LLMinterface import LLM_Interface
 
 
 class CohereProvider(LLM_Interface):
-    def __init__(self , api_key:str, 
-                            default_generation_max_output_characters:int=1000,
-                            default_generation_max_output_token:int=1000, 
-                            default_generation_temperature:float=0.2):
+    def __init__(
+        self,
+        api_key: str,
+        default_generation_max_output_characters: int = 1000,
+        default_generation_max_output_token: int = 1000,
+        default_generation_temperature: float = 0.2,
+    ):
         self.api_key = api_key
-        self.default_generation_max_output_characters = default_generation_max_output_characters
+        self.default_generation_max_output_characters = (
+            default_generation_max_output_characters
+        )
         self.default_generation_max_output_token = default_generation_max_output_token
         self.default_generation_temperature = default_generation_temperature
 
         self.generation_model_id = None
-        
+
         self.embedding_model_id = None
         self.embedding_size = None
-        
-        self.client = cohere.Client(api_key=self.api_key) 
+
+        self.client = cohere.Client(api_key=self.api_key)
         self.logger = logging.getLogger(__name__)
         self.enums = Cohere_Enums
-        
-        
-    def set_generation_model(self, model_id:str):
+
+    def set_generation_model(self, model_id: str):
         self.generation_model_id = model_id
-    
-    
-    
-    def set_embedding_model(self, model_id:str, embedding_size:int):
+
+    def set_embedding_model(self, model_id: str, embedding_size: int):
         self.embedding_model_id = model_id
         self.embedding_size = embedding_size
-    
-    
-    
-    def process_text(self, text:str):
-        return truncate_text(text, self.default_generation_max_output_characters, self.logger)
-        
-        
-    
-    def generate_text(self, prompt:str, chat_history:list=None, 
-                      max_output_token:int=None, temperature:float=None):
-        
+
+    def process_text(self, text: str):
+        return truncate_text(
+            text, self.default_generation_max_output_characters, self.logger
+        )
+
+    def generate_text(
+        self,
+        prompt: str,
+        chat_history: list = None,
+        max_output_token: int = None,
+        temperature: float = None,
+    ):
+
         if not self.client:
             self.logger.error("CoHere client was not set")
             return None
-    
+
         if not self.generation_model_id:
-                self.logger.error("Generation model for CoHere client wasn't set ")
-                return None
-            
-        max_output_token = max_output_token if max_output_token else self.default_generation_max_output_token     
-        temperature = temperature if temperature else self.default_generation_temperature
+            self.logger.error("Generation model for CoHere client wasn't set ")
+            return None
+
+        max_output_token = (
+            max_output_token
+            if max_output_token
+            else self.default_generation_max_output_token
+        )
+        temperature = (
+            temperature if temperature else self.default_generation_temperature
+        )
         user_message = prompt
         chat_history = chat_history or []
-        
+
         try:
-            response =  self.client.chat(
-                        model=self.generation_model_id,
-                        max_tokens=max_output_token,
-                        temperature=temperature,
-                        chat_history=chat_history,
-                        message=(user_message)
+            response = self.client.chat(
+                model=self.generation_model_id,
+                max_tokens=max_output_token,
+                temperature=temperature,
+                chat_history=chat_history,
+                message=(user_message),
             )
-            
-            
+
             if not response or not response.text or not response.text.strip():
-                self.logger.error("Cohere returned a successful response, but the text is empty.")
+                self.logger.error(
+                    "Cohere returned a successful response, but the text is empty."
+                )
                 return None
-            
+
             # adding user query to chat history
             # chat_history.append({
             #     "role":Cohere_Enums.USER.value,
             #     "content":user_message
             # })
-            
-            chat_history.append(self.construct_prompt(user_message, Cohere_Enums.USER.value))
+
+            chat_history.append(
+                self.construct_prompt(user_message, Cohere_Enums.USER.value)
+            )
             chat_history.append(self.construct_response(response))
-            
+
             usage = getattr(getattr(response, "meta", None), "tokens", None)
-            return GenerationText(response.text, tokens_in=getattr(usage, "input_tokens", None),
-                                  tokens_out=getattr(usage, "output_tokens", None))
-        
+            return GenerationText(
+                response.text,
+                tokens_in=getattr(usage, "input_tokens", None),
+                tokens_out=getattr(usage, "output_tokens", None),
+            )
+
         except Exception as e:
             self.logger.error(f"Error during text generation: {e}")
             return None
-            
-            
-            
-    def construct_prompt(self, prompt:str, role:str):
-        role = {"system": "SYSTEM", "user": "USER", "assistant": "CHATBOT"}.get(role, role)
+
+    def construct_prompt(self, prompt: str, role: str):
+        role = {"system": "SYSTEM", "user": "USER", "assistant": "CHATBOT"}.get(
+            role, role
+        )
         return {"role": role, "message": self.process_text(prompt)}
 
-
-    def embed_text(self, text:Union[str, List[str]], document_type:str=None, input_type:str=None):
+    def embed_text(
+        self,
+        text: Union[str, List[str]],
+        document_type: str = None,
+        input_type: str = None,
+    ):
 
         if not self.client:
             self.logger.error("CoHere client wasn't set ")
@@ -105,38 +129,44 @@ class CohereProvider(LLM_Interface):
         if not self.embedding_model_id:
             self.logger.error("Embedding model for CoHere client wasn't set ")
             return None
-        
+
         input_type = Cohere_Enums.DOCUMENT.value
         if document_type == DocumentTypeEnum.QUERY.value:
-            input_type  = Cohere_Enums.QUERY.value
-        
+            input_type = Cohere_Enums.QUERY.value
+
         if isinstance(text, str):
-                    text = [text]
-        
+            text = [text]
+
         response = self.client.embed(
-                   texts=[self.process_text(t) for t in text],
-                   model=self.embedding_model_id,    
-                   input_type=input_type,
-                   embedding_types=['float'])
-        
-        if not response or not response.embeddings or not response.embeddings.float or len(response.embeddings.float) == 0:
-                self.logger.error("Error while embedding text with CoHere")
-                return None
+            texts=[self.process_text(t) for t in text],
+            model=self.embedding_model_id,
+            input_type=input_type,
+            embedding_types=["float"],
+        )
 
+        if (
+            not response
+            or not response.embeddings
+            or not response.embeddings.float
+            or len(response.embeddings.float) == 0
+        ):
+            self.logger.error("Error while embedding text with CoHere")
+            return None
 
-        return [ e for e in response.embeddings.float]
-
-
+        return [e for e in response.embeddings.float]
 
     def construct_response(self, response):
-        return {
-                "role": "CHATBOT",
-                "message": response.text
-            }
+        return {"role": "CHATBOT", "message": response.text}
+
     def health_check(self, role="generation"):
-        model_id = self.generation_model_id if role == "generation" else self.embedding_model_id
+        model_id = (
+            self.generation_model_id
+            if role == "generation"
+            else self.embedding_model_id
+        )
         if not model_id or self.client is None:
             return False
-        self.client.models.list(page_size=1, request_options={
-            "timeout_in_seconds": 3, "max_retries": 0})
+        self.client.models.list(
+            page_size=1, request_options={"timeout_in_seconds": 3, "max_retries": 0}
+        )
         return True

@@ -4,15 +4,12 @@ from pathlib import Path
 
 # Resolve application utilities when Alembic runs from the schema directory.
 sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
-from utils.logging import configure_logging
+from alembic import context
+from schemes import SQLAlchemyBase
+from sqlalchemy import engine_from_config, pool
 from sqlalchemy.engine import URL
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-
-from alembic import context
-
-from schemes import SQLAlchemyBase
+from utils.logging import configure_logging
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -34,7 +31,8 @@ if os.getenv("POSTGRES_HOST"):
         database=os.environ["POSTGRES_MAIN_DATABASE"],
     )
     config.set_main_option(
-        "sqlalchemy.url", database_url.render_as_string(hide_password=False).replace("%", "%%")
+        "sqlalchemy.url",
+        database_url.render_as_string(hide_password=False).replace("%", "%%"),
     )
 
 # add your model's MetaData object here
@@ -87,9 +85,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()
