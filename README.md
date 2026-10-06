@@ -179,3 +179,18 @@ merge conflicts, whitespace, file endings, and private keys. Comments and
 commented-out code are preserved. Review automatic fixes and stage the updated
 files before retrying a commit. Each contributor must install the hook locally.
 The private-key hook does not scan ordinary API tokens.
+
+## GitHub CI and image publishing
+
+`.github/workflows/ci.yml` runs code-quality checks and the coverage gate for
+pull requests targeting `main` and pushes to `main`. Docker builds run after
+those checks. GHCR publishing occurs only for a push to `main`, with `sha-...`
+and `latest` tags. Pull requests and manual runs do not publish images.
+The workflow uses the repository's `GITHUB_TOKEN` with package-write permission
+in the Docker job. A published image is not an automatic server deployment.
+
+Open a pull request to `main` to verify installation and builds on a fresh
+GitHub runner. After merging, check the Actions run and GHCR package tags.
+The workflow is considered externally verified only after those runs succeed.
+The manual RAG evaluation requires a reviewed dataset and isolated service
+configuration; see [evaluation setup](eval/README.md).
