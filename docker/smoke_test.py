@@ -2,6 +2,7 @@
 
 Run with Python's standard library; never uploads documents or generates text.
 """
+
 import argparse
 import json
 from urllib.error import HTTPError
@@ -13,7 +14,9 @@ def request(base_url, path, method="GET", payload=None):
     headers = {"X-Request-ID": "docker-smoke-check"}
     if body is not None:
         headers["Content-Type"] = "application/json"
-    req = Request(base_url.rstrip("/") + path, data=body, headers=headers, method=method)
+    req = Request(
+        base_url.rstrip("/") + path, data=body, headers=headers, method=method
+    )
     try:
         response = urlopen(req, timeout=20)
     except HTTPError as error:
@@ -45,12 +48,23 @@ def main():
         path = "/api/v1/nlp/index/" + action + "/{project_id}"
         assert "post" in schema["paths"][path] and "get" not in schema["paths"][path]
         endpoint = path.replace("{project_id}", "1")
-        for payload in ({}, {"text": ""}, {"text": "   "},
-                        {"text": "x", "limit": 0}, {"text": "x", "limit": 999}):
+        for payload in (
+            {},
+            {"text": ""},
+            {"text": "   "},
+            {"text": "x", "limit": 0},
+            {"text": "x", "limit": 999},
+        ):
             code, error = request(args.base_url, endpoint, "POST", payload)
             assert code == 422 and "detail" in error, (endpoint, payload, code)
     fields = schema["components"]["schemas"]["AnswerResponse"]["properties"]
-    assert set(fields) == {"signal", "answer", "sources", "request_id", "prompt_version"}, fields
+    assert set(fields) == {
+        "signal",
+        "answer",
+        "sources",
+        "request_id",
+        "prompt_version",
+    }, fields
     print("PASS: POST routes, response schema, validation and request ID headers")
 
 

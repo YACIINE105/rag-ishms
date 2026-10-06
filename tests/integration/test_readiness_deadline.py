@@ -20,7 +20,9 @@ async def test_readiness_deadline_does_not_wait_for_driver_cancellation(monkeypa
             raise
 
     try:
-        result = await asyncio.wait_for(health.checked("db", blocked_driver), timeout=0.2)
+        result = await asyncio.wait_for(
+            health.checked("db", blocked_driver), timeout=0.2
+        )
         assert result == ("error", None)
         assert not cleaned_up.is_set()
     finally:
