@@ -28,19 +28,19 @@ sudo apt install libpq-dev gcc python3-dev
  conda activate rag-ishms
 ```
 
-### Install the requires packages 
+### Install the requires packages
 ```bash
  pip install -r requirements.txt
 ```
 
 ### Run the FastAPI server
 
-```bash         
+```bash  
  cd ~/rag-ishms/src
 ```
 
 ```bash
- uvicorn main:app --reload --host 0.0.0.0 --port 8000 
+ uvicorn main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 ### Run Dokcer Compose Service
@@ -53,14 +53,14 @@ sudo apt install libpq-dev gcc python3-dev
 
 
 ### for running the drug checker manually
-```bash         
+```bash  
  cd ~/rag-ishms/src
 ```
-```bash         
+```bash  
  pyhton drug_checker.py
 ```
 
-### Run the model 
+### Run the model
 ```bash
  cd ~/llama.cpp/build/bin
 ```
@@ -157,3 +157,25 @@ services or weights with `@pytest.mark.slow`. Only standalone demo scripts and
 Alembic migration scripts are excluded from the coverage calculation.
 See [Docker setup](docker/README.md) for non-root permissions, cache/model files,
 and the optional Qdrant service profile.
+
+## Code quality
+
+Install the development tools and Git hook from the repository root:
+
+```bash
+uv sync --group dev
+uv run pre-commit install
+```
+
+Check the complete repository before committing:
+
+```bash
+uv run pre-commit run --all-files
+uv run pytest
+```
+
+The hooks format Python, sort imports, check common lint errors, and check YAML,
+merge conflicts, whitespace, file endings, and private keys. Comments and
+commented-out code are preserved. Review automatic fixes and stage the updated
+files before retrying a commit. Each contributor must install the hook locally.
+The private-key hook does not scan ordinary API tokens.

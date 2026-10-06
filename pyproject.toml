@@ -35,7 +35,13 @@ dependencies = [
 ]
 
 [dependency-groups]
-dev = ["pytest==9.1.1", "pytest-cov==7.1.0", "pytest-asyncio==1.4.0"]
+dev = [
+    "pytest==9.1.1",
+    "pytest-cov==7.1.0",
+    "pytest-asyncio==1.4.0",
+    "ruff==0.16.10",
+    "pre-commit>=4.6.2",
+]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
@@ -51,3 +57,18 @@ omit = ["src/test_file_.py", "src/stores/llm/rerankers/test.py", "*/alembic/*"]
 [tool.coverage.report]
 fail_under = 70
 show_missing = true
+
+
+[tool.ruff]
+target-version = "py312"
+line-length = 88
+src = ["src"]
+force-exclude = true
+
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.lint.per-file-ignores]
+# These tests install model stubs and settings before importing application modules.
+"tests/conftest.py" = ["E402"]
+"tests/integration/test_api.py" = ["E402"]

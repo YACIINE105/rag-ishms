@@ -10,3 +10,11 @@ __pycache__/
 .coverage
 htmlcov/
 coverage.xml
+
+
+.venv/
+.ruff_cache/
+.env
+.env.*
+!.env.example
+!.env.example.*
