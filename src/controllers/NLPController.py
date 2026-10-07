@@ -1,4 +1,7 @@
+import hashlib
+import json
 import logging
+import re
 from time import perf_counter
 from typing import List
 
@@ -33,8 +36,74 @@ class NLPController(BaseController):
         self.reranker_client = reranker_client
         self.logger = logging.getLogger("uvicorn.error")
 
+    def get_index_metadata(self):
+
+        # step 1 : get the embedding model name
+
+        embedding_model_id = getattr(self.embedding_client, "embedding_model_id", None)
+
+        if not isinstance(embedding_model_id, str) or not embedding_model_id.strip():
+            embedding_model_id = self.app_settings.EMBEDDING_MODEL_ID
+
+        if not isinstance(embedding_model_id, str) or not embedding_model_id.strip():
+            raise ValueError("An embedding model ID is required to identify the index")
+
+        # step 2 : collect the model settings
+
+        embedding_provider = getattr(self.app_settings, "EMBEDDING_PROVIDER", "unknown")
+        embedding_size = self.vector_db_client.default_vector_size
+
+        index_metadata = {
+            "embedding_provider": embedding_provider,
+            "embedding_model_id": embedding_model_id,
+            "embedding_size": embedding_size,
+        }
+
+        # step 3 : create a fingerprint from the model settings
+
+        model_settings = json.dumps(
+            index_metadata, sort_keys=True, separators=(",", ":")
+        )
+        model_hash = hashlib.sha256(model_settings.encode("utf-8"))
+        model_fingerprint = model_hash.hexdigest()[:12]
+
+        index_metadata["embedding_fingerprint"] = model_fingerprint
+
+        return index_metadata
+
     def create_collection_name(self, project_id: str):
-        return f"collection_{self.vector_db_client.default_vector_size}_{project_id}".strip()
+
+        # step 1 : get the model settings and check the project id
+
+        index_metadata = self.get_index_metadata()
+        project_id = str(project_id)
+
+        if not re.fullmatch(r"[0-9]+", project_id):
+            raise ValueError("Project ID must contain digits only")
+
+        # step 2 : make the model name safe for the collection name
+
+        embedding_model_id = index_metadata["embedding_model_id"]
+        model_slug = re.sub(r"[^a-z0-9]+", "_", embedding_model_id.lower())
+        model_slug = model_slug.strip("_") or "model"
+
+        # step 3 : add the fingerprint, vector size and project id
+
+        collection_suffix = (
+            f"_{index_metadata['embedding_fingerprint']}"
+            f"_{index_metadata['embedding_size']}_{project_id}"
+        )
+
+        # PostgreSQL allows 63 bytes, including the 11 bytes used by _vector_idx.
+        model_name_limit = 52 - len("collection_") - len(collection_suffix)
+
+        if model_name_limit < 1:
+            raise ValueError("Index identity exceeds the collection name limit")
+
+        model_slug = model_slug[:model_name_limit]
+        collection_name = f"collection_{model_slug}{collection_suffix}"
+
+        return collection_name
 
     async def reset_vector_db_colection(self, project: Project):
         collection_name = self.create_collection_name(project_id=project.project_id)
@@ -190,7 +259,13 @@ class NLPController(BaseController):
         if not retrieved_docs:
             prediction_logger.info(
                 "prediction.done",
-                extra={"query": query, "retrieved_ids": [], "answer": NO_INFORMATION},
+                extra={
+                    "query": query,
+                    "index_metadata": self.get_index_metadata(),
+                    "collection_name": self.create_collection_name(project.project_id),
+                    "retrieved_ids": [],
+                    "answer": NO_INFORMATION,
+                },
             )
             return {"answer": NO_INFORMATION, "sources": [], "prompt_version": "rag-v1"}
 
@@ -278,6 +353,8 @@ class NLPController(BaseController):
             "prediction.done",
             extra={
                 "query": query,
+                "index_metadata": self.get_index_metadata(),
+                "collection_name": self.create_collection_name(project.project_id),
                 "retrieved_ids": [
                     doc.metadata.get("chunk_id", doc.id) for doc in retrieved_docs
                 ],

@@ -303,6 +303,7 @@ class AsyncChecks(unittest.IsolatedAsyncioTestCase):
 
     async def test_index_failure_is_not_reported_as_success(self):
         controller = NLPController.__new__(NLPController)
+        controller.app_settings = SETTINGS
         controller.embedding_client = Embedding()
         controller.vector_db_client = SimpleNamespace(
             default_vector_size=2,

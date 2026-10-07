@@ -107,6 +107,10 @@ async def test_generation_usage_and_prediction_logs(controller, caplog):
     )
     assert events["prediction.done"].retrieved_ids == [2, 0]
     assert events["prediction.done"].query == "question"
+    assert events["prediction.done"].index_metadata == controller.get_index_metadata()
+    assert events[
+        "prediction.done"
+    ].collection_name == controller.create_collection_name(1)
     assert result["sources"][0] == {"asset_name": "report.pdf", "page": 3}
 
 
@@ -132,7 +136,7 @@ async def test_indexing_info_reset_and_empty_embeddings(controller):
     assert await controller.get_vector_db_collection_info(project) == {"ok": True}
     await controller.reset_vector_db_colection(project)
     controller.vector_db_client.delete_collection.assert_awaited_once_with(
-        collection_name="collection_2_3"
+        collection_name=controller.create_collection_name(3)
     )
     chunk = SimpleNamespace(
         chunk_text="test", chunk_metadata={"page": 0}, chunk_asset_id=1
@@ -146,3 +150,40 @@ async def test_indexing_info_reset_and_empty_embeddings(controller):
     )
     controller.embedding_client.embed_text.return_value = []
     assert not await controller.index_into_vector_db(project, [chunk], [9])
+
+
+def test_collection_name_distinguishes_models_with_the_same_size(controller):
+    controller.embedding_client.embedding_model_id = "org/model-a"
+    first = controller.create_collection_name(3)
+    assert "org_model_a" in first
+    assert first.endswith("_2_3")
+    assert controller.get_index_metadata()["embedding_model_id"] == "org/model-a"
+    controller.embedding_client.embedding_model_id = "org/model-b"
+    assert controller.create_collection_name(3) != first
+
+
+def test_collection_name_avoids_slug_collisions_and_identifier_truncation(controller):
+    controller.embedding_client.embedding_model_id = "org/model-a"
+    first = controller.create_collection_name(3)
+    controller.embedding_client.embedding_model_id = "org_model_a"
+    assert controller.create_collection_name(3) != first
+    controller.embedding_client.embedding_model_id = "org/" + "long-model-" * 30
+    name = controller.create_collection_name(9223372036854775807)
+    assert len(name + "_vector_idx") <= 63
+    assert all(character.isascii() for character in name)
+
+
+def test_collection_name_includes_provider_identity(controller, monkeypatch):
+    controller.embedding_client.embedding_model_id = "model"
+    monkeypatch.setattr(
+        controller.app_settings, "EMBEDDING_PROVIDER", "OPENAI", raising=False
+    )
+    first = controller.create_collection_name(3)
+    monkeypatch.setattr(controller.app_settings, "EMBEDDING_PROVIDER", "OTHER")
+    assert controller.create_collection_name(3) != first
+
+
+@pytest.mark.parametrize("project_id", ["1; DROP TABLE chunks", "../index", ""])
+def test_collection_name_rejects_invalid_project_ids(controller, project_id):
+    with pytest.raises(ValueError, match="digits"):
+        controller.create_collection_name(project_id)
