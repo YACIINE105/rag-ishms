@@ -103,7 +103,7 @@ services:
       - '--web.console.templates=/etc/prometheus/consoles'
       - '--web.enable-lifecycle'
 
-  # Grafana Dashboard
+  # Grafana Dashboard for gathering
   grafana:
     image: grafana/grafana:13.0.8
     container_name: grafana
