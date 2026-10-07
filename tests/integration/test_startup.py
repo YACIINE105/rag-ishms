@@ -9,9 +9,12 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
+from models.db_schems import RetrievedDocuments
+from routes import nlp
+
 
 @pytest.mark.parametrize("backend", ["QDRANT", "PGVector"])
-async def test_lifespan_loads_once_and_releases_resources(monkeypatch, backend):
+def test_lifespan_loads_once_and_releases_resources(monkeypatch, backend):
     with patch("utils.logging.configure_logging"):
         main = importlib.import_module("main")
     settings = SimpleNamespace(
@@ -35,7 +38,16 @@ async def test_lifespan_loads_once_and_releases_resources(monkeypatch, backend):
     monkeypatch.setattr(main, "create_async_engine", create_engine)
     sessions = MagicMock()
     monkeypatch.setattr(main, "sessionmaker", MagicMock(return_value=sessions))
+
     generation, embedding = MagicMock(), MagicMock()
+
+    generation.construct_prompt.return_value = {
+        "role": "system",
+        "content": "Test prompt",
+    }
+    generation.generate_text.return_value = "This is a test answer."
+    embedding.embed_text.return_value = [[1.0, 0.0]]
+
     factory = MagicMock()
     factory.create.side_effect = [generation, embedding]
     monkeypatch.setattr(main, "LLMProviderFactory", MagicMock(return_value=factory))
@@ -49,8 +61,58 @@ async def test_lifespan_loads_once_and_releases_resources(monkeypatch, backend):
     )
     reranker = MagicMock()
     monkeypatch.setattr(main, "CrossEncoderReranker", reranker)
-    app = FastAPI()
-    async with main.lifespan(app):
+    vector.default_vector_size = 2
+    vector.search_by_vector = AsyncMock(
+        return_value=[
+            RetrievedDocuments(
+                text="A source passage for the test answer.",
+                score=0.9,
+                metadata={"asset_name": "egyptian-civil-code.pdf", "page": 0},
+            )
+        ]
+    )
+
+    reranker.return_value.rerank.return_value = [(0, 0.9)]
+
+    templates = MagicMock()
+    templates.get.return_value = "Test prompt"
+    monkeypatch.setattr(main, "TemplateParser", MagicMock(return_value=templates))
+
+    # Avoid querying a real PostgreSQL database.
+    project_model = SimpleNamespace(
+        get_project_or_create_one=AsyncMock(return_value=SimpleNamespace(project_id=1))
+    )
+    monkeypatch.setattr(
+        nlp.ProjectModel,
+        "create_instance",
+        AsyncMock(return_value=project_model),
+    )
+
+    app = main.app
+    with TestClient(app) as client:
+        embedding.set_embedding_model.assert_called_once_with(
+            model_id="embed", embedding_size=2
+        )
+        response = client.post(
+            "/api/v1/nlp/index/answer/1",
+            json={"text": "What does the source document say?"},
+        )
+
+        assert response.status_code == 200, response.text
+
+        body = response.json()
+        assert body["answer"] == "This is a test answer."
+        assert body["sources"] == [{"asset_name": "egyptian-civil-code.pdf", "page": 1}]
+        assert body["request_id"] == response.headers["x-request-id"]
+        assert body["prompt_version"] == "rag-v1"
+        assert set(body) == {
+            "signal",
+            "answer",
+            "sources",
+            "request_id",
+            "prompt_version",
+        }
+
         assert app.generation_client is generation
         assert app.embedding_client is embedding
         assert vector.db_client == (sessions if backend == "PGVector" else "local")
