@@ -81,3 +81,26 @@ images. Main pushes must pass the same evaluation gate before publishing.
 Missing configuration or failed scoring blocks publishing. Configure the
 environment before merging this workflow into main. Never expose evaluation
 secrets to untrusted pull-request code.
+
+## Model identity and collection names
+
+Collections use `collection_{model_slug}_{fingerprint}_{dimension}_{project_id}`.
+The fingerprint includes the exact embedding model ID, provider, and dimension;
+the readable slug is shortened to keep PostgreSQL index identifiers within
+63 bytes. Names are shared by indexing, querying, and document deletion.
+Changing the model ID or provider selects a different collection even when the
+vector dimensions match. Reindex documents before querying with the new name.
+Legacy collections are preserved, but are not used as a fallback: renaming their
+old vectors does not make them compatible with a new embedding model.
+
+Successful evaluation reports include `index_metadata` (full embedding model ID,
+provider, dimension, fingerprint), `collections` by project, `generation_model`,
+`generation_provider`, and `judge_model`. Application `prediction.done` logs
+include the same index metadata and collection name, including zero-hit answers.
+Use these fields as metadata when adding Langfuse tracing; this change does not
+install or configure a Langfuse exporter.
+
+This identifies model configuration, not an immutable model-weights snapshot.
+Use revision-pinned model IDs/paths when available. Normalization, chunking,
+corpus versions, and atomic alias switching are not implemented by this naming
+change and need separate versioning if those settings change.

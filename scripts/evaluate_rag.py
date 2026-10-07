@@ -259,8 +259,29 @@ async def run_live(cases, threshold, corpus=None):
                 return str(result["answer"]) if result else "", list(captured)
 
             report = await evaluate(cases, answer_case, judge, threshold)
+
+            # step 1 : save the embedding model and collection names
+
+            report["index_metadata"] = controller.get_index_metadata()
+            report["collections"] = {}
+
+            project_ids = sorted({case["project_id"] for case in cases})
+
+            for project_id in project_ids:
+                collection_name = controller.create_collection_name(
+                    project_id=project_id
+                )
+                report["collections"][str(project_id)] = collection_name
+
+            # step 2 : save the generation model and evaluation model
+
+            app_settings = main.get_settings()
+
+            report["generation_model"] = app_settings.GENERATION_MODEL_ID
+            report["generation_provider"] = app_settings.GENERATION_PROVIDER
             report["judge_model"] = os.environ["RAG_EVAL_JUDGE_MODEL"]
             report["git_sha"] = os.environ.get("GITHUB_SHA")
+
             return report
     finally:
         os.chdir(original_directory)

@@ -115,6 +115,12 @@ async def test_live_capture_uses_the_same_context_as_generation(monkeypatch):
     searches = []
 
     class Controller:
+        def get_index_metadata(self):
+            return {"embedding_model_id": "test-embed", "embedding_size": 2}
+
+        def create_collection_name(self, project_id):
+            return f"collection_test_embed_123_2_{project_id}"
+
         def __init__(self, **kwargs):
             pass
 
@@ -142,7 +148,13 @@ async def test_live_capture_uses_the_same_context_as_generation(monkeypatch):
             )
         }
     )
-    main_module = SimpleNamespace(app=app, lifespan=lifespan)
+    main_module = SimpleNamespace(
+        app=app,
+        lifespan=lifespan,
+        get_settings=lambda: SimpleNamespace(
+            GENERATION_MODEL_ID="test-generation", GENERATION_PROVIDER="OPENAI"
+        ),
+    )
     original_import = evaluation.importlib.import_module
 
     def import_module(name):
@@ -184,6 +196,11 @@ async def test_live_capture_uses_the_same_context_as_generation(monkeypatch):
         0.75,
     )
     assert report["passed"]
+    assert report["index_metadata"]["embedding_model_id"] == "test-embed"
+    assert report["collections"] == {"1": "collection_test_embed_123_2_1"}
+    assert report["generation_model"] == "test-generation"
+    assert report["generation_provider"] == "OPENAI"
+    assert report["judge_model"] == "test-model"
     assert len(searches) == 1
     assert client.closed
     assert Path.cwd() == original_directory
