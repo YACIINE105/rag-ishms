@@ -68,18 +68,49 @@ class ChunkModel(BaseDataModel):
             query = (
                 select(DataChunk)
                 .where(DataChunk.chunk_project_id == project_id)
+                .order_by(DataChunk.chunk_id)
                 .offset((page_number - 1) * page_size)
                 .limit(page_size)
             )
             result = await session.execute(query)
             return result.scalars().all()
 
-    async def has_chunks_for_asset(self, asset_id: int) -> bool:
+    async def has_chunks_for_asset(
+        self, asset_id: int, processing_mode: str | None = None
+    ) -> bool:
         """
         Returns True if at least one chunk exists for this asset, False otherwise.
         Useful for checking whether an asset still needs processing.
+        When a mode is supplied, check whether the stored chunks use that mode.
         """
         async with self.db_client() as session:
+            if processing_mode is not None:
+                query = (
+                    select(DataChunk.chunk_metadata)
+                    .where(DataChunk.chunk_asset_id == asset_id)
+                    .order_by(DataChunk.chunk_id)
+                    .limit(1)
+                )
+                result = await session.execute(query)
+                record = result.first()
+
+                if record is None:
+                    return False
+
+                metadata = record[0] or {}
+                stored_mode = metadata.get("processing_mode")
+
+                if stored_mode is None:
+                    # Recognize chunks saved before processing_mode was added.
+                    stored_mode = (
+                        "qalam"
+                        if metadata.get("article_number") is not None
+                        and metadata.get("language") in ("ar", "en")
+                        else "baseline"
+                    )
+
+                return stored_mode == processing_mode
+
             query = select(exists().where(DataChunk.chunk_asset_id == asset_id))
             result = await session.execute(query)
             return result.scalar()

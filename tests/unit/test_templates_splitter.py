@@ -1,3 +1,4 @@
+import json
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -106,7 +107,9 @@ def test_loader_selection(tmp_path, extension, loader):
     (tmp_path / f"doc{extension}").write_text("test")
     with patch(f"controllers.ProcessController.{loader}") as factory:
         factory.return_value.load.return_value = ["loaded"]
-        assert controller.get_file_content(f"doc{extension}") == ["loaded"]
+        assert controller.get_file_content(f"doc{extension}", W_qalam=False) == [
+            "loaded"
+        ]
         assert (
             controller.get_file_content_2(f"doc{extension}")
             == factory.return_value.document
@@ -115,3 +118,119 @@ def test_loader_selection(tmp_path, extension, loader):
     assert controller.get_file_content_2("missing.pdf") is None
     (tmp_path / "doc.bin").write_text("x")
     assert controller.get_file_loader("doc.bin") is None
+
+
+def test_qalam_document_to_articles_and_language_chunks(tmp_path, caplog):
+    controller = ProcessController.__new__(ProcessController)
+    controller.project_path = str(tmp_path)
+    (tmp_path / "law.pdf").write_bytes(b"PDF input")
+
+    arabic_text = "العقد شريعة المتعاقدين. " * 8
+    english_text = "Contract provision in English. " * 8
+    qalam_data = {
+        "pages": [
+            {
+                "number": 16,
+                "width": 600,
+                "blocks": [
+                    {
+                        "type": "table",
+                        "rows": [
+                            [
+                                {
+                                    "text": f"مادة ١٤٧ {arabic_text}",
+                                    "bbox": [310, 600, 580, 660],
+                                },
+                                {
+                                    "text": f"Article 147 {english_text}",
+                                    "bbox": [20, 600, 290, 660],
+                                },
+                            ]
+                        ],
+                    }
+                ],
+            },
+            {
+                "number": 17,
+                "width": 600,
+                "blocks": [
+                    {
+                        "type": "table",
+                        "rows": [
+                            [
+                                {
+                                    "text": "تكملة المادة.",
+                                    "bbox": [310, 700, 580, 760],
+                                },
+                                {
+                                    "text": "Continuation of the article.",
+                                    "bbox": [20, 700, 290, 760],
+                                },
+                            ],
+                            [
+                                {"text": "", "bbox": [310, 600, 580, 660]},
+                                {
+                                    "text": "Article 148 Another English provision.",
+                                    "bbox": [20, 600, 290, 660],
+                                },
+                            ],
+                        ],
+                    }
+                ],
+            },
+        ],
+    }
+    loaded_document = SimpleNamespace(to_json=lambda: json.dumps(qalam_data))
+
+    with (
+        patch(
+            "controllers.ProcessController.qalam.Document",
+            return_value=loaded_document,
+        ) as factory,
+        patch.object(
+            controller,
+            "process_simple_splitter",
+            side_effect=AssertionError("Articles must bypass the baseline splitter"),
+        ),
+    ):
+        file_content = controller.get_file_content("law.pdf")
+        assert file_content is loaded_document
+        chunks = controller.process_file_content(
+            file_content, "law.pdf", chunk_size=1, overlap_size=0
+        )
+        factory.assert_called_once_with(str(tmp_path / "law.pdf"))
+
+    corpus_path = tmp_path / "law.articles.json"
+    saved_text = corpus_path.read_text(encoding="utf-8")
+    articles = json.loads(saved_text)
+
+    assert "العقد" in saved_text
+    assert [article["article_number"] for article in articles] == [147, 148]
+    assert articles[0]["source_pages"] == [16, 17]
+    assert articles[1]["text_ar"] == ""
+    assert [
+        (chunk.metadata["article_number"], chunk.metadata["language"])
+        for chunk in chunks
+    ] == [(147, "ar"), (147, "en"), (148, "en")]
+    assert chunks[0].page_content == arabic_text.strip() + "\n\nتكملة المادة."
+    assert chunks[1].page_content == (
+        english_text.strip() + "\n\nContinuation of the article."
+    )
+    assert chunks[0].metadata["citation"] == "Egyptian Civil Code, Article 147"
+    assert chunks[0].metadata["source_pages"] == [16, 17]
+    assert len({chunk.metadata["chunk_key"] for chunk in chunks}) == 3
+    assert "148" in caplog.text and "text_ar" in caplog.text
+
+    output_path = tmp_path / "export" / "articles.json"
+    exported_articles, issues = controller.convert_pdf_to_articles(
+        file_content, "law.pdf", output_path=str(output_path)
+    )
+    assert exported_articles == articles
+    assert issues == [
+        {
+            "article_number": 148,
+            "missing_fields": ["text_ar"],
+            "source_pages": [17],
+        }
+    ]
+    assert json.loads(output_path.read_text(encoding="utf-8")) == articles

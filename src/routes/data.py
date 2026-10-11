@@ -16,7 +16,7 @@ from models import ProjectModel
 from models.AssetModel import AssetModel
 from models.ChunkModel import ChunkModel
 from models.db_schems import Asset, DataChunk
-from models.enums import ResponseSignal
+from models.enums import ProcessingSgnal, ResponseSignal
 from models.enums.AssetTypeEnum import AssetTypeEnum
 
 from .schemes.data import ProcessRequest
@@ -132,6 +132,8 @@ async def process_endpoint(
     chunk_size = process_request.chunk_size
     overlap_size = process_request.overlap_size
     do_reset = process_request.do_reset
+    W_qalam = process_request.W_qalam
+    processing_mode = "qalam" if W_qalam else "baseline"
 
     projectmodel = await ProjectModel.create_instance(db_client=request.app.db_client)
 
@@ -194,10 +196,29 @@ async def process_endpoint(
             content={"status": ResponseSignal.FILES_NOT_FOUND_ERROR.value},
         )
 
+    if W_qalam:
+        unsupported_files = [
+            file_info["file_id"]
+            for file_info in project_file_ids.values()
+            if os.path.splitext(file_info["file_id"])[1].lower()
+            != ProcessingSgnal.PDF.value
+        ]
+
+        if unsupported_files:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={
+                    "signal": ResponseSignal.File_Type_Is_Not_Supported.value,
+                    "detail": "W_qalam supports PDF files only.",
+                    "unsupported_files": unsupported_files,
+                },
+            )
+
     process_controller = ProcessController(project_id=project_id)
 
     number_of_records = 0
     number_of_files = 0
+    number_of_records_by_language = {}
     chunk_model = await ChunkModel.create_instance(db_client=request.app.db_client)
 
     if do_reset == 1:
@@ -214,16 +235,27 @@ async def process_endpoint(
 
         else:
             asset_id = next(iter(project_file_ids))
-            _ = await request.app.vector_db_client.delete_vectors_by_asset_id(
-                collection_name=collection_name, asset_id=asset_id
+            vectors_deleted = (
+                await request.app.vector_db_client.delete_vectors_by_asset_id(
+                    collection_name=collection_name, asset_id=asset_id
+                )
             )
+
+            if vectors_deleted is False:
+                return JSONResponse(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    content={"signal": ResponseSignal.Processing_Failed.value},
+                )
+
             _ = await chunk_model.delete_chunk_by_asset_id(asset_id=asset_id)
 
     elif do_reset != 1 and no_file_id:
         filtered_file_ids = {}
 
         for asset_id, file_info in project_file_ids.items():
-            if not await chunk_model.has_chunks_for_asset(asset_id):
+            if not await chunk_model.has_chunks_for_asset(
+                asset_id, processing_mode=processing_mode
+            ):
                 filtered_file_ids[asset_id] = file_info
 
         project_file_ids = filtered_file_ids
@@ -232,7 +264,10 @@ async def process_endpoint(
         file_id = file_info["file_id"]
         asset_name = file_info["asset_name"]
 
-        file_content = process_controller.get_file_content(file_id=file_id)
+        file_content = process_controller.get_file_content(
+            file_id=file_id,
+            W_qalam=W_qalam,
+        )
 
         if not file_content:
             logger.error(f"error while processing file: {file_id}")
@@ -245,12 +280,20 @@ async def process_endpoint(
         #     logger.info(f"STARTING SPECIAL CHUNKING")
         # else:
 
-        file_chunks = process_controller.process_file_content(
-            file_content=file_content,
-            file_id=file_id,
-            chunk_size=chunk_size,
-            overlap_size=overlap_size,
-        )
+        if W_qalam:
+            # 1. Convert Qalam output into one chunk per article and language.
+            file_chunks = process_controller.process_file_content(
+                file_content=file_content,
+                file_id=file_id,
+            )
+        else:
+            # 2. Process page text with the baseline character splitter.
+            file_chunks = process_controller.process_file_content(
+                file_content=file_content,
+                file_id=file_id,
+                chunk_size=chunk_size,
+                overlap_size=overlap_size,
+            )
 
         if file_chunks is None or len(file_chunks) == 0:
             logger.error(f"no chunks produced for file: {file_id}")
@@ -261,9 +304,16 @@ async def process_endpoint(
         ##### (the one combination that falls through both branches
         ##### above untouched). Also fixes the stray/incomplete
         ##### `await` that was left dangling on its own line.
-        await request.app.vector_db_client.delete_vectors_by_asset_id(
+        vectors_deleted = await request.app.vector_db_client.delete_vectors_by_asset_id(
             collection_name=collection_name, asset_id=asset_id
         )
+
+        if vectors_deleted is False:
+            return JSONResponse(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                content={"signal": ResponseSignal.Processing_Failed.value},
+            )
+
         await chunk_model.delete_chunk_by_asset_id(asset_id=asset_id)
 
         file_chunks_records = [
@@ -271,6 +321,7 @@ async def process_endpoint(
                 chunk_metadata={
                     **chunk.metadata,
                     "asset_name": asset_name,
+                    "processing_mode": processing_mode,
                 },
                 chunk_order=i + 1,
                 chunk_project_id=project.project_id,
@@ -284,6 +335,13 @@ async def process_endpoint(
         number_of_records += await chunk_model.insert_many_chunks(
             chunks=file_chunks_records
         )
+
+        for chunk in file_chunks_records:
+            language = chunk.chunk_metadata.get("language", "unknown")
+            number_of_records_by_language[language] = (
+                number_of_records_by_language.get(language, 0) + 1
+            )
+
         number_of_files += 1
 
     return JSONResponse(
@@ -291,6 +349,8 @@ async def process_endpoint(
             "signal": ResponseSignal.Peocessing_Success.value,
             "inserted_chunks": number_of_records,
             "processed_files": number_of_files,
+            "processing_mode": processing_mode,
+            "inserted_chunks_by_language": number_of_records_by_language,
         }
     )
 

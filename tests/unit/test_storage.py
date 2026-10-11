@@ -97,6 +97,39 @@ async def test_chunk_filters_counts_and_deletion(database):
     }
 
 
+@pytest.mark.parametrize(
+    "metadata,processing_mode,expected",
+    [
+        ({"processing_mode": "qalam"}, "qalam", True),
+        ({"processing_mode": "qalam"}, "baseline", False),
+        ({"processing_mode": "baseline"}, "baseline", True),
+        ({"processing_mode": "baseline"}, "qalam", False),
+        ({"article_number": 147, "language": "ar"}, "qalam", True),
+        ({"article_number": 147, "language": "en"}, "baseline", False),
+        ({"page": 0}, "baseline", True),
+        ({"page": 0}, "qalam", False),
+        (None, "baseline", True),
+    ],
+)
+async def test_chunk_processing_mode(database, metadata, processing_mode, expected):
+    client, session = database
+    result = MagicMock()
+    result.first.return_value = (metadata,)
+    session.execute.return_value = result
+
+    assert (
+        await ChunkModel(client).has_chunks_for_asset(
+            7, processing_mode=processing_mode
+        )
+        is expected
+    )
+
+    result.first.return_value = None
+    assert not await ChunkModel(client).has_chunks_for_asset(
+        7, processing_mode=processing_mode
+    )
+
+
 def test_upload_validation_and_collision(tmp_path, monkeypatch, settings):
     from controllers.DataController import DataController
 

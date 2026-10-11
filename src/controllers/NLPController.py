@@ -124,6 +124,14 @@ class NLPController(BaseController):
         chunks_ids: List[int],
         do_reset: bool = False,
     ):
+        if (
+            not chunks
+            or len(chunks) != len(chunks_ids)
+            or len(set(chunks_ids)) != len(chunks_ids)
+            or any(chunk_id is None for chunk_id in chunks_ids)
+        ):
+            return False
+
         # step 1 : get collection name
 
         collection_name = self.create_collection_name(project_id=project.project_id)

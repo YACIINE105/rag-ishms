@@ -152,6 +152,30 @@ async def test_indexing_info_reset_and_empty_embeddings(controller):
     assert not await controller.index_into_vector_db(project, [chunk], [9])
 
 
+@pytest.mark.parametrize("chunk_ids", [[9], [9, 9], [9, None]])
+async def test_indexing_requires_a_distinct_id_per_language_chunk(
+    controller, chunk_ids
+):
+    chunks = [
+        SimpleNamespace(
+            chunk_text="العقد شريعة المتعاقدين.",
+            chunk_metadata={"article_number": 147, "language": "ar"},
+            chunk_asset_id=7,
+        ),
+        SimpleNamespace(
+            chunk_text="An English article provision.",
+            chunk_metadata={"article_number": 147, "language": "en"},
+            chunk_asset_id=7,
+        ),
+    ]
+
+    assert not await controller.index_into_vector_db(
+        SimpleNamespace(project_id=1), chunks, chunk_ids
+    )
+    controller.embedding_client.embed_text.assert_not_called()
+    controller.vector_db_client.insert_many.assert_not_awaited()
+
+
 def test_collection_name_distinguishes_models_with_the_same_size(controller):
     controller.embedding_client.embedding_model_id = "org/model-a"
     first = controller.create_collection_name(3)
