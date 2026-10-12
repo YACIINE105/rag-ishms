@@ -237,6 +237,25 @@ async def test_processing_modes_and_separate_vector_storage(
         }
 
 
+async def test_indexing_paces_batches_for_free_upstream(
+    processing_context, monkeypatch
+):
+    context = processing_context
+    response = await context.client.post(
+        "/api/v1/data/process/1", json={"W_qalam": True}
+    )
+    assert response.status_code == 200
+    sleep = AsyncMock()
+    monkeypatch.setattr(nlp, "asyncio", SimpleNamespace(sleep=sleep))
+    monkeypatch.setattr(
+        nlp, "get_settings", lambda: SimpleNamespace(INDEX_BATCH_DELAY_SECONDS=3.5)
+    )
+    indexed = await context.client.post("/api/v1/nlp/index/push/1", json={})
+    assert indexed.status_code == 200
+    assert indexed.json()["inserted_items_count"] == len(context.records)
+    sleep.assert_awaited_once_with(3.5)
+
+
 @pytest.mark.parametrize("initial_mode", [False, True])
 async def test_switching_modes_replaces_chunks_and_vectors(
     processing_context, initial_mode

@@ -12,6 +12,8 @@ ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cpu
 RUN pip install --no-cache-dir "torch==${TORCH_VERSION}" --index-url "${TORCH_INDEX_URL}"
 COPY src/requirements.txt ./requirements.txt
 RUN CMAKE_BUILD_PARALLEL_LEVEL=2 pip install --no-cache-dir -r requirements.txt
+# Keep the article parser in its own layer so updates do not rebuild native LLM wheels.
+RUN pip install --no-cache-dir qalam==0.1.3
 
 FROM python:3.12-slim-bookworm AS runtime
 RUN apt-get update && apt-get install -y --no-install-recommends \

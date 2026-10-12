@@ -18,3 +18,14 @@ coverage.xml
 .env.*
 !.env.example
 !.env.example.*
+
+# Local runtime/evaluation evidence and stores
+src/assets/jobs.json
+src/assets/jobs.tmp
+src/assets/feedback.jsonl
+eval/reports/
+reports/experiments/
+reports/metrics/*.prom
+reports/mlflow.db*
+mlruns/
+mlartifacts/

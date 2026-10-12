@@ -5,10 +5,25 @@ import re
 from time import perf_counter
 from typing import List
 
+from starlette.concurrency import run_in_threadpool
+
 from models.db_schems import DataChunk, Project
 from models.enums import DataBaseEnum
 from stores.llm.LLMEnums import DocumentTypeEnum
+from utils.guardrails import INJECTION, protect_query, redact_pii, redact_stream
 from utils.inference import run_serialized
+from utils.metrics import (
+    GUARDRAIL_DECISIONS,
+    LLM_INFLIGHT,
+    LLM_STREAM_DURATION,
+    LLM_TOKENS,
+    LLM_TTFT,
+    RAG_REQUESTS,
+    RAG_RETRIEVED,
+    RAG_STAGE_LATENCY,
+    RAG_TOP_SCORE,
+)
+from utils.observability import traced, traced_stream
 
 from .BaseController import BaseController
 
@@ -35,6 +50,10 @@ class NLPController(BaseController):
         self.template_parser = template_parser
         self.reranker_client = reranker_client
         self.logger = logging.getLogger("uvicorn.error")
+
+    def prompt_version(self):
+        version = getattr(self.template_parser, "version", None)
+        return version if isinstance(version, str) else "rag-v1"
 
     def get_index_metadata(self):
 
@@ -191,9 +210,15 @@ class NLPController(BaseController):
 
         return bool(is_inserted)
 
+    @traced("retrieve")
     async def search_vector_db_collection(
-        self, project: Project, text: str, limit: int = 5, rerank_pool: int = 30
+        self,
+        project: Project,
+        text: str,
+        limit: int = 5,
+        rerank_pool: int | None = None,
     ):
+        rerank_pool = rerank_pool or getattr(self.app_settings, "RERANK_POOL", 30)
         collection_name = self.create_collection_name(project_id=project.project_id)
         start = perf_counter()
         try:
@@ -206,6 +231,8 @@ class NLPController(BaseController):
             )
             if not vectors or not vectors[0]:
                 raise RuntimeError("Embedding provider returned no vector")
+            RAG_STAGE_LATENCY.labels("embed").observe(perf_counter() - start)
+            start = perf_counter()
             candidates = await self.vector_db_client.search_by_vector(
                 collection_name=collection_name,
                 vector=vectors[0],
@@ -224,6 +251,8 @@ class NLPController(BaseController):
                 "latency_ms": round((perf_counter() - start) * 1000, 2),
             },
         )
+        RAG_STAGE_LATENCY.labels("search").observe(perf_counter() - start)
+        RAG_RETRIEVED.observe(len(candidates))
         if not candidates:
             self.logger.warning("retrieve.zero_hits")
             return []
@@ -241,7 +270,10 @@ class NLPController(BaseController):
         except Exception:
             self.logger.exception("rerank.failed")
             raise
+        RAG_STAGE_LATENCY.labels("rerank").observe(perf_counter() - start)
         top_score = float(reranked[0][1]) if reranked else None
+        if top_score is not None:
+            RAG_TOP_SCORE.observe(top_score)
         self.logger.info(
             "rerank.done",
             extra={
@@ -249,6 +281,10 @@ class NLPController(BaseController):
                 "latency_ms": round((perf_counter() - start) * 1000, 2),
             },
         )
+        threshold = getattr(self.app_settings, "RERANK_MIN_SCORE", None)
+        if threshold is not None and top_score is not None and top_score < threshold:
+            GUARDRAIL_DECISIONS.labels("retrieval_score", "refused").inc()
+            return []
         if top_score is not None and top_score < getattr(
             self.app_settings, "RERANK_WARNING_THRESHOLD", 0.0
         ):
@@ -259,12 +295,31 @@ class NLPController(BaseController):
             else candidates[:limit]
         )
 
-    async def answer_rag_query(self, project: Project, query: str, limit: int = 5):
+    @traced("answer")
+    async def answer_rag_query(
+        self, project: Project, query: str, limit: int = 5, stream: bool = False
+    ):
+        self.last_contexts = []
+        guarded = getattr(self.app_settings, "GUARDRAILS_ENABLED", False)
+        if guarded:
+            query = protect_query(query)
         # step 1 reterieve related docs
         retrieved_docs = await self.search_vector_db_collection(
             project=project, text=query, limit=limit
         )
+        if guarded:
+            filtered = [doc for doc in retrieved_docs if not INJECTION.search(doc.text)]
+            if len(filtered) != len(retrieved_docs):
+                GUARDRAIL_DECISIONS.labels("document_injection", "filtered").inc()
+            retrieved_docs = filtered
+        language = "ar" if re.search(r"[\u0600-\u06ff]", query) else "en"
+        no_information = (
+            "لم أجد معلومات في المستندات المفهرسة للإجابة عن سؤالك."
+            if language == "ar"
+            else NO_INFORMATION
+        )
         if not retrieved_docs:
+            RAG_REQUESTS.labels("no_hits", language).inc()
             prediction_logger.info(
                 "prediction.done",
                 extra={
@@ -272,10 +327,14 @@ class NLPController(BaseController):
                     "index_metadata": self.get_index_metadata(),
                     "collection_name": self.create_collection_name(project.project_id),
                     "retrieved_ids": [],
-                    "answer": NO_INFORMATION,
+                    "answer": no_information,
                 },
             )
-            return {"answer": NO_INFORMATION, "sources": [], "prompt_version": "rag-v1"}
+            return {
+                "answer": no_information,
+                "sources": [],
+                "prompt_version": self.prompt_version(),
+            }
 
         sources = []
         seen = set()
@@ -295,29 +354,59 @@ class NLPController(BaseController):
             else:
                 page = None
 
-            key = (asset_name, page)
+            article_number = metadata.get("article_number")
+            if page is None and type(metadata.get("source_page")) is int:
+                page = metadata["source_page"]
+            if page is None and metadata.get("source_pages"):
+                page = metadata["source_pages"][0]
+            key = (asset_name, page, article_number)
 
             if key in seen:
                 continue
 
             seen.add(key)
 
-            sources.append(
-                {
-                    "asset_name": asset_name,
-                    "page": page,
-                }
-            )
+            source = {"asset_name": asset_name, "page": page}
+            if type(article_number) is int and article_number > 0:
+                source["article_number"] = article_number
+                source["citation"] = (
+                    metadata.get("citation")
+                    or f"{asset_name}, Article {article_number}"
+                )
+                if metadata.get("source_pages"):
+                    source["source_pages"] = metadata["source_pages"]
+            sources.append(source)
 
+        if guarded and not sources:
+            GUARDRAIL_DECISIONS.labels("grounding", "refused").inc()
+            RAG_REQUESTS.labels("refused", language).inc()
+            return {
+                "answer": no_information,
+                "sources": [],
+                "prompt_version": self.prompt_version(),
+            }
+
+        self.last_contexts = [
+            {
+                "text": redact_pii(doc.text) if guarded else doc.text,
+                "metadata": doc.metadata or {},
+            }
+            for doc in retrieved_docs
+        ]
         # step 2 construct prompt
-        system_prompt = self.template_parser.get("rag", "system_prompt")
+        system_prompt = await run_in_threadpool(
+            self.template_parser.get, "rag", "system_prompt"
+        )
 
         document_prompt = "\n".join(
             [
                 self.template_parser.get(
                     "rag",
                     "document_prompt",
-                    {"document_no": i + 1, "chunk_text": doc.text},
+                    {
+                        "document_no": i + 1,
+                        "chunk_text": redact_pii(doc.text) if guarded else doc.text,
+                    },
                 )
                 for i, doc in enumerate(retrieved_docs)
             ]
@@ -333,8 +422,18 @@ class NLPController(BaseController):
             self.generation_client.construct_prompt(prompt=system_prompt, role="system")
         ]
 
+        if stream:
+            return {
+                "stream": self.stream_generation(
+                    full_prompt, chat_history, language, query, guarded
+                ),
+                "sources": sources,
+                "prompt_version": self.prompt_version(),
+            }
+
         self.logger.debug("generate.prompt", extra={"prompt": full_prompt})
         start = perf_counter()
+        LLM_INFLIGHT.inc()
         try:
             answer = await run_serialized(
                 self.generation_client,
@@ -343,8 +442,12 @@ class NLPController(BaseController):
                 chat_history=chat_history,
             )
         except Exception:
+            RAG_REQUESTS.labels("llm_error", language).inc()
             self.logger.exception("generate.failed")
             raise
+        finally:
+            LLM_INFLIGHT.dec()
+            RAG_STAGE_LATENCY.labels("generate").observe(perf_counter() - start)
         self.logger.info(
             "generate.done",
             extra={
@@ -355,8 +458,20 @@ class NLPController(BaseController):
         )
 
         if not answer:
+            RAG_REQUESTS.labels("llm_error", language).inc()
             self.logger.error("generate.failed")
             return None
+        if guarded:
+            filtered_answer = redact_pii(str(answer))
+            if filtered_answer != str(answer):
+                GUARDRAIL_DECISIONS.labels("output_pii", "redacted").inc()
+                from utils.generation import GenerationText
+
+                answer = GenerationText(
+                    filtered_answer,
+                    getattr(answer, "tokens_in", None),
+                    getattr(answer, "tokens_out", None),
+                )
         prediction_logger.info(
             "prediction.done",
             extra={
@@ -370,11 +485,49 @@ class NLPController(BaseController):
             },
         )
 
+        RAG_REQUESTS.labels("answered", language).inc()
+        for token_type, attribute in (("input", "tokens_in"), ("output", "tokens_out")):
+            count = getattr(answer, attribute, None)
+            if isinstance(count, int) and count >= 0:
+                LLM_TOKENS.labels(token_type).inc(count)
         return {
             "answer": answer,
             "sources": sources,
-            "prompt_version": "rag-v1",
+            "prompt_version": self.prompt_version(),
         }
+
+    @traced_stream
+    def stream_generation(self, prompt, history, language, query, guarded):
+        start = perf_counter()
+        LLM_INFLIGHT.inc()
+        completed = False
+        pieces = []
+        raw_iterator = self.generation_client.stream_text(prompt, history)
+        iterator = redact_stream(raw_iterator) if guarded else raw_iterator
+        try:
+            for token in iterator:
+                if not pieces:
+                    LLM_TTFT.observe(perf_counter() - start)
+                pieces.append(token)
+                yield token
+            if not pieces:
+                raise RuntimeError("Generation provider returned no tokens")
+            completed = True
+            RAG_REQUESTS.labels("answered", language).inc()
+            prediction_logger.info(
+                "prediction.done",
+                extra={"query": query, "answer": "".join(pieces), "streamed": True},
+            )
+        except Exception:
+            RAG_REQUESTS.labels("llm_error", language).inc()
+            raise
+        finally:
+            if not completed:
+                GUARDRAIL_DECISIONS.labels("stream", "interrupted").inc()
+            LLM_INFLIGHT.dec()
+            LLM_STREAM_DURATION.observe(perf_counter() - start)
+            RAG_STAGE_LATENCY.labels("generate").observe(perf_counter() - start)
+            iterator.close()
 
     def get_conversation_history(project: Project, conversation_id):
         pass

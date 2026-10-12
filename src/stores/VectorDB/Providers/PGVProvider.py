@@ -80,7 +80,7 @@ class PGVectorProvider(VectorDBInterface):
                     "SELECT tablename FROM pg_tables WHERE schemaname = current_schema() AND tablename ~ :pattern"
                 )
                 results = await session.execute(
-                    tables, {"pattern": r"^collection_[0-9]+_[0-9]+$"}
+                    tables, {"pattern": r"^collection_[a-z0-9_]+_[0-9]+$"}
                 )
                 records = results.scalars().all()
 
@@ -487,7 +487,7 @@ class PGVectorProvider(VectorDBInterface):
         if not tables:
             return 0
         if not all(
-            re.fullmatch(r"collection_[0-9]+_[0-9]+", table) for table in tables
+            re.fullmatch(r"collection_[a-z0-9_]+_[0-9]+", table) for table in tables
         ):
             raise ValueError("Invalid vector collection name")
         indexed_chunks = " UNION ".join(

@@ -1,3 +1,4 @@
+import re
 from types import SimpleNamespace as NS
 from unittest.mock import AsyncMock, MagicMock, patch
 
@@ -210,14 +211,18 @@ async def test_pg_distance_and_vector_cast(pg, distance):
     assert s.execute.call_args.args[1]["limit"] == 3
 
 
-async def test_pg_lifecycle_and_count(pg):
+@pytest.mark.parametrize(
+    "collection", ["collection_2_1", "collection_nvidia_abc123def456_2048_900001"]
+)
+async def test_pg_lifecycle_and_count(pg, collection):
     p, s = pg
     await p.connect()
     await p.disconnect()
     s.result.first.return_value = True
     assert await p.collection_exists("collection_2_1")
-    s.result.scalars.return_value.all.return_value = ["collection_2_1"]
-    assert await p.list_collections() == ["collection_2_1"]
+    s.result.scalars.return_value.all.return_value = [collection]
+    assert await p.list_collections() == [collection]
+    assert re.fullmatch(s.execute.call_args.args[1]["pattern"], collection)
     s.result.scalar_one.return_value = 3
     assert await p.get_indexed_documents_count() == 3
     s.result.fetchone.return_value = NS(_mapping={"tablename": "collection_2_1"})
@@ -350,4 +355,5 @@ def test_reranker_orders_scores_without_progress_output():
         model.return_value.predict.assert_called_once_with(
             [("question", "first"), ("question", "second"), ("question", "third")],
             show_progress_bar=False,
+            batch_size=16,
         )

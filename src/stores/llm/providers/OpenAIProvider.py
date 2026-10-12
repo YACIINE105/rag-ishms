@@ -37,7 +37,7 @@ class OpenAIProvider(LLM_Interface):
         #     api_key=self.api_key, api_url = self.api_url
         #     )
 
-        client_kwargs = {"api_key": self.api_key}
+        client_kwargs = {"api_key": self.api_key, "timeout": 120.0, "max_retries": 2}
         if self.api_url:
             client_kwargs["base_url"] = (
                 self.api_url if self.api_url and len(self.api_url) != 0 else None
@@ -75,7 +75,9 @@ class OpenAIProvider(LLM_Interface):
             else self.default_generation_max_output_token
         )
         temperature = (
-            temperature if temperature else self.default_generation_temperature
+            temperature
+            if temperature is not None
+            else self.default_generation_temperature
         )
 
         chat_history = chat_history or []
@@ -110,7 +112,7 @@ class OpenAIProvider(LLM_Interface):
             )
 
         except Exception as e:
-            self.logger.error(f"Error during text generation: {e}")
+            self.logger.error("Error during text generation (%s)", type(e).__name__)
             return None
 
     def embed_text(
@@ -174,3 +176,22 @@ class OpenAIProvider(LLM_Interface):
         # Probe authentication and service reachability without generating tokens.
         self.client.with_options(timeout=3.0, max_retries=0).models.list()
         return True
+
+    def stream_text(self, prompt, chat_history=None):
+        """Iterator consumed by StreamingResponse's threadpool."""
+        messages = list(chat_history or []) + [self.construct_prompt(prompt, "user")]
+        response = self.client.chat.completions.create(
+            model=self.generation_model_id,
+            messages=messages,
+            max_tokens=self.default_generation_max_output_token,
+            temperature=self.default_generation_temperature,
+            stream=True,
+        )
+        try:
+            for chunk in response:
+                if chunk.choices:
+                    text = chunk.choices[0].delta.content
+                    if text:
+                        yield text
+        finally:
+            response.close()

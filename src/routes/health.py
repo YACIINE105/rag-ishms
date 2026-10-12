@@ -76,6 +76,8 @@ async def health(
             raise RuntimeError("Embedding provider unavailable")
 
     async def reranker():
+        if not getattr(settings, "RERANKER_ENABLED", True):
+            return
         if getattr(request.app.reranker_client, "model", None) is None:
             raise RuntimeError("Reranker unavailable")
 

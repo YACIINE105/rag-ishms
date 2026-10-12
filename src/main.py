@@ -1,17 +1,22 @@
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from sqlalchemy.engine import URL
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
+from starlette.concurrency import run_in_threadpool
 
+from controllers.BaseController import BaseController
 from helpers.config import get_settings
 from routes import base, data, health, nlp
 from stores.llm import CrossEncoderReranker, LLMProviderFactory
 from stores.llm.templates import TemplateParser
 from stores.VectorDB import VectorDBPRoviderFactory
+from utils.jobs import IndexJobs
 from utils.logging import RequestContextMiddleware, configure_logging
 from utils.metrics import setup_metrics
+from utils.observability import get_client
 
 configure_logging(get_settings().LOG_LEVEL)
 
@@ -24,6 +29,9 @@ configure_logging(get_settings().LOG_LEVEL)
 async def lifespan(app: FastAPI):
     # --- STARTUP LOGIC ---
     settings = get_settings()
+    app.state.index_jobs = IndexJobs(
+        Path(BaseController().base_dir) / "assets" / "jobs.json"
+    )
 
     postgres_conn = URL.create(
         "postgresql+asyncpg",
@@ -52,9 +60,14 @@ async def lifespan(app: FastAPI):
     vector_db_provider_factory = VectorDBPRoviderFactory(settings)
 
     # Setup generation client
-    app.generation_client = llm_provider_factory.create(
-        provider=settings.GENERATION_PROVIDER
-    )
+    if getattr(settings, "GENERATION_BASE_URL", None):
+        app.generation_client = llm_provider_factory.create(
+            provider=settings.GENERATION_PROVIDER, role="generation"
+        )
+    else:
+        app.generation_client = llm_provider_factory.create(
+            provider=settings.GENERATION_PROVIDER
+        )
     app.generation_client.set_generation_model(model_id=settings.GENERATION_MODEL_ID)
 
     # Setup embedding client
@@ -73,8 +86,17 @@ async def lifespan(app: FastAPI):
     if settings.VECTOR_DB_BACKEND == "PGVector":
         app.vector_db_client.db_client = app.db_client
 
-    app.reranker_client = CrossEncoderReranker()
-
+    if getattr(settings, "RERANKER_ENABLED", True):
+        app.reranker_client = (
+            CrossEncoderReranker(
+                model_name=settings.RERANKER_MODEL_ID,
+                batch_size=settings.RERANKER_BATCH_SIZE,
+            )
+            if hasattr(settings, "RERANKER_MODEL_ID")
+            else CrossEncoderReranker()
+        )
+    else:
+        app.reranker_client = None
     await app.vector_db_client.connect()
 
     app.template_parser = TemplateParser(
@@ -88,6 +110,10 @@ async def lifespan(app: FastAPI):
             await app.vector_db_client.disconnect()
         finally:
             await app.db_engine.dispose()
+            client = get_client()
+            if client:
+                await run_in_threadpool(client.shutdown)
+                get_client.cache_clear()
 
 
 # Pass the lifespan context manager into the FastAPI instance

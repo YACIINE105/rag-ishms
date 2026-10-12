@@ -234,3 +234,10 @@ def test_qalam_document_to_articles_and_language_chunks(tmp_path, caplog):
         }
     ]
     assert json.loads(output_path.read_text(encoding="utf-8")) == articles
+
+
+def test_local_prompt_version_is_content_based():
+    english, arabic = TemplateParser("en"), TemplateParser("ar")
+    assert english.version.startswith("rag-")
+    assert english.version != arabic.version
+    assert english.version == TemplateParser("en").version

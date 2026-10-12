@@ -12,6 +12,8 @@ from uuid import uuid4
 from pythonjsonlogger.json import JsonFormatter
 from starlette.responses import JSONResponse
 
+from utils.guardrails import redact_pii
+
 request_id_context = ContextVar("request_id", default=None)
 project_id_context = ContextVar("project_id", default=None)
 
@@ -19,11 +21,23 @@ project_id_context = ContextVar("project_id", default=None)
 class ContextJsonFormatter(JsonFormatter):
     def add_fields(self, log_record, record, message_dict):
         super().add_fields(log_record, record, message_dict)
+
+        def redact(value):
+            if isinstance(value, str):
+                return redact_pii(value)
+            if isinstance(value, dict):
+                return {key: redact(item) for key, item in value.items()}
+            if isinstance(value, list):
+                return [redact(item) for item in value]
+            return value
+
+        for key, value in list(log_record.items()):
+            log_record[key] = redact(value)
         log_record.update(
             timestamp=datetime.fromtimestamp(record.created, timezone.utc).isoformat(),
             level=record.levelname,
             logger=record.name,
-            message=record.getMessage(),
+            message=redact_pii(record.getMessage()),
             request_id=request_id_context.get(),
             project_id=project_id_context.get(),
         )
@@ -62,7 +76,7 @@ class RequestContextMiddleware:
             else str(uuid4())
         )
         match = re.search(
-            r"/(?:index/(?:push|info|search|answer)|upload|process)/(\d+)/?$",
+            r"/(?:index/(?:push|info|search|jobs|answer(?:/stream)?)|upload|process)/(\d+)/?$",
             scope["path"],
         )
         project_id = int(match.group(1)) if match else None

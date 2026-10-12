@@ -28,6 +28,10 @@ class Source(BaseModel):
     asset_name: str
     page: Annotated[int, Field(ge=1)] | None = None
 
+    article_number: int | None = None
+    citation: str | None = None
+    source_pages: list[int] | None = None
+
 
 class AnswerResponse(BaseModel):
     signal: str

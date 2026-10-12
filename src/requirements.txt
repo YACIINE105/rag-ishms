@@ -34,3 +34,4 @@ fastapi-health==0.4.0
 
 
 python-json-logger==4.2.0
+langfuse==4.17.0

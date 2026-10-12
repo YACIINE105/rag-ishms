@@ -2,8 +2,9 @@ import logging
 import os
 
 import aiofiles  #    مكتبة تُستخدم للتعامل مع الملفات بشكل غير متزامن
-from fastapi import APIRouter, Depends, Request, UploadFile, status
+from fastapi import APIRouter, BackgroundTasks, Depends, Request, UploadFile, status
 from fastapi.responses import JSONResponse
+from starlette.concurrency import run_in_threadpool
 
 from controllers import (
     DataController,
@@ -18,15 +19,19 @@ from models.ChunkModel import ChunkModel
 from models.db_schems import Asset, DataChunk
 from models.enums import ProcessingSgnal, ResponseSignal
 from models.enums.AssetTypeEnum import AssetTypeEnum
+from utils.jobs import get_jobs, reserve_project
+from utils.security import authorize
 
 from .schemes.data import ProcessRequest
 
 logger = logging.getLogger("uvicorn.error")
 
-data_router = APIRouter(prefix="/api/v1/data", tags=["api_v1", "data"])
+data_router = APIRouter(
+    prefix="/api/v1/data", tags=["api_v1", "data"], dependencies=[Depends(authorize)]
+)
 
 
-@data_router.post("/upload/{project_id}")
+@data_router.post("/upload/{project_id}", dependencies=[Depends(reserve_project)])
 async def upload_data(
     request: Request,
     project_id: int,
@@ -122,7 +127,7 @@ async def upload_data(
     )
 
 
-@data_router.post("/process/{project_id}")
+@data_router.post("/process/{project_id}", dependencies=[Depends(reserve_project)])
 async def process_endpoint(
     request: Request, project_id: int, process_request: ProcessRequest
 ):
@@ -264,7 +269,8 @@ async def process_endpoint(
         file_id = file_info["file_id"]
         asset_name = file_info["asset_name"]
 
-        file_content = process_controller.get_file_content(
+        file_content = await run_in_threadpool(
+            process_controller.get_file_content,
             file_id=file_id,
             W_qalam=W_qalam,
         )
@@ -282,13 +288,15 @@ async def process_endpoint(
 
         if W_qalam:
             # 1. Convert Qalam output into one chunk per article and language.
-            file_chunks = process_controller.process_file_content(
+            file_chunks = await run_in_threadpool(
+                process_controller.process_file_content,
                 file_content=file_content,
                 file_id=file_id,
             )
         else:
             # 2. Process page text with the baseline character splitter.
-            file_chunks = process_controller.process_file_content(
+            file_chunks = await run_in_threadpool(
+                process_controller.process_file_content,
                 file_content=file_content,
                 file_id=file_id,
                 chunk_size=chunk_size,
@@ -322,6 +330,10 @@ async def process_endpoint(
                     **chunk.metadata,
                     "asset_name": asset_name,
                     "processing_mode": processing_mode,
+                    "chunking_config": {
+                        "chunk_size": chunk_size,
+                        "overlap_size": overlap_size,
+                    },
                 },
                 chunk_order=i + 1,
                 chunk_project_id=project.project_id,
@@ -385,3 +397,31 @@ async def process_endpoint(
 
 #     # 3. بنرجع الداتا المنظفة كـ JSONResponse رسمي
 #     return JSONResponse(content=json.loads(clean_json_str))
+
+
+@data_router.post("/process/jobs/{project_id}", status_code=202)
+async def start_process_job(
+    request: Request,
+    project_id: int,
+    process_request: ProcessRequest,
+    background_tasks: BackgroundTasks,
+):
+    jobs = get_jobs(request.app)
+    try:
+        job = jobs.submit(project_id, kind="process")
+    except ValueError as error:
+        return JSONResponse(status_code=409, content={"detail": str(error)})
+    background_tasks.add_task(
+        jobs.run, job["job_id"], process_endpoint, request, project_id, process_request
+    )
+    return dict(job)
+
+
+@data_router.get("/process/status/{job_id}")
+async def process_job_status(request: Request, job_id: str):
+    record = get_jobs(request.app).records.get(job_id)
+    if not record or record["kind"] != "process":
+        return JSONResponse(
+            status_code=404, content={"detail": "Processing job not found"}
+        )
+    return dict(record)

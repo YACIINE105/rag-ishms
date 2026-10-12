@@ -5,6 +5,7 @@ Run with Python's standard library; never uploads documents or generates text.
 
 import argparse
 import json
+import os
 from urllib.error import HTTPError
 from urllib.request import Request, urlopen
 
@@ -12,6 +13,8 @@ from urllib.request import Request, urlopen
 def request(base_url, path, method="GET", payload=None):
     body = None if payload is None else json.dumps(payload).encode()
     headers = {"X-Request-ID": "docker-smoke-check"}
+    if os.environ.get("RAG_API_KEY"):
+        headers["X-API-Key"] = os.environ["RAG_API_KEY"]
     if body is not None:
         headers["Content-Type"] = "application/json"
     req = Request(
