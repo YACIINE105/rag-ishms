@@ -5,6 +5,8 @@ services:
       context: ..
       dockerfile: docker/rag_ishms/Dockerfile
     container_name: fastapi
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8000:8000"
 
@@ -92,7 +94,8 @@ services:
       - "9090:9090"
     volumes:
       - prometheus_data:/prometheus
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
     networks:
       - backend
     restart: always
@@ -113,6 +116,8 @@ services:
       - ./env/.env.grafana
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     networks:
       - backend
     restart: always
@@ -129,7 +134,9 @@ services:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
+      - ../reports/metrics:/textfile:ro
     command:
+      - '--collector.textfile.directory=/textfile'
       - '--path.procfs=/host/proc'
       - '--path.rootfs=/rootfs'
       - '--path.sysfs=/host/sys'

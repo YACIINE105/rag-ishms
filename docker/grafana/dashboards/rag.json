@@ -1,0 +1,299 @@
+{
+  "uid": "rag-ishms",
+  "title": "RAG-ISHMS",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "15s",
+  "time": {
+    "from": "now-1h",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "API availability",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "up{job=\"fastapi\"}",
+          "legendFormat": "{{stage}} {{lang}} {{outcome}} {{type}}"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Requests per second",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 0,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(rate(http_requests_total[5m]))",
+          "legendFormat": "{{stage}} {{lang}} {{outcome}} {{type}}"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "HTTP p95 latency",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, endpoint) (rate(http_request_duration_seconds_bucket[5m])))",
+          "legendFormat": "{{stage}} {{lang}} {{outcome}} {{type}}"
+        }
+      ]
+    },
+    {
+      "id": 4,
+      "title": "Stage p95 latency",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 8,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, stage) (rate(rag_stage_latency_seconds_bucket[5m])))",
+          "legendFormat": "{{stage}} {{lang}} {{outcome}} {{type}}"
+        }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "Answer outcomes by language",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (outcome,lang) (rate(rag_answers_total[5m]))",
+          "legendFormat": "{{stage}} {{lang}} {{outcome}} {{type}}"
+        }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "LLM token usage",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 16,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (type) (rate(llm_tokens_total[5m]))",
+          "legendFormat": "{{stage}} {{lang}} {{outcome}} {{type}}"
+        }
+      ]
+    },
+    {
+      "id": 7,
+      "title": "Inflight generations",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "llm_inflight_requests",
+          "legendFormat": "{{stage}} {{lang}} {{outcome}} {{type}}"
+        }
+      ]
+    },
+    {
+      "id": 8,
+      "title": "Host available memory",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 24,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "node_memory_MemAvailable_bytes",
+          "legendFormat": "{{stage}} {{lang}} {{outcome}} {{type}}"
+        }
+      ]
+    },
+    {
+      "id": 9,
+      "title": "PostgreSQL availability",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "pg_up",
+          "legendFormat": "{{stage}} {{lang}} {{outcome}} {{type}}"
+        }
+      ]
+    },
+    {
+      "id": 10,
+      "title": "Quality by language",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 32,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "rag_eval_score",
+          "legendFormat": "{{metric}} {{lang}} {{guardrail}} {{decision}}"
+        }
+      ]
+    },
+    {
+      "id": 11,
+      "title": "Latest evaluation age",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "time() - rag_eval_last_run_timestamp_seconds",
+          "legendFormat": "{{metric}} {{lang}} {{guardrail}} {{decision}}"
+        }
+      ]
+    },
+    {
+      "id": 12,
+      "title": "Streaming TTFT p95",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 12,
+        "y": 40,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le) (rate(llm_time_to_first_token_seconds_bucket[5m])))",
+          "legendFormat": "{{metric}} {{lang}} {{guardrail}} {{decision}}"
+        }
+      ]
+    },
+    {
+      "id": 13,
+      "title": "Guardrail decisions",
+      "type": "timeseries",
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "gridPos": {
+        "x": 0,
+        "y": 48,
+        "w": 12,
+        "h": 8
+      },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (guardrail, decision) (rate(guardrail_decisions_total[5m]))",
+          "legendFormat": "{{metric}} {{lang}} {{guardrail}} {{decision}}"
+        }
+      ]
+    }
+  ]
+}
