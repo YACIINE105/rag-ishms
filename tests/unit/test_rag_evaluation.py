@@ -307,3 +307,54 @@ def test_committed_benchmark_is_grounded_in_the_source_snapshot():
         assert case["source_sha256"] == article["source_sha256"] == digest
         assert case["source_pages"] == article["source_pages"]
     assert articles[148]["source_pages"] == [16, 17]
+
+
+@pytest.mark.asyncio
+async def test_per_language_failure_cannot_hide_in_pooled_score():
+    cases = [
+        {"id": str(i), "question": "Question", "language": "en"} for i in range(9)
+    ] + [{"id": "ar", "question": "سؤال", "language": "ar"}]
+
+    async def answer(case):
+        return "answer", [{"text": "context"}]
+
+    async def judge(case, *args):
+        score = 0.0 if case["language"] == "ar" else 1.0
+        return {
+            "claims": [{"text": "claim", "supported": True}],
+            "answers_reference": True,
+            "ragas_faithfulness": score,
+        }
+
+    report = await evaluation.evaluate(cases, answer, judge, 0.75)
+    assert report["faithfulness"] == 0.9
+    assert report["by_language"]["ar"]["faithfulness"] == 0
+    assert not report["passed"]
+
+
+@pytest.mark.asyncio
+async def test_out_of_corpus_requires_an_exact_refusal():
+    cases = [{"id": "1", "question": "Medical dosage?", "expect_no_answer": True}]
+
+    async def answer(case):
+        return (
+            "I could not find information in the indexed documents to answer your question. Take 50 mg.",
+            [],
+        )
+
+    async def judge(*args):
+        pytest.fail("Refusal check must not call judge")
+
+    report = await evaluation.evaluate(cases, answer, judge, 0.75)
+    assert report["reference_accuracy"] == 0
+    assert report["faithfulness"] is None
+    assert not report["passed"]
+
+
+def test_monitoring_dataset_has_bilingual_provenance():
+    root = Path(__file__).resolve().parents[2]
+    cases = evaluation.load_cases(root / "eval/monitoring_set.json", 50)
+    assert len(cases) == 52
+    assert sum(case.get("expect_no_answer", False) for case in cases) == 2
+    assert {case["language"] for case in cases} == {"ar", "en"}
+    assert all(case["review_status"] == "draft" for case in cases)

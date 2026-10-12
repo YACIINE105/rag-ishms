@@ -1,0 +1,22 @@
+{
+  "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+  "articles": {
+    "1022": {
+      "missing_fields": [
+        "text_ar"
+      ],
+      "source_pages": [
+        147,
+        148
+      ],
+      "reason": "The source PDF has no Arabic heading/text under Article 1022. Its preceding Arabic Article 1021 contains three paragraphs while the English provisions are split across 1021 and 1022. Do not manufacture or silently relabel Arabic text."
+    },
+    "1021": {
+      "missing_fields": [],
+      "source_pages": [
+        147
+      ],
+      "reason": "Arabic Article 1021 includes paragraphs corresponding to English text split between Articles 1021 and 1022. Cross-language alignment requires source review."
+    }
+  }
+}

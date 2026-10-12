@@ -4,12 +4,17 @@ import argparse
 import asyncio
 import importlib
 import json
+import logging
 import math
 import os
+import re
 import sys
 import tempfile
+from datetime import datetime, timezone
 from pathlib import Path
+from time import perf_counter
 from types import SimpleNamespace
+from uuid import uuid4
 
 
 def load_cases(path, minimum_cases=20):
@@ -26,6 +31,8 @@ def load_cases(path, minimum_cases=20):
         if case["id"] in seen:
             raise ValueError("Case IDs must be unique")
         seen.add(case["id"])
+        if type(case.get("expect_no_answer", False)) is not bool:
+            raise ValueError("expect_no_answer must be boolean")
         if type(case.get("project_id")) is not int or case["project_id"] < 1:
             raise ValueError("A positive integer project_id is required")
         names = case.get("reference_documents")
@@ -69,14 +76,34 @@ async def evaluate(cases, answer_case, judge, threshold):
         raise ValueError("Threshold must be between zero and one")
     results = []
     for case in cases:
+        started = perf_counter()
         answer, contexts = await answer_case(case)
+        latency = perf_counter() - started
         verdict = None
         faithfulness = 0.0
+        metrics = {}
+        expected_refusal = case.get("expect_no_answer", False)
         correct = False
-        if isinstance(answer, str) and answer.strip() and contexts:
+        if expected_refusal:
+            faithfulness = None
+            correct = str(answer).strip() in {
+                "I could not find information in the indexed documents to answer your question.",
+                "لم أجد معلومات في المستندات المفهرسة للإجابة عن سؤالك.",
+            }
+        elif isinstance(answer, str) and answer.strip() and contexts:
             verdict = await judge(case, answer, contexts)
             faithfulness = score_verdict(verdict)
             correct = verdict["answers_reference"]
+            metrics = verdict.get("metrics", {})
+            for value in metrics.values():
+                if (
+                    type(value) not in (float, int)
+                    or not math.isfinite(value)
+                    or not 0 <= value <= 1
+                ):
+                    raise ValueError(
+                        "Additional metric is not a finite score in [0, 1]"
+                    )
         results.append(
             {
                 "id": case["id"],
@@ -86,17 +113,59 @@ async def evaluate(cases, answer_case, judge, threshold):
                 "faithfulness": faithfulness,
                 "answers_reference": correct,
                 "verdict": verdict,
+                "language": case.get(
+                    "language",
+                    "ar" if re.search(r"[\u0600-\u06ff]", case["question"]) else "en",
+                ),
+                "latency_seconds": latency,
+                "expect_no_answer": expected_refusal,
+                **metrics,
             }
         )
     if not results:
         raise ValueError("An empty dataset cannot pass")
-    faithfulness = sum(row["faithfulness"] for row in results) / len(results)
+
+    def summary(rows):
+        metrics = {}
+        for name in (
+            "faithfulness",
+            "response_relevancy",
+            "context_precision",
+            "context_recall",
+        ):
+            values = [row[name] for row in rows if row.get(name) is not None]
+            metrics[name] = sum(values) / len(values) if values else None
+        metrics["reference_accuracy"] = sum(
+            row["answers_reference"] for row in rows
+        ) / len(rows)
+        metrics["cases"] = len(rows)
+        latencies = sorted(row["latency_seconds"] for row in rows)
+        metrics["p95_latency_seconds"] = latencies[math.ceil(len(latencies) * 0.95) - 1]
+        return metrics
+
+    overall = summary(results)
+    faithfulness = overall["faithfulness"]
+
     accuracy = sum(row["answers_reference"] for row in results) / len(results)
+    by_language = {
+        language: summary([row for row in results if row["language"] == language])
+        for language in sorted({row["language"] for row in results})
+    }
     return {
         "threshold": threshold,
         "faithfulness": faithfulness,
         "reference_accuracy": accuracy,
-        "passed": faithfulness >= threshold and accuracy >= threshold,
+        "passed": faithfulness is not None
+        and faithfulness >= threshold
+        and accuracy >= threshold
+        and all(
+            item["reference_accuracy"] >= threshold
+            and (item["faithfulness"] is None or item["faithfulness"] >= threshold)
+            for item in by_language.values()
+        ),
+        "by_language": by_language,
+        "metrics": overall,
+        "completed_at": datetime.now(timezone.utc).isoformat(),
         "cases": results,
     }
 
@@ -117,7 +186,30 @@ def make_judge():
         max_retries=1,
     )
 
-    faithfulness_metric = Faithfulness(llm=llm_factory(model, client=client))
+    llm = llm_factory(model, client=client, temperature=0)
+    faithfulness_metric = Faithfulness(llm=llm)
+    extra_metrics = None
+    if os.environ.get("RAG_EVAL_FULL_METRICS") == "1":
+        from ragas.embeddings import OpenAIEmbeddings
+        from ragas.metrics.collections import (
+            AnswerRelevancy,
+            ContextPrecisionWithoutReference,
+            ContextRecall,
+        )
+
+        embedding_model = os.environ.get("RAG_EVAL_EMBEDDING_MODEL")
+        if not embedding_model:
+            raise ValueError(
+                "RAG_EVAL_EMBEDDING_MODEL is required for response relevancy"
+            )
+        extra_metrics = (
+            AnswerRelevancy(
+                llm=llm,
+                embeddings=OpenAIEmbeddings(client=client, model=embedding_model),
+            ),
+            ContextPrecisionWithoutReference(llm=llm),
+            ContextRecall(llm=llm),
+        )
 
     async def judge(case, answer, contexts):
         faithfulness = await faithfulness_metric.ascore(
@@ -158,12 +250,34 @@ def make_judge():
         )
         verdict = json.loads(response.choices[0].message.content)
         verdict["ragas_faithfulness"] = faithfulness.value
+        if extra_metrics:
+            relevancy, precision, recall = extra_metrics
+            texts = [item["text"] for item in contexts]
+            scores = await asyncio.gather(
+                relevancy.ascore(user_input=case["question"], response=answer),
+                precision.ascore(
+                    user_input=case["question"],
+                    response=answer,
+                    retrieved_contexts=texts,
+                ),
+                recall.ascore(
+                    user_input=case["question"],
+                    retrieved_contexts=texts,
+                    reference=case["expected_answer"],
+                ),
+            )
+            verdict["metrics"] = dict(
+                zip(
+                    ("response_relevancy", "context_precision", "context_recall"),
+                    [score.value for score in scores],
+                )
+            )
         return verdict
 
     return client, judge
 
 
-async def seed_corpus(controller, cases, records):
+async def seed_corpus(controller, cases, records, chunk_size=None, overlap=0):
     """Index article fixtures into the disposable evaluation vector store."""
     numbers = [row["article_number"] for row in records]
     if not records or len(set(numbers)) != len(numbers):
@@ -181,18 +295,44 @@ async def seed_corpus(controller, cases, records):
         )
         for row in records
     ]
+    chunk_ids = numbers
+    if chunk_size is not None:
+        if chunk_size < 1 or not 0 <= overlap < chunk_size:
+            raise ValueError("Invalid experiment chunking settings")
+        from controllers.ProcessController import ProcessController
+
+        expanded = []
+        for chunk in chunks:
+            split = ProcessController.__new__(
+                ProcessController
+            ).process_simple_splitter(
+                [chunk.chunk_text],
+                [chunk.chunk_metadata],
+                chunk_size=chunk_size,
+                overlap_size=overlap,
+            )
+            expanded.extend(
+                SimpleNamespace(
+                    chunk_text=item.page_content,
+                    chunk_asset_id=1,
+                    chunk_metadata=item.metadata,
+                )
+                for item in split
+            )
+        chunks = expanded
+        chunk_ids = list(range(1, len(chunks) + 1))
     for project_id in sorted({case["project_id"] for case in cases}):
         inserted = await controller.index_into_vector_db(
             project=SimpleNamespace(project_id=project_id),
             chunks=chunks,
-            chunks_ids=numbers,
+            chunks_ids=chunk_ids,
             do_reset=False,
         )
         if not inserted:
             raise RuntimeError("Evaluation corpus indexing failed")
 
 
-async def run_live(cases, threshold, corpus=None):
+async def run_live(cases, threshold, corpus=None, config=None):
     records = json.loads(Path(corpus).read_text(encoding="utf-8")) if corpus else None
     client, judge = make_judge()
     temporary_index = (
@@ -205,14 +345,23 @@ async def run_live(cases, threshold, corpus=None):
     original_directory = Path.cwd()
     os.chdir(root / "src")
     try:
-        if temporary_index:
+        if temporary_index or config:
             settings = importlib.import_module("helpers.config").get_settings()
             overrides = {
                 "VECTOR_DB_BACKEND": "QDRANT",
                 "QDRANT_URL": None,
                 "QDRANT_API_KEY": None,
-                "VECTOR_DB_PATH": temporary_index.name,
+                "VECTOR_DB_PATH": temporary_index.name
+                if temporary_index
+                else settings.VECTOR_DB_PATH,
             }
+            if not temporary_index:
+                overrides = {}
+            if config:
+                overrides.update(
+                    RERANKER_ENABLED=config.get("reranker", True),
+                    RERANK_POOL=config.get("rerank_pool", 30),
+                )
             original_settings = {key: getattr(settings, key) for key in overrides}
             for key, value in overrides.items():
                 setattr(settings, key, value)
@@ -229,7 +378,13 @@ async def run_live(cases, threshold, corpus=None):
                 template_parser=main.app.template_parser,
             )
             if records is not None:
-                await seed_corpus(controller, cases, records)
+                await seed_corpus(
+                    controller,
+                    cases,
+                    records,
+                    chunk_size=(config or {}).get("chunk_size"),
+                    overlap=(config or {}).get("overlap", 0),
+                )
             original_search = controller.search_vector_db_collection
             captured = []
 
@@ -244,21 +399,51 @@ async def run_live(cases, threshold, corpus=None):
             # Instrument this instance only: exact generation context, no API change.
             controller.search_vector_db_collection = capture_search
 
+            from utils.logging import request_id_context
+            from utils.observability import get_client, trace_id
+
+            answer_ids = {}
+
             async def answer_case(case):
                 captured.clear()
-                result = await controller.answer_rag_query(
-                    project=SimpleNamespace(project_id=case["project_id"]),
-                    query=case["question"],
-                    limit=5,
-                )
-                names = {item["metadata"].get("asset_name") for item in captured}
-                if captured and not names.intersection(case["reference_documents"]):
+                request_id = str(uuid4())
+                answer_ids[case["id"]] = request_id
+                token = request_id_context.set(request_id)
+                try:
+                    result = await controller.answer_rag_query(
+                        project=SimpleNamespace(project_id=case["project_id"]),
+                        query=case["question"],
+                        limit=(config or {}).get("limit", 5),
+                    )
+                finally:
+                    request_id_context.reset(token)
+                actual_contexts = getattr(controller, "last_contexts", captured)
+                names = {item["metadata"].get("asset_name") for item in actual_contexts}
+                if actual_contexts and not names.intersection(
+                    case["reference_documents"]
+                ):
                     raise ValueError(
                         "Retrieved assets do not match the reviewed dataset"
                     )
-                return str(result["answer"]) if result else "", list(captured)
+                return str(result["answer"]) if result else "", list(actual_contexts)
 
             report = await evaluate(cases, answer_case, judge, threshold)
+            exporter = get_client()
+            for row in report["cases"]:
+                row["request_id"] = answer_ids[row["id"]]
+                row["trace_id"] = trace_id(row["request_id"]) if exporter else None
+                if exporter and row["faithfulness"] is not None:
+                    try:
+                        exporter.create_score(
+                            trace_id=row["trace_id"],
+                            name="faithfulness",
+                            value=row["faithfulness"],
+                            data_type="NUMERIC",
+                        )
+                    except Exception:
+                        logging.getLogger(__name__).warning(
+                            "evaluation.score.export.failed"
+                        )
 
             # step 1 : save the embedding model and collection names
 
@@ -279,6 +464,15 @@ async def run_live(cases, threshold, corpus=None):
 
             report["generation_model"] = app_settings.GENERATION_MODEL_ID
             report["generation_provider"] = app_settings.GENERATION_PROVIDER
+            report["config"] = config or {
+                "limit": 5,
+                "reranker": getattr(app_settings, "RERANKER_ENABLED", True),
+                "chunk_size": "article",
+            }
+            report["prompt_version"] = getattr(
+                main.app.template_parser, "version", "rag-v1"
+            )
+            report["judge_temperature"] = 0
             report["judge_model"] = os.environ["RAG_EVAL_JUDGE_MODEL"]
             report["git_sha"] = os.environ.get("GITHUB_SHA")
 
@@ -300,7 +494,10 @@ def main():
     parser.add_argument("--corpus", type=Path)
     parser.add_argument("--threshold", type=float, default=0.75)
     parser.add_argument("--minimum-cases", type=int, default=20)
+    parser.add_argument("--full-metrics", action="store_true")
     args = parser.parse_args()
+    if args.full_metrics:
+        os.environ["RAG_EVAL_FULL_METRICS"] = "1"
     try:
         if args.minimum_cases < 1:
             raise ValueError("Minimum cases must be positive")

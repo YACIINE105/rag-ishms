@@ -1,0 +1,18 @@
+stages:
+  snapshot_corpus:
+    cmd: .venv/bin/python scripts/snapshot_corpus.py
+    deps:
+    - eval/corpus/egyptian-civil-code.pdf
+    - scripts/snapshot_corpus.py
+    outs:
+    - data/corpus/egyptian-civil-code.pdf
+  extract_corpus:
+    cmd: .venv/bin/python scripts/build_legal_corpus.py --source
+      data/corpus/egyptian-civil-code.pdf --output data/corpus/articles.json
+    deps:
+    - data/corpus/egyptian-civil-code.pdf
+    - eval/corpus/source-issues.json
+    - scripts/build_legal_corpus.py
+    - src/helpers/extract_to_json.py
+    outs:
+    - data/corpus/articles.json

@@ -5,8 +5,14 @@ on:
     branches: [main]
   push:
     branches: [main]
+  schedule:
+    - cron: "0 1 * * *"
   workflow_dispatch:
     inputs:
+      full_rag_eval:
+        description: Evaluate the 52-case draft set with all four metrics
+        type: boolean
+        default: false
       run_rag_eval:
         description: Run the reviewed RAG evaluation
         type: boolean
@@ -60,7 +66,7 @@ jobs:
     runs-on: ubuntu-24.04
     needs: [lint-and-test, rag-eval]
     if: >-
-      always() && needs.lint-and-test.result == 'success' &&
+      always() && github.event_name != 'schedule' && needs.lint-and-test.result == 'success' &&
       (github.event_name != 'push' || github.ref != 'refs/heads/main' ||
        needs.rag-eval.result == 'success')
 
@@ -107,7 +113,8 @@ jobs:
     needs: lint-and-test
     if: >-
       (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_dispatch' && inputs.run_rag_eval)
+      (github.event_name == 'workflow_dispatch' && inputs.run_rag_eval) ||
+      (github.event_name == 'schedule' && vars.RAG_NIGHTLY_EVAL_ENABLED == 'true')
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     environment: rag-evaluation
@@ -165,7 +172,14 @@ jobs:
           RAG_EVAL_JUDGE_API_KEY: ${{ secrets.RAG_EVAL_JUDGE_API_KEY }}
           RAG_EVAL_JUDGE_MODEL: ${{ vars.RAG_EVAL_JUDGE_MODEL }}
           RAG_EVAL_JUDGE_BASE_URL: ${{ vars.RAG_EVAL_JUDGE_BASE_URL }}
-        run: uv run --locked python scripts/evaluate_rag.py --corpus eval/corpus/articles.json --threshold 0.75
+          RAG_EVAL_EMBEDDING_MODEL: ${{ vars.RAG_EVAL_EMBEDDING_MODEL }}
+          FULL_EVAL: ${{ github.event_name == 'schedule' || inputs.full_rag_eval }}
+        run: |
+          if [ "$FULL_EVAL" = "true" ]; then
+            uv run --locked python scripts/evaluate_rag.py --corpus eval/corpus/articles.json --dataset eval/monitoring_set.json --minimum-cases 50 --full-metrics --threshold 0.75
+          else
+            uv run --locked python scripts/evaluate_rag.py --corpus eval/corpus/articles.json --threshold 0.75
+          fi
 
       - name: Save evaluation report
         if: always()
