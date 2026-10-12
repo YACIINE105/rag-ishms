@@ -104,3 +104,47 @@ This identifies model configuration, not an immutable model-weights snapshot.
 Use revision-pinned model IDs/paths when available. Normalization, chunking,
 corpus versions, and atomic alias switching are not implemented by this naming
 change and need separate versioning if those settings change.
+
+## Full-project evaluation tools
+
+`eval/monitoring_set.json` contains 52 draft cases: 50 bilingual answerable/
+paraphrase questions and two out-of-corpus cases. Human review is still required.
+The 20-case CI benchmark remains unchanged.
+
+For all four RAGAS metrics, set `RAG_EVAL_EMBEDDING_MODEL` to an embedding model
+available at the judge's configured OpenAI-compatible endpoint, then run:
+
+```bash
+uv run --group eval python scripts/evaluate_rag.py --corpus eval/corpus/articles.json --dataset eval/monitoring_set.json --minimum-cases 50 --full-metrics
+```
+
+The judge uses temperature 0. Reports include each score, latency, prompt/model
+identity and separate language summaries. Each language must meet the configured
+faithfulness and reference-accuracy gates; a high English average cannot hide a
+failing Arabic result. Out-of-corpus cases check exact safe refusal, do not receive
+invented faithfulness scores, and still count toward reference accuracy. The safe
+refusal check is intentionally strict. Adding valid refusal wording requires updating
+the evaluator. Other three metric scores are reported, without uncalibrated gates.
+
+Compare five configurations when inference is available:
+
+```bash
+uv run --group eval python scripts/run_experiments.py
+```
+
+The optional MLflow skinny client logs to reports/mlflow.db and report artifacts.
+No tracking server is required. A full MLflow UI/registry deployment is not installed.
+Experiments compare article chunks, 250/500-character windows, reranker off/on and
+k=3/5. Legal article chunking stays the application default for Qalam documents.
+Rebuild indexes are isolated; do not repoint this tool at patient-data projects.
+
+The DVC pipeline rebuilds the complete 1,149-article bilingual corpus in
+`data/corpus/articles.json`; the original fixtures are still the limited CI corpus.
+Article 1022's missing Arabic source text is recorded in source-issues.json,
+checksum-bound to this PDF. Validation rejects unexplained missing text/gaps.
+The record is flagged needs_review, rather than populated with fabricated text.
+
+Nightly runs are disabled unless GitHub variable RAG_NIGHTLY_EVAL_ENABLED=true.
+When enabled they run the full set/four metrics, require the judge embedding variable
+and existing protected evaluation secrets, and save the report artifact. They do
+not publish images or push reports into your private Docker host automatically.

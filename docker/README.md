@@ -127,3 +127,19 @@ image directory owned by UID 10001. Existing volumes with other owners need a
 separate ownership migration. Do not use `docker compose down -v` when retaining
 the model cache. If a cold download exceeds the 180-second healthcheck startup
 allowance, increase the allowance based on the observed download time.
+
+## Session 3–4 runtime additions
+
+The single API worker now owns bounded background processing/indexing jobs. Status
+snapshots and redacted feedback live in the existing /app/assets volume. The setup
+script enables API-key authentication and stores a generated client key in the
+ignored docker/env/.env.client file without changing database/model settings.
+
+Qalam is installed in its own pinned builder layer after the native requirements.
+Its application dependency is also declared in pyproject.toml. Rebuild the API
+after source changes. Model readiness is not claimed when generation is deferred.
+
+Grafana provisioning and Prometheus rules are mounted read-only. Node exporter's
+textfile collector reads reports/metrics for actual evaluation scores. Empty quality
+panels are expected until a real report is published; no sample scores are installed.
+See ../docs/observability.md and ../docs/runbook.md for operation and limitations.

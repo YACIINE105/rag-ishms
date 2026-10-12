@@ -1,197 +1,150 @@
-# ishms-rag-app
+# RAG-ISHMS
 
-this is a rag api that was created to serve the ISHMS software.
+FastAPI retrieval and question answering for ISHMS, with PostgreSQL assets/chunks,
+PGVector or Qdrant retrieval, a cross-encoder reranker, and interchangeable generation
+providers. The existing controller/provider architecture is retained.
 
+The current work implements the MLOps plan for the final project. Generation model
+setup and measured inference/quality results are intentionally deferred.
 
-## REQUIREMENTS
-- Python 3.12
+## Docker setup
 
-#### Install Dependencies
-
-```bash
-sudo apt update
-```
-```bash
-sudo apt install libpq-dev gcc python3-dev
-```
-
-
-### Install Python using Miniconda
-1) Download and install mini coda from [here](https://docs.anaconda.com/free/miniconda/#quick-command-line-install)
-
-2) Create a new enviroment using the follwing command:
-```bash
- conda create -n rag-ishms python=3.12
-```
-3) Activate the enviroment :
-```bash
- conda activate rag-ishms
-```
-
-### Install the requires packages
-```bash
- pip install -r requirements.txt
-```
-
-### Run the FastAPI server
-
-```bash  
- cd ~/rag-ishms/src
-```
+With Python 3.12, uv and Docker installed, use these three commands:
 
 ```bash
- uvicorn main:app --reload --host 0.0.0.0 --port 8000
+uv sync --locked --group dev --group eval --group data
+uv run python scripts/configure_api_access.py
+docker compose -f docker/docker-compose.yml up -d --build
 ```
 
-### Run Dokcer Compose Service
-```bash
- cd docker
- cp .env.example .env
+Before the third command, review `docker/env/.env.fastapi`, database/exporter and
+Grafana settings. The setup script copies missing examples and creates a service
+API key; it preserves existing database and model settings. A working generation
+and embedding endpoint is a prerequisite for a healthy Q&A service. This task does
+not supply, start, or download a generation model. To run infrastructure alone,
+start `pgvector prometheus grafana node_exporter postgres_exporter` with Compose.
+
+The newly generated client key is stored in ignored `docker/env/.env.client`.
+Set `RAG_API_KEY` from that file in your client environment and send `X-API-Key`.
+Keys map to `user_id` and explicit project IDs in `API_CLIENTS`; `["*"]` gives a
+trusted service access to all projects. Authentication was enabled in the local
+Docker API settings. Example files default to private development mode until the
+setup script enables it. Secrets are not committed.
+
+Keep one API worker. Model objects, job state and quotas belong to that process.
+Health: `http://localhost:8000/health`; docs: `/docs`; Grafana: port 3000;
+Prometheus: port 9090. `/metrics` is available on the backend and blocked at nginx.
+Restrict direct development/monitoring ports to your trusted network.
+
+## Architecture
+
+```mermaid
+flowchart LR
+    Client --> Nginx --> API[FastAPI routes]
+    API --> Data[Upload / processing controllers]
+    Data --> PG[(PostgreSQL assets and chunks)]
+    API --> Jobs[Bounded background jobs]
+    Jobs --> Pipeline[NLPController]
+    API --> Pipeline
+    Pipeline --> Embed[Embedding provider]
+    Pipeline --> Vector[(PGVector or Qdrant)]
+    Pipeline --> Rerank[Cross-encoder]
+    Pipeline --> Generate[Generation provider]
+    Jobs --> Assets[(Assets volume: job status / feedback)]
+    API --> Metrics[Prometheus]
+    Metrics --> Grafana
+    Pipeline -. optional .-> Langfuse
+    Corpus[Committed PDF] --> DVC[DVC corpus pipeline]
+    DVC --> Articles[Structured bilingual articles]
+    Articles --> Eval[Evaluation and MLflow experiments]
+    Eval --> Reports[Reports and quality textfile metrics]
+    Reports --> Metrics
 ```
 
-- update `.env` with your credentials
+## API and ingestion
 
+Existing endpoints remain available:
 
-### for running the drug checker manually
-```bash  
- cd ~/rag-ishms/src
-```
-```bash  
- pyhton drug_checker.py
-```
+- `POST /api/v1/data/upload/{project_id}`: multipart PDF/text upload.
+- `POST /api/v1/data/process/jobs/{project_id}`: background processing, optional
+  `{"W_qalam":true}` for bilingual article chunks.
+- `POST /api/v1/nlp/index/jobs/{project_id}`: background embedding/indexing,
+  `{"do_reset":0}` for upserts.
+- `GET /api/v1/data/process/status/{job_id}` and
+  `GET /api/v1/nlp/index/status/{job_id}`: authorized job status and result counts.
+- `POST /api/v1/nlp/index/search/{project_id}` and `/index/answer/{project_id}`:
+  `{"text":"question", "limit":5}`. Blank/oversized input or limit outside 1–20
+  returns 422. No hits return a localized no-information answer and empty sources.
+- `POST /api/v1/nlp/index/answer/stream/{project_id}`: real SSE sources/token/done
+  events; provider failures produce error events. OpenAI-compatible generation only.
+- `POST /api/v1/nlp/answer/feedback/{project_id}`: `request_id`, score −1 to 1,
+  optional comment. Only receipts owned by that identity/project are accepted.
 
-### Run the model
-```bash
- cd ~/llama.cpp/build/bin
-```
-```bash
- ./llama-server -m /mnt/g/ishms/modeel/medgemma-4b-it-Q8_0.gguf -ngl 99 --host 0.0.0.0 --port 8080
-```
+Synchronous process/push endpoints remain for compatibility. Same-project mutations
+are rejected with 409 while processing/indexing is active. Jobs use bounded queues
+and atomic snapshots; restart marks unfinished jobs failed rather than silently
+resuming destructive resets. Retry an upsert after inspection. Partial writes may
+remain after failure.
 
-### installing cloudflare to access the server
- -downloading the cloudflare package
-```bash
- wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-```
- - Install it
-```bash
- sudo dpkg -i cloudflared-linux-amd64.deb
-```
- - Verify
-```bash
- cloudflared --version
-```
+Answers include asset/page sources and, for article chunks, `article_number`,
+`citation` and `source_pages`. Legacy chunks require reprocessing to obtain them.
+Sources describe retrieved context, not a claim-by-claim correctness guarantee.
+Collection names fingerprint embedding provider/model/dimension. Changing only the
+generation model needs no reindex; changing embeddings does.
 
-### running cloudflare after runnig the depends
+Reprocess/index a new demo document using `scripts/reindex_project.py`; it submits
+and polls the existing API without changing the architecture.
 
-```bash
- cloudflared tunnel run rag-ishms
-```
+## Reproducible corpus and evaluation
 
+`uv run --group data dvc repro` rebuilds the source snapshot and structured corpus
+in `data/corpus/`; `dvc status` verifies its hashes. The original PDF remains
+committed, so a fresh checkout can rebuild without a configured DVC remote.
+`dvc push/pull` needs a storage remote if you prefer distributing cached outputs.
+The 1,149-record corpus flags repeals and preserves page/hierarchy metadata.
+Its pinned source issue manifest records missing Arabic text for Article 1022;
+that record needs review. Arabic extraction still needs human spot-checking.
 
+The original 20-case CI set is preserved. `eval/monitoring_set.json` adds 50
+answerable bilingual/paraphrase cases and two out-of-corpus cases. They are drafts,
+not human-approved labels. Review them before treating scores as release evidence.
 
-## API responses and readiness
+The evaluator supports faithfulness, response relevancy, context precision and
+context recall, with a deterministic judge and separate Arabic/English gates.
+`scripts/run_experiments.py` runs five chunking/retrieval configurations in disposable
+indexes and logs parameters, metrics and reports to MLflow. It never resets the
+application index. These commands require configured inference/judge endpoints;
+no measured scores or MLflow runs have been fabricated. See [evaluation](eval/README.md).
 
-Search and answer requests use POST with a JSON body containing `text` and an
-optional `limit` (default 5, range 1–20). Empty/blank questions and questions over
-`INPUT_MAX_CHARACTERS` return 422.
+## Monitoring, guardrails and verification
 
-`POST /api/v1/nlp/index/answer/{project_id}` returns `signal`, `answer`,
-`sources` (original `asset_name` and one-based PDF `page`), `request_id`, and
-`prompt_version`. Text files have a null page. Sources identify the retrieved
-context supplied to the model; they do not assert which passage supports each
-individual generated claim. Prompt text and chat history are not public response
-fields. Reprocess and rebuild indexes for legacy documents missing metadata;
-new vector records also include `asset_id` for counting and asset deletion.
+Prometheus/Grafana are provisioned from the repository. Metrics cover HTTP requests,
+full response latency, RAG stages/outcomes, reranker scores, actual non-stream token
+usage, inflight generation, stream TTFT/duration and guardrail decisions. IDs and
+project values are not metric labels. Quality panels consume real reports via
+`scripts/publish_eval_metrics.py`; no report means no quality data.
 
-`GET /health` returns 200 when PostgreSQL, the vector store, generation and
-embedding providers, and the reranker are ready; otherwise it returns 503.
-`documents_indexed` counts distinct assets represented in the vector index,
-not uploaded files or chunks. It is null if the vector check fails. Checks are
-bounded to five seconds and errors do not expose connection strings or API keys.
-Local model checks inspect the loaded model context; remote model probes check
-authentication/reachability without generating tokens. These checks do not prove
-that every remote model supports successful inference. Qdrant counting scans
-payloads; large indexes may require a dedicated indexed asset registry later.
+API-key authorization, project checks and single-worker token buckets return
+401/403/429, with `Retry-After` on throttling. Guardrails detect limited explicit
+English/Arabic instruction overrides and redact bounded email, Egyptian phone,
+national-ID and labeled patient-name patterns. Buffered stream redaction protects
+matches split across tokens but adds output delay. These rules do not establish
+medical privacy or catch all prompt injections. Do not use patient data without
+reviewing the ISHMS identity/privacy requirements.
 
-Synchronous embedding, reranking, and generation run in worker threads with
-one lock per shared provider. The container uses one worker to keep one copy of
-each model and allow exclusive access to embedded Qdrant storage. Docker probes
-`/health` every 30 seconds after a 180-second startup allowance. Nginx waits for
-initial application health through Compose; this is not ongoing traffic gating.
+Langfuse is opt-in, with content omitted from traces by default; identifiers,
+configuration, stage timing and actual usage are recorded. Local feedback is
+redacted and stored even if export fails. See [observability setup](docs/observability.md).
 
-Run the test suite and coverage gate from the repository root:
+`uv run --group dev pytest` enforces 70% source coverage without weights or paid
+calls. `uv run --group dev pre-commit run --all-files` checks formatting/lint.
+Real model quality, load reports and external CI results remain unmeasured.
+The nightly evaluation is opt-in via `RAG_NIGHTLY_EVAL_ENABLED=true` in GitHub;
+scheduled runs do not publish Docker images.
 
-```bash
-uv sync --group dev
-uv run pytest --cov=src --cov-fail-under=70
-```
-
-The tests use stubbed model providers and temporary local Qdrant storage; no
-model weights or paid API calls are needed. Deployment verification still needs
-the real PostgreSQL service, configured models, and an indexed PDF.
-
-
-## Structured logging and tests
-
-Responses return `X-Request-ID`; `/answer` uses the same value in `request_id`.
-An incoming ID is reused when it contains 1–128 letters, digits, dots, underscores,
-colons or hyphens; otherwise a new UUID is generated. JSON records include
-`timestamp`, `level`, `logger`, `message`, `request_id`, and `project_id` (null
-outside a project request). Worker-thread model logs keep the request context.
-
-`retrieve.done`, `rerank.done`, and `generate.done` report scores/counts and
-latency. Token counts come from provider usage when available, otherwise null.
-`prediction.done` always logs query, retrieved IDs and answer; these records are
-never sampled. `HTTP_ACCESS_LOG_SAMPLE_RATE` (default 0.1) only samples successful
-HTTP access events. Errors are retained. `LOG_LEVEL=DEBUG` enables prompt logs.
-
-Zero retrieval hits return HTTP 200 with an explicit no-information answer and
-empty sources. Provider failures remain errors. Chunking now honors both size
-and overlap within each page and preserves citation metadata; reprocess existing
-documents to use the new chunk boundaries.
-
-Pytest uses mocked model SDKs and temporary Qdrant storage, without downloading
-weights. The default run enforces 70% source coverage; mark tests needing real
-services or weights with `@pytest.mark.slow`. Only standalone demo scripts and
-Alembic migration scripts are excluded from the coverage calculation.
-See [Docker setup](docker/README.md) for non-root permissions, cache/model files,
-and the optional Qdrant service profile.
-
-## Code quality
-
-Install the development tools and Git hook from the repository root:
-
-```bash
-uv sync --group dev
-uv run pre-commit install
-```
-
-Check the complete repository before committing:
-
-```bash
-uv run pre-commit run --all-files
-uv run pytest
-```
-
-The hooks format Python, sort imports, check common lint errors, and check YAML,
-merge conflicts, whitespace, file endings, and private keys. Comments and
-commented-out code are preserved. Review automatic fixes and stage the updated
-files before retrying a commit. Each contributor must install the hook locally.
-The private-key hook does not scan ordinary API tokens.
-
-## GitHub CI and image publishing
-
-`.github/workflows/ci.yml` runs code-quality checks and the coverage gate for
-pull requests targeting `main` and pushes to `main`. Docker builds run after
-those checks. GHCR publishing occurs only for a push to `main`, with `sha-...`
-and `latest` tags. Pull requests and manual runs do not publish images.
-The workflow uses the repository's `GITHUB_TOKEN` with package-write permission
-in the Docker job. A published image is not an automatic server deployment.
-
-Open a pull request to `main` to verify installation and builds on a fresh
-GitHub runner. After merging, check the Actions run and GHCR package tags.
-The workflow is considered externally verified only after those runs succeed.
-Main image publishing also requires the RAGAS evaluation gate to pass. Configure
-its protected GitHub environment before merging. The evaluation requires model
-configuration; see [evaluation setup](eval/README.md).
+Session changelog: earlier work supplied packaging/contracts/citations/CI/Docker;
+session 3 adds background processing/indexing, threaded work and streaming;
+session 4 adds access controls, guardrails, tracing/feedback, provisioned quality
+monitoring and evaluation tools. [Full plan status](docs/plan-review.md),
+[runbook](docs/runbook.md), and [separate vLLM setup](docs/model-serving.md) describe
+remaining scope. `certifcates_sys/` is a separate assignment.
