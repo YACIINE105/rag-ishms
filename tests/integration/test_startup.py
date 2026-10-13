@@ -14,7 +14,8 @@ from routes import nlp
 
 
 @pytest.mark.parametrize("backend", ["QDRANT", "PGVector"])
-def test_lifespan_loads_once_and_releases_resources(monkeypatch, backend):
+@pytest.mark.parametrize("remote", [False, True])
+def test_lifespan_loads_once_and_releases_resources(monkeypatch, backend, remote):
     with patch("utils.logging.configure_logging"):
         main = importlib.import_module("main")
     settings = SimpleNamespace(
@@ -32,6 +33,12 @@ def test_lifespan_loads_once_and_releases_resources(monkeypatch, backend):
         PRIMARY_LANG="en",
         DEFAULT_LANG="en",
     )
+    if remote:
+        settings.RERANKER_BASE_URL = "http://reranker:8002/v1"
+        settings.RERANKER_MODEL_ID = "test-reranker"
+        settings.RERANKER_API_KEY = "test-key"
+        settings.RERANKER_TIMEOUT_SECONDS = 30
+        settings.RERANKER_MAX_LENGTH = 512
     monkeypatch.setattr(main, "get_settings", lambda: settings)
     engine = SimpleNamespace(dispose=AsyncMock())
     create_engine = MagicMock(return_value=engine)
@@ -60,7 +67,12 @@ def test_lifespan_loads_once_and_releases_resources(monkeypatch, backend):
         main, "VectorDBPRoviderFactory", MagicMock(return_value=vector_factory)
     )
     reranker = MagicMock()
-    monkeypatch.setattr(main, "CrossEncoderReranker", reranker)
+    local_reranker = MagicMock()
+    monkeypatch.setattr(
+        main, "CrossEncoderReranker", local_reranker if remote else reranker
+    )
+    if remote:
+        monkeypatch.setattr(main, "HTTPReranker", reranker)
     vector.default_vector_size = 2
     vector.search_by_vector = AsyncMock(
         return_value=[
@@ -125,6 +137,9 @@ def test_lifespan_loads_once_and_releases_resources(monkeypatch, backend):
         )
     vector.disconnect.assert_awaited_once()
     engine.dispose.assert_awaited_once()
+    if remote:
+        local_reranker.assert_not_called()
+        reranker.return_value.close.assert_called_once()
 
 
 def test_metrics_endpoint_and_http_correlation():

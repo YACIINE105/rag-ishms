@@ -11,6 +11,7 @@ from controllers.BaseController import BaseController
 from helpers.config import get_settings
 from routes import base, data, health, nlp
 from stores.llm import CrossEncoderReranker, LLMProviderFactory
+from stores.llm.rerankers.http_reranker import HTTPReranker
 from stores.llm.templates import TemplateParser
 from stores.VectorDB import VectorDBPRoviderFactory
 from utils.jobs import IndexJobs
@@ -86,7 +87,17 @@ async def lifespan(app: FastAPI):
     if settings.VECTOR_DB_BACKEND == "PGVector":
         app.vector_db_client.db_client = app.db_client
 
-    if getattr(settings, "RERANKER_ENABLED", True):
+    if getattr(settings, "RERANKER_ENABLED", True) and getattr(
+        settings, "RERANKER_BASE_URL", None
+    ):
+        app.reranker_client = HTTPReranker(
+            base_url=settings.RERANKER_BASE_URL,
+            model_name=settings.RERANKER_MODEL_ID,
+            api_key=settings.RERANKER_API_KEY,
+            timeout=settings.RERANKER_TIMEOUT_SECONDS,
+            max_length=settings.RERANKER_MAX_LENGTH,
+        )
+    elif getattr(settings, "RERANKER_ENABLED", True):
         app.reranker_client = (
             CrossEncoderReranker(
                 model_name=settings.RERANKER_MODEL_ID,
@@ -110,6 +121,8 @@ async def lifespan(app: FastAPI):
             await app.vector_db_client.disconnect()
         finally:
             await app.db_engine.dispose()
+            if getattr(settings, "RERANKER_BASE_URL", None) and app.reranker_client:
+                app.reranker_client.close()
             client = get_client()
             if client:
                 await run_in_threadpool(client.shutdown)

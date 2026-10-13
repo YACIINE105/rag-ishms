@@ -11,6 +11,8 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock, patch
 from uuid import UUID
 
+import pytest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 from fastapi import FastAPI
@@ -108,6 +110,19 @@ def make_app():
     app.add_middleware(RequestContextMiddleware, access_sample_rate=1.0)
     app.dependency_overrides[health.get_settings] = lambda: SETTINGS
     return app
+
+
+@pytest.mark.parametrize("available", [True, False])
+def test_remote_reranker_readiness(available):
+    app = make_app()
+    app.reranker_client = SimpleNamespace(health_check=lambda: available)
+    app.dependency_overrides[health.get_settings] = lambda: SimpleNamespace(
+        **vars(SETTINGS), RERANKER_BASE_URL="http://reranker/v1"
+    )
+    with TestClient(app) as client:
+        response = client.get("/health")
+    assert response.status_code == (200 if available else 503)
+    assert response.json()["reranker"] == ("ok" if available else "error")
 
 
 class ApiContractTests(unittest.TestCase):

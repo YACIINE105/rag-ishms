@@ -53,6 +53,10 @@ class Settings(BaseSettings):
     GENERATION_BASE_URL: str | None = None
     GENERATION_API_KEY: str | None = None
     RERANKER_MODEL_ID: str = "BAAI/bge-reranker-v2-m3"
+    RERANKER_BASE_URL: str | None = None
+    RERANKER_API_KEY: str | None = None
+    RERANKER_TIMEOUT_SECONDS: float = Field(default=30, gt=0, le=120)
+    RERANKER_MAX_LENGTH: int = Field(default=512, ge=32, le=8192)
     RERANKER_BATCH_SIZE: int = Field(default=16, ge=1, le=256)
     OPENAI_BASE_URL: str = None
     OPENAI_API_KEY: str = None

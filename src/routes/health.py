@@ -78,6 +78,11 @@ async def health(
     async def reranker():
         if not getattr(settings, "RERANKER_ENABLED", True):
             return
+        if getattr(settings, "RERANKER_BASE_URL", None):
+            provider = request.app.reranker_client
+            if not await run_serialized(provider, provider.health_check):
+                raise RuntimeError("Remote reranker unavailable")
+            return
         if getattr(request.app.reranker_client, "model", None) is None:
             raise RuntimeError("Reranker unavailable")
 
