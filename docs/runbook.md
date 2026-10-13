@@ -12,6 +12,15 @@ with pacing. Do not reset the collection merely because a batch was throttled.
 
 ## Alerts
 
+For a remote reranker failure, check
+`systemctl --user status rag-ishms-reranker.service` and
+`journalctl --user -u rag-ishms-reranker.service -n 50 --no-pager`.
+Start/restart the service before recreating the Docker API. The Docker API's
+RERANKER_API_KEY must match VLLM_API_KEY in docker/env/.env.reranker. Generation
+and embedding credentials are separate. Check VRAM with `nvidia-smi`; future
+generation deployments must leave room for this reranker. To restore embedded
+CPU serving, clear RERANKER_BASE_URL and recreate fastapi; retain the indexes.
+
 **RAGServiceDown:** check API container and health, then Prometheus target status.
 A failed scrape can be networking rather than an inference failure.
 **RAGHighErrorRate:** correlate X-Request-ID with JSON logs; check provider

@@ -1,5 +1,23 @@
 # Docker verification
 
+## GPU reranker follow-up — 2026-10-12
+
+- Host RTX 3060 Laptop GPU (6 GiB) and existing vLLM 0.30.0 / CUDA environment
+  verified. The cached BGE reranker now runs as an authenticated managed user
+  service on port 8002, using FP16 and 512-token pairs; approximately 1.3 GiB
+  of VRAM was observed.
+- Docker-to-host authentication, model readiness, remote result validation and
+  HTTP client shutdown passed. The Docker API no longer loads the embedded
+  CrossEncoder while remote serving is configured. Existing indexes remain intact.
+- Same project-8 search, 30 candidates and limit 5: total 3.214 seconds first run,
+  then 0.508/0.413 seconds; rerank stages 2.191/0.244/0.190 seconds. Prior CPU
+  reranking was 82.034 seconds. These are three latency trials, not a load test.
+- Full suite: **202 tests**, 12 subtests, **86.21% source coverage**. Docker image
+  rebuild and live health passed. Service unit/shell syntax were verified.
+- Long-pair truncation and FP16 can affect scores; no quality-equivalence claim
+  is made. Generation/embedding settings and the existing vLLM installation were
+  not changed. Keys and detailed local reports remain ignored.
+
 ## Live API follow-up — 2026-10-12
 
 - OpenRouter generation `minimax/minimax-m3:free` returned 404; a free Gemma

@@ -30,7 +30,35 @@ using the existing controller. The failed job remains recorded accurately. The
 legacy index was retained. Local `INDEX_BATCH_DELAY_SECONDS=3.5` now paces future
 indexing batches asynchronously; its default is 0 for unrestricted providers.
 
-## Separate vLLM environment
+## GPU reranker — verified 2026-10-12
+
+The existing vLLM 0.30.0 environment now serves the cached BGE reranker on the RTX
+3060 Laptop GPU. `scripts/run_vllm_reranker.sh` uses FP16, 512-token pairs,
+16 concurrent sequences, eager execution and a 0.45 GPU memory budget. Current
+observed VRAM usage is approximately 1.3 GiB. It has a separate private service
+key in docker/env/.env.reranker. No vLLM packages were installed in the API image.
+
+The Docker API uses `RERANKER_BASE_URL=http://host.docker.internal:8002/v1` with
+the same model ID and matching private key. HTTPReranker preserves the controller's
+index/score contract, validates result indices/scores and closes its HTTP client
+on shutdown. Readiness checks authenticated model availability. Empty URL restores
+the existing embedded CrossEncoder; an unavailable remote service fails explicitly.
+
+Start/stop/log commands and setup are in the root README's GPU section. The managed
+user unit is deploy/systemd/rag-ishms-reranker.service; it is enabled on this
+machine. Its initial startup can take a few minutes. Keep port 8002 restricted to
+trusted host/Docker access. Long query/document pairs are truncated at 512 tokens;
+this is a deliberate memory bound, not identical long-text processing to every
+CrossEncoder configuration.
+
+The project-8 prompt-chaining search retained 30 candidates and limit 5. It took
+3.214 seconds on the first GPU run and 0.508/0.413 seconds on repeats; rerank stages
+were 2.191/0.244/0.190 seconds. Earlier CPU reranking was 82.034 seconds with a
+90.36-second Postman total. These three trials are a latency check, not a quality
+or concurrency benchmark. The ignored report is
+eval/reports/gpu-reranker-verification.json. No index rebuild was performed.
+
+## Separate vLLM generation later
 
 Keep vLLM and its dependencies in the existing `/home/yacine_105/vllm-env`.
 Do not install vLLM into this API environment or Docker image. Later start your

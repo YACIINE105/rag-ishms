@@ -1,5 +1,12 @@
 # Final-project plan status
 
+GPU follow-up: the existing separate vLLM environment now serves the same BGE
+reranker on the RTX 3060, through a small HTTP adapter retaining the controller
+contract. The 30-candidate project-8 search was checked at 3.214 seconds initially
+and 0.508/0.413 seconds on repeats. GPU startup/operations and the 512-token/FP16
+limits are documented in docs/model-serving.md; concurrency/quality evidence is
+still pending. No vLLM dependencies were added to the API environment.
+
 Follow-up on 2026-10-12: the user authorized using the current API. OpenRouter's
 configured free MiniMax generation endpoint returned 404 and was replaced in the
 local Docker environment by the successfully tested free Nemotron 3 Ultra model.
