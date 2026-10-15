@@ -18,6 +18,10 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 
+class JudgeResponseError(RuntimeError):
+    """An invalid external judge response must never become a score."""
+
+
 def load_cases(path, minimum_cases=20):
     cases = json.loads(Path(path).read_text(encoding="utf-8"))
     if not isinstance(cases, list) or len(cases) < minimum_cases:
@@ -46,7 +50,7 @@ def load_cases(path, minimum_cases=20):
     return cases
 
 
-def score_verdict(verdict):
+def validate_reference_verdict(verdict):
     claims = verdict.get("claims") if isinstance(verdict, dict) else None
     if not isinstance(claims, list) or not claims:
         raise ValueError("Judge must return at least one claim")
@@ -60,6 +64,10 @@ def score_verdict(verdict):
             raise ValueError("Invalid judge claim")
     if type(verdict.get("answers_reference")) is not bool:
         raise ValueError("answers_reference must be boolean")
+
+
+def score_verdict(verdict):
+    validate_reference_verdict(verdict)
     score = verdict.get("ragas_faithfulness")
     if (
         type(score) not in (float, int)
@@ -481,7 +489,11 @@ def make_judge():
             "reference-rubric:"
             + hashlib.sha256(
                 json.dumps(
-                    {"base_url": str(client.base_url), **rubric_request},
+                    {
+                        "base_url": str(client.base_url),
+                        "truncation_retry_max_tokens": 4096,
+                        **rubric_request,
+                    },
                     sort_keys=True,
                     ensure_ascii=False,
                 ).encode()
@@ -489,10 +501,47 @@ def make_judge():
         )
         verdict = cache.get(rubric_key)
         if verdict is None:
-            response = await client.chat.completions.create(**rubric_request)
-            verdict = json.loads(response.choices[0].message.content)
-            if type(verdict.get("answers_reference")) is not bool:
-                raise ValueError("Reference rubric verdict must be boolean")
+            for output_limit in (2048, 4096):
+                response = await client.chat.completions.create(
+                    **{**rubric_request, "max_tokens": output_limit}
+                )
+                choice = response.choices[0]
+                try:
+                    if choice.finish_reason == "length":
+                        raise JudgeResponseError("Judge output reached its token limit")
+                    verdict = json.loads(choice.message.content)
+                    break
+                except (json.JSONDecodeError, TypeError, JudgeResponseError) as error:
+                    diagnostics = Path(cache.cache.directory) / "invalid-rubrics"
+                    diagnostics.mkdir(exist_ok=True)
+                    (
+                        diagnostics / f"{rubric_key.split(':')[1]}-{output_limit}.json"
+                    ).write_text(
+                        json.dumps(
+                            {
+                                "case_id": case.get("id"),
+                                "finish_reason": choice.finish_reason,
+                                "max_tokens": output_limit,
+                                "content": choice.message.content,
+                            },
+                            ensure_ascii=False,
+                        )
+                        + "\n"
+                    )
+                    logging.getLogger(__name__).warning(
+                        "evaluation.judge.invalid_json case=%s finish=%s limit=%s",
+                        case.get("id"),
+                        choice.finish_reason,
+                        output_limit,
+                    )
+                    if choice.finish_reason != "length" or output_limit == 4096:
+                        raise JudgeResponseError(
+                            "Judge returned invalid structured output"
+                        ) from error
+            try:
+                validate_reference_verdict(verdict)
+            except ValueError as error:
+                raise JudgeResponseError("Invalid reference rubric schema") from error
             cache.set(rubric_key, verdict)
         if case.get("expect_no_answer") or case.get("_rubric_only"):
             return verdict

@@ -58,7 +58,11 @@ def is_transient_provider_error(error):
         seen.add(id(current))
         if getattr(current, "status_code", None) in {429, 500, 502, 503, 504}:
             return True
-        if type(current).__name__ in {"APITimeoutError", "APIConnectionError"}:
+        if type(current).__name__ in {
+            "APITimeoutError",
+            "APIConnectionError",
+            "JudgeResponseError",
+        }:
             return True
         pending.extend([current.__cause__, current.__context__])
         pending.extend(

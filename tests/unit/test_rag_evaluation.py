@@ -453,7 +453,10 @@ async def test_bilingual_seed_batches_have_unique_ids_and_language_metadata():
 
 
 @pytest.mark.asyncio
-async def test_judge_obeys_rate_limit_cooldown(tmp_path, monkeypatch):
+@pytest.mark.parametrize("truncated_response", [False, True])
+async def test_judge_obeys_rate_limit_cooldown(
+    tmp_path, monkeypatch, truncated_response
+):
     import asyncio
 
     import httpx
@@ -462,6 +465,7 @@ async def test_judge_obeys_rate_limit_cooldown(tmp_path, monkeypatch):
     real_sleep = asyncio.sleep
     clock = [0.0]
     attempts = []
+    limits = []
 
     async def sleep(seconds):
         clock[0] += seconds
@@ -469,6 +473,7 @@ async def test_judge_obeys_rate_limit_cooldown(tmp_path, monkeypatch):
 
     async def respond(request):
         attempts.append(clock[0])
+        limits.append(json.loads(request.content)["max_tokens"])
         if len(attempts) == 1:
             return httpx.Response(
                 429,
@@ -484,11 +489,15 @@ async def test_judge_obeys_rate_limit_cooldown(tmp_path, monkeypatch):
                 "model": "test",
                 "choices": [
                     {
-                        "finish_reason": "stop",
+                        "finish_reason": "length"
+                        if truncated_response and len(attempts) == 2
+                        else "stop",
                         "index": 0,
                         "message": {
                             "role": "assistant",
-                            "content": json.dumps(
+                            "content": '{"claims": ['
+                            if truncated_response and len(attempts) == 2
+                            else json.dumps(
                                 {
                                     "claims": [
                                         {"text": "Unavailable", "supported": True}
@@ -526,8 +535,13 @@ async def test_judge_obeys_rate_limit_cooldown(tmp_path, monkeypatch):
             [],
         )
         assert verdict["answers_reference"] is True
-        assert len(attempts) == 2
+        expected_attempts = 3 if truncated_response else 2
+        assert len(attempts) == expected_attempts
         assert attempts[1] - attempts[0] >= 65
+        if truncated_response:
+            assert limits == [2048, 2048, 4096]
+            diagnostic = next((tmp_path / "cache/invalid-rubrics").glob("*.json"))
+            assert json.loads(diagnostic.read_text())["finish_reason"] == "length"
         # RAGAS can fail after the independent rubric has succeeded. Reusing the
         # exact rubric avoids paying for that call again on checkpoint resume.
         again = await judge(
@@ -540,7 +554,7 @@ async def test_judge_obeys_rate_limit_cooldown(tmp_path, monkeypatch):
             [],
         )
         assert again == verdict
-        assert len(attempts) == 2
+        assert len(attempts) == expected_attempts
         await judge(
             {
                 "question": "A different question?",
@@ -550,7 +564,7 @@ async def test_judge_obeys_rate_limit_cooldown(tmp_path, monkeypatch):
             "Unavailable",
             [],
         )
-        assert len(attempts) == 3
+        assert len(attempts) == expected_attempts + 1
     finally:
         await client.close()
 
@@ -570,6 +584,9 @@ def test_experiment_retries_wrapped_rate_limits_but_not_auth_errors(monkeypatch)
     wrapped = RuntimeError("Instructor wrapper")
     wrapped.failed_attempts = [SimpleNamespace(exception=rate_error)]
     assert experiments.is_transient_provider_error(wrapped)
+    assert experiments.is_transient_provider_error(
+        evaluation.JudgeResponseError("Invalid judge JSON")
+    )
     auth_error = RuntimeError("Invalid credentials")
     auth_error.status_code = 401
     assert not experiments.is_transient_provider_error(auth_error)
