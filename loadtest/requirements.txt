@@ -1,0 +1,4 @@
+locust==2.46.7
+matplotlib==3.11.2
+Markdown==3.11.1
+playwright==1.64.0

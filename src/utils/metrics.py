@@ -59,7 +59,10 @@ def setup_metrics(app: FastAPI):
 
 
 RAG_STAGE_LATENCY = Histogram(
-    "rag_stage_latency_seconds", "Pipeline stage latency", ["stage"]
+    "rag_stage_latency_seconds",
+    "Pipeline stage latency",
+    ["stage"],
+    buckets=(0.1, 0.25, 0.5, 1, 2, 5, 10, 20, 30, 60, 120, 180, 300, 600),
 )
 RAG_REQUESTS = Counter("rag_answers_total", "Answer outcomes", ["outcome", "lang"])
 RAG_RETRIEVED = Histogram(
