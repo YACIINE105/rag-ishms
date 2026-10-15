@@ -1,5 +1,19 @@
 # Final-project plan status
 
+Latest update, 2026-10-15: Cue's bounded fine-tuning comparison and release handoff
+are complete. The selected candidate is the pinned **untuned Qwen base**, not
+either pilot adapter. Its weights are verified locally, generation and reranking
+run in the existing separate vLLM environment, and Docker health, authenticated
+English/Arabic completions, real retrieved-context answers, refusal and SSE smoke
+checks pass after the laptop restart. See `docs/model-serving.md` for measured
+limits and `docs/cue-memory.md` for the experiment/audit distinction.
+
+The implementation work is not a completed empirical evaluation. Still missing
+are the reviewed larger legal benchmark/RAGAS scores, 50-user load/TTFT report,
+and the five measured configuration comparisons. External Langfuse, alerting and
+protected CI settings remain optional configuration, not provisioned services.
+The historical implementation review below is retained with these updates.
+
 GPU follow-up: the existing separate vLLM environment now serves the same BGE
 reranker on the RTX 3060, through a small HTTP adapter retaining the controller
 contract. The 30-candidate project-8 search was checked at 3.214 seconds initially
@@ -48,7 +62,7 @@ are claimed; these need actual evaluated configurations.
 |---|---|
 | 3.1 Inference pattern | Background processing and indexing endpoints, polling, bounded queue, same-project mutation exclusions and atomic job snapshots in the assets volume. Interrupted jobs become failed on restart. |
 | 3.2 Load behavior | Blocking processing is off the event loop; existing serialized embed/rerank/generation retained. Explicit provider timeout/retries and configurable reranker batches. HTTP latency now measures the full response including SSE consumption. |
-| 3.3 Serving/streaming | Real OpenAI-compatible token streaming, stream cleanup, outcome/TTFT/duration metrics, guarded output buffering. Future external generation URL/key support retained; vLLM untouched. |
+| 3.3 Serving/streaming | OpenAI-compatible generation/streaming, cleanup and TTFT/duration metrics; guarded output buffers. Pinned Qwen generation and BGE reranking now run externally in the existing vLLM environment, preserving the API architecture. |
 | 3.4 Load harness | Authenticated answer/health Locust workload, 50-user command and isolated-project instructions. Real report deferred. |
 | 3.5 Release strategy | Configuration/image rollback documented. Canary/shadow services deferred until there is a candidate and shared-state coordination; duplicating embedded Qdrant and job processes now would conflict with the current architecture. |
 | 3.6 Scheduling | Opt-in nightly GitHub evaluation with report artifacts. No Airflow/cron service. Batch re-indexing client submits/polls processing and indexing through the existing API. |
@@ -83,8 +97,9 @@ text was manufactured or relabeled. Human Arabic spot-checking remains necessary
 
 ## Remaining evidence and scope limits
 
-- Actual model setup, real Q&A/quality/load/TTFT results and optimization benchmarks
-  are deferred by the user's instruction to ignore the model for now.
+- Model setup and bounded real Q&A checks are complete as recorded above. Actual
+  reviewed quality scores, load/TTFT benchmarks and five measured configuration
+  comparisons remain open; implemented runners are not completed experiments.
 - Langfuse credentials/hosting, an alert notification destination and protected
   GitHub evaluation secrets/variables are external configuration. No external
   project, notification or CI run has been created or claimed verified.

@@ -5,12 +5,17 @@ citations. The system runs FastAPI behind nginx, stores documents/chunks in
 PostgreSQL, retrieves with PGVector or Qdrant, and uses a cross-encoder reranker
 before calling an OpenAI-compatible generation API.
 
-The current local deployment uses **Docker + PGVector + OpenRouter**. Generation
-uses `nvidia/nemotron-3-ultra-550b-a55b:free`; embeddings use
-`nvidia/llama-nemotron-embed-vl-1b-v2:free` with 2,048 dimensions. English/Arabic
-answers and streaming have been checked. Reranking now runs on the RTX 3060 GPU
-through the existing separate vLLM environment. Generation stays on OpenRouter
-until you add your fine-tuned model.
+The local setup uses **Docker + PGVector**, with Qwen generation and BGE reranking
+in the existing separate vLLM environment. The selected model is the pinned
+**untuned `Qwen/Qwen3-4B-Instruct-2507` base**, served as `qwen3-legal-final`;
+neither pilot adapter was selected. Embeddings still use OpenRouter's
+`nvidia/llama-nemotron-embed-vl-1b-v2:free` with 2,048 dimensions.
+
+Qwen runs in 4-bit on the laptop GPU alongside the reranker. Authenticated
+generation, cited English/Arabic RAG answers, health and SSE completion have been
+checked locally. The larger quality benchmark and 50-user load test remain open;
+these small checks do not establish error-free legal answers. See
+[model setup and verification](docs/model-serving.md).
 
 ## Start the already configured project
 
@@ -19,7 +24,7 @@ Run these commands in Bash from the repository root:
 ```bash
 cd /home/yacine_105/rag-ishms
 
-systemctl --user start rag-ishms-reranker.service
+systemctl --user start rag-ishms-reranker.service rag-ishms-generator.service
 
 docker compose -f docker/docker-compose.yml up -d
 
@@ -27,7 +32,9 @@ docker compose -f docker/docker-compose.yml ps
 curl --fail-with-body http://localhost/health
 ```
 
-`up -d` runs the services in Docker; you can close the terminal afterward. Wait for
+`up -d` runs the services in Docker; you can close the terminal afterward. Qwen's
+first load can take several minutes. The host services also run without background
+terminals. Wait for
 `fastapi` to become healthy before using nginx. The health response should contain
 `"status":"healthy"`. On this machine, project **6** already has **1,242 chunks**
 indexed, so you can ask questions immediately.
@@ -95,7 +102,7 @@ Edit these private files before starting Docker:
 | `docker/env/.env.postgres-exporter` | Set `DATA_SOURCE_PASS` to the same database password |
 | `docker/env/.env.grafana` | Set `GF_SECURITY_ADMIN_PASSWORD` |
 
-For the currently tested OpenRouter setup, set these values in
+For an OpenRouter-only generation setup, set these values in
 `docker/env/.env.fastapi`. Replace the API-key placeholder with your own key:
 
 ```dotenv
@@ -208,6 +215,18 @@ Measured on project 8 with the same prompt-chaining question and 30 candidates:
 3.21 seconds for the first GPU search, then 0.51/0.41 seconds on repeats, compared
 with the prior 90.36-second Postman request. This is a small latency check, not a
 concurrency or answer-quality benchmark.
+
+## Local Qwen generation
+
+The generator runs on port 8001 from `~/vllm-env`; Docker calls it through
+`host.docker.internal`. Its weights are stored at
+`/mnt/g/rag-ishms-models/Qwen3-4B-Instruct-2507`, linked from
+`~/vllm-env/models/Qwen3-4B-Instruct-2507`. Keep G: mounted when starting it.
+
+The setup, download/resume command, service logs, verification requests and
+rollback instructions are in [model serving](docs/model-serving.md#local-qwen-generator--verified-2026-10-15).
+Postman continues to use the same RAG URLs and `X-API-Key`; the generator has its
+own private service key. No document reindexing is required for this switch.
 
 ## Add your documents
 
