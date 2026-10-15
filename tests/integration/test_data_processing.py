@@ -248,12 +248,19 @@ async def test_indexing_paces_batches_for_free_upstream(
     sleep = AsyncMock()
     monkeypatch.setattr(nlp, "asyncio", SimpleNamespace(sleep=sleep))
     monkeypatch.setattr(
-        nlp, "get_settings", lambda: SimpleNamespace(INDEX_BATCH_DELAY_SECONDS=3.5)
+        nlp,
+        "get_settings",
+        lambda: SimpleNamespace(INDEX_BATCH_DELAY_SECONDS=3.5, INDEX_BATCH_SIZE=1),
     )
     indexed = await context.client.post("/api/v1/nlp/index/push/1", json={})
     assert indexed.status_code == 200
     assert indexed.json()["inserted_items_count"] == len(context.records)
-    sleep.assert_awaited_once_with(3.5)
+    assert sleep.await_count == len(context.records)
+    assert all(call.args == (3.5,) for call in sleep.await_args_list)
+    assert all(
+        call.kwargs["page_size"] == 1
+        for call in context.chunk_model.get_project_chunks.await_args_list
+    )
 
 
 @pytest.mark.parametrize("initial_mode", [False, True])

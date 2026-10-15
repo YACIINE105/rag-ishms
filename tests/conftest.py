@@ -20,6 +20,7 @@ SETTINGS = SimpleNamespace(
     HTTP_ACCESS_LOG_SAMPLE_RATE=0.1,
     INPUT_MAX_CHARACTERS=100,
     INDEX_BATCH_DELAY_SECONDS=0,
+    INDEX_BATCH_SIZE=50,
     EMBEDDING_MODEL_ID="test-embed",
     APP_VERSION="test-version",
     APP_NAME="test",
