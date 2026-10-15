@@ -108,15 +108,24 @@ def main():
         "--report", type=Path, default=Path("docs/final-project-report.md")
     )
     parser.add_argument(
+        "--configurations",
+        type=Path,
+        help="Separate scoring directory; captured answers remain under results/configurations",
+    )
+    parser.add_argument(
         "--allow-incomplete",
         action="store_true",
         help="Publish captured runs with pending judge scores explicitly marked n/a",
     )
     args = parser.parse_args()
     root = args.results
+    configurations = args.configurations or root / "configurations"
+    profile_path = configurations / "judge-profile.json"
+    judge_profile = read_json(profile_path) if profile_path.exists() else {}
+    revised_rubric = judge_profile.get("rubric_version") == "candidate-unicode-v2"
     reports = []
     for name in NAMES:
-        path = root / "configurations" / f"{name}.json"
+        path = configurations / f"{name}.json"
         if not path.exists() and args.allow_incomplete:
             path = root / "configurations" / f"{name}.capture.json"
         report = read_json(path)
@@ -133,7 +142,7 @@ def main():
                     "cases": len(rows),
                     "article_hit_rate": sum(hits) / len(hits) if hits else None,
                 }
-        checkpoint = root / "configurations" / f"{name}.checkpoint.json"
+        checkpoint = configurations / f"{name}.checkpoint.json"
         report["scored_cases"] = (
             len(read_json(checkpoint)["cases"])
             if checkpoint.exists()
@@ -313,6 +322,8 @@ def main():
         status="awaiting_judge"
         if any(r.get("status") == "awaiting_judge" for r in reports)
         else "scored",
+        judge_profile=judge_profile,
+        scoring_directory=str(configurations),
         comparisons=[
             dict(
                 name=name,
@@ -373,7 +384,11 @@ def main():
         "- Quality runs seed disposable embedded Qdrant indexes from the extracted Qalam articles and use the existing RAG controller. The separate real upload/process/index load workflow uses PGVector; no backend-quality equivalence is inferred.",
         "- Generator uses 4-bit NF4 on the 6-GiB RTX 3060; context 2,048, one active generation sequence. No adapter is loaded and no training was performed.",
         "- Direct NVIDIA Nemotron VL 1B v2 embeddings (2,048 dimensions) avoid exhausting the production OpenRouter 50-request daily allowance. Existing production settings/indexes were preserved.",
-        "- Independent judge: NVIDIA Nemotron 3 Super 120B, temperature zero. Twelve simple calibration items passed. Subsequent inspection found Arabic misreadings: judge correctness remains provisional, even where a score passes its engineering gate.",
+        (
+            "- Independent judge: NVIDIA Nemotron 3.5 Super VL 120B, temperature zero, candidate-unicode-v2 rubric. All 28 bilingual numerical, completeness and refusal controls passed before scoring. All five configurations use this same judge/profile in a separate scoring directory; legacy scores are not mixed in. Controls are a sanity check, not legal expert validation."
+            if revised_rubric
+            else "- Independent judge: NVIDIA Nemotron 3 Super 120B, temperature zero. Twelve simple calibration items passed. Subsequent inspection found Arabic misreadings: judge correctness remains provisional, even where a score passes its engineering gate."
+        ),
         "- HTTP 429 interrupted the first scoring attempt. Saved answers and completed scores were resumed with request pacing; no answers were regenerated to improve scores.",
         "- An unterminated judge JSON response also interrupted scoring. Invalid/truncated output is rejected; rubric calls use 2,048 output tokens, with one 4,096-token retry only when the API reports length termination. Partial responses never become scores. Successful rubric/RAGAS calls are cached against exact inputs for resume.",
         "",
@@ -381,7 +396,7 @@ def main():
         "",
         "The real upload/process workflow exposed a numeric asset-ID lookup bug; processing now accepts the ID returned by upload while retaining filename lookup and project scope. Queued model calls now wait asynchronously before entering a worker, so the model lock does not consume the worker pool. Bulk SQL operations have a 30-second budget; readiness retains its separate deadline. PGVector reindex batches replace only their supplied chunk IDs transactionally, with configurable batch size (default 50).",
         "",
-        "Verification: 238 tests passed with 86.55% source coverage. Two actual same-vector reinsertions into the isolated PGVector project left exactly 2,297 rows. The existing Docker API was rebuilt after confirming no active production jobs; nginx health returned 200, missing-key requests 401 and authenticated blank queries 422, all with request IDs. These health/authentication checks also passed after the subsequent laptop restart on 16 October. Existing credentials, documents and production indexes were preserved.",
+        "Verification: 240 tests passed with 86.55% source coverage. Two actual same-vector reinsertions into the isolated PGVector project left exactly 2,297 rows. The existing Docker API was rebuilt after confirming no active production jobs; nginx health returned 200, missing-key requests 401 and authenticated blank queries 422, all with request IDs. These health/authentication checks also passed after the subsequent laptop restart on 16 October. Existing credentials, documents and production indexes were preserved.",
         "",
         "## Five configuration comparisons",
         "",
@@ -464,9 +479,9 @@ def main():
         "",
         "The assistant compared all 62 article-rerank outputs with their frozen references; this is not independent legal expert labeling. Arabic Article 94 omits the meeting-end acceptance condition, Article 147 omits the contrary-agreement void clause, and the person-name negative returns a generic legal category. Article 226 reaches the 256-token cap and ends midword while omitting reference conditions. These are practical failures to retain even if an automated gate passes.",
         "",
-        "The Super judge also misread a clear Arabic court-address refusal and invented claims when grading the Article 374 answer. Their original machine scores are preserved. The evidence includes assistant-answer-review.json with exact case IDs; no corrected legal accuracy percentage is inferred. Alternative judges were rejected when unavailable or when calibration controls failed; their results were not mixed into this comparison.",
+        "The legacy Super judge misread a clear Arabic court-address refusal and invented claims when grading the Article 374 answer. Its original machine scores are preserved under configurations/ for audit. The evidence includes assistant-answer-review.json with exact case IDs; no assistant-corrected legal accuracy percentage is inferred.",
         "",
-        "A further existing-account recovery check on 16 October found Nemotron 3.5 Super VL callable, but it failed 11 of 28 bilingual numerical, completeness and refusal controls. It accepted wrong Arabic ages and invented personal/court facts, sometimes replacing the actual answer's claims with reference claims. It was rejected before comparison scoring; super35-judge-calibration.json preserves all controls and verdicts. DeepSeek V4.1 Flash timed out even with its documented non-thinking option. Availability alone is insufficient to choose a judge, and no alternative results were substituted for missing scores.",
+        "A recovery check on 16 October found Nemotron 3.5 Super VL callable, but the legacy rubric failed 11 of 28 controls. Investigation found that Arabic rubric inputs were Unicode-escaped and candidate claims could be confused with reference claims. The revised rubric sends readable Arabic, explicitly identifies candidate_answer, forbids replacing its words/numbers with reference claims and rejects omitted required conditions. It passed all 28 controls; super35-judge-calibration.json records the revised results and super35-legacy-rubric-calibration.json retains the failures. Changing serialization, instructions and judge requires regrading every configuration separately; earlier scores are not comparable as a model-quality improvement. DeepSeek V4.1 Flash timed out with its documented non-thinking option.",
         "",
         "Provider availability was checked on 2026-10-15. NVIDIA's official catalogue marks the free endpoints for [Qwen3.5-397B](https://build.nvidia.com/qwen/qwen3.5-397b-a17b?api=true) and [GPT-OSS-120B](https://build.nvidia.com/openai/gpt-oss-120b) as deprecated; a model listing is not evidence that the existing account can call it. Existing-account probes and failed calibration results remain in the evidence; no paid endpoint or new account was introduced.",
         "",
