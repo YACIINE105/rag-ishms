@@ -464,6 +464,7 @@ async def test_judge_obeys_rate_limit_cooldown(tmp_path, monkeypatch, invalid_re
     clock = [0.0]
     attempts = []
     limits = []
+    prompts = []
 
     async def sleep(seconds):
         clock[0] += seconds
@@ -472,6 +473,7 @@ async def test_judge_obeys_rate_limit_cooldown(tmp_path, monkeypatch, invalid_re
     async def respond(request):
         attempts.append(clock[0])
         limits.append(json.loads(request.content)["max_tokens"])
+        prompts.append(json.loads(request.content)["messages"][1]["content"])
         if len(attempts) == 1:
             return httpx.Response(
                 429,
@@ -577,7 +579,7 @@ async def test_judge_obeys_rate_limit_cooldown(tmp_path, monkeypatch, invalid_re
         assert len(attempts) == expected_attempts
         await judge(
             {
-                "question": "A different question?",
+                "question": "ما الاسم؟",
                 "expected_answer": "Unavailable",
                 "expect_no_answer": True,
             },
@@ -585,8 +587,39 @@ async def test_judge_obeys_rate_limit_cooldown(tmp_path, monkeypatch, invalid_re
             [],
         )
         assert len(attempts) == expected_attempts + 1
+        assert "ما الاسم؟" in prompts[-1]
+        assert json.loads(prompts[-1])["candidate_answer"] == "Unavailable"
     finally:
         await client.close()
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("existing", ["legacy", "different_profile"])
+async def test_offline_scoring_rejects_incomparable_judge_results(
+    tmp_path, monkeypatch, existing
+):
+    import sys
+    from types import SimpleNamespace
+
+    scripts = Path(__file__).resolve().parents[2] / "scripts"
+    monkeypatch.syspath_prepend(str(scripts))
+    import score_captured
+
+    monkeypatch.setattr(score_captured, "load_cases", lambda _: [])
+    monkeypatch.setenv("RAG_EVAL_JUDGE_MODEL", "new-judge")
+    if existing == "legacy":
+        (tmp_path / "article-rerank.checkpoint.json").write_text(
+            json.dumps({"cases": [{"id": "old-grade"}]})
+        )
+    else:
+        (tmp_path / "judge-profile.json").write_text(
+            json.dumps({"model": "different-judge"})
+        )
+    with pytest.raises(ValueError, match="separate report directory"):
+        await score_captured.run(
+            SimpleNamespace(dataset=None, reports=tmp_path, wait_seconds=0)
+        )
+    sys.modules.pop("score_captured", None)
 
 
 def test_experiment_retries_wrapped_rate_limits_but_not_auth_errors(monkeypatch):

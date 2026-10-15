@@ -8,7 +8,7 @@ import os
 from pathlib import Path
 from time import monotonic
 
-from evaluate_rag import evaluate, load_cases, make_judge
+from evaluate_rag import JUDGE_RUBRIC_VERSION, evaluate, load_cases, make_judge
 from run_experiments import CONFIGS, is_transient_provider_error
 
 
@@ -18,6 +18,30 @@ async def run(args):
         json.dumps(cases, sort_keys=True, ensure_ascii=False).encode()
     ).hexdigest()
     args.reports.mkdir(parents=True, exist_ok=True)
+    profile = {
+        "rubric_version": JUDGE_RUBRIC_VERSION,
+        "model": os.environ["RAG_EVAL_JUDGE_MODEL"],
+        "base_url": os.environ.get("RAG_EVAL_JUDGE_BASE_URL"),
+        "extra_body": json.loads(os.environ.get("RAG_EVAL_JUDGE_EXTRA_BODY", "{}")),
+        "temperature": 0,
+        "full_metrics": os.environ.get("RAG_EVAL_FULL_METRICS") == "1",
+        "embedding_model": os.environ.get("RAG_EVAL_EMBEDDING_MODEL"),
+    }
+    profile_path = args.reports / "judge-profile.json"
+    if profile_path.exists():
+        if json.loads(profile_path.read_text()) != profile:
+            raise ValueError(
+                "Use a separate report directory for a different judge rubric/profile"
+            )
+    elif any(
+        json.loads(path.read_text()).get("cases")
+        for path in args.reports.glob("*.checkpoint.json")
+    ) or any((args.reports / f"{config['name']}.json").exists() for config in CONFIGS):
+        raise ValueError(
+            "Legacy scores require a separate report directory for the revised rubric"
+        )
+    else:
+        profile_path.write_text(json.dumps(profile, indent=2) + "\n")
     deadline = monotonic() + args.wait_seconds
     for config in CONFIGS:
         name = config["name"]
@@ -96,6 +120,7 @@ async def run(args):
         report.update(
             judge_model=os.environ["RAG_EVAL_JUDGE_MODEL"],
             judge_temperature=0,
+            judge_rubric_version=JUDGE_RUBRIC_VERSION,
             capture_sha256=hashlib.sha256(source.read_bytes()).hexdigest(),
             generation_reused=True,
         )
