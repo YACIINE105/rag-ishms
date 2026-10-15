@@ -73,6 +73,8 @@ def score_verdict(verdict):
 
 
 async def evaluate(cases, answer_case, judge, threshold, checkpoint=None):
+    if not cases:
+        raise ValueError("An empty dataset cannot pass")
     if not math.isfinite(threshold) or not 0 <= threshold <= 1:
         raise ValueError("Threshold must be between zero and one")
     checkpoint = Path(checkpoint) if checkpoint else None
@@ -200,7 +202,8 @@ async def evaluate(cases, answer_case, judge, threshold, checkpoint=None):
                 )
                 answers[case["id"]] = raw
                 persist(raw)
-            tasks.append(asyncio.create_task(bounded_grade(case, raw)))
+            if judge is not None:
+                tasks.append(asyncio.create_task(bounded_grade(case, raw)))
         await asyncio.gather(*tasks)
     finally:
         for task in tasks:
@@ -210,6 +213,56 @@ async def evaluate(cases, answer_case, judge, threshold, checkpoint=None):
     order = {case["id"]: index for index, case in enumerate(cases)}
     results.sort(key=lambda row: order[row["id"]])
     persist()
+    if judge is None:
+        previous = {row["id"]: row for row in results}
+        captures = []
+        for case in cases:
+            raw = answers.get(case["id"], previous.get(case["id"]))
+            captures.append(
+                {
+                    **raw,
+                    "question": case["question"],
+                    "language": case.get("language", "unknown"),
+                    "article_number": case.get("article_number"),
+                    "expect_no_answer": case.get("expect_no_answer", False),
+                    "faithfulness": None,
+                    "response_relevancy": None,
+                    "context_precision": None,
+                    "context_recall": None,
+                    "answers_reference": None,
+                    "verdict": None,
+                    "reference_article_retrieved": (
+                        any(
+                            item.get("metadata", {}).get("article_number")
+                            == case["article_number"]
+                            for item in raw["contexts"]
+                        )
+                        if case.get("article_number")
+                        else None
+                    ),
+                }
+            )
+        hits = [
+            row["reference_article_retrieved"]
+            for row in captures
+            if row["reference_article_retrieved"] is not None
+        ]
+        latencies = sorted(row["latency_seconds"] for row in captures)
+        return {
+            "status": "awaiting_judge",
+            "passed": False,
+            "threshold": threshold,
+            "faithfulness": None,
+            "reference_accuracy": None,
+            "by_language": {},
+            "metrics": {
+                "cases": len(captures),
+                "article_hit_rate": sum(hits) / len(hits) if hits else None,
+                "p95_latency_seconds": latencies[math.ceil(len(latencies) * 0.95) - 1],
+            },
+            "captured_at": datetime.now(timezone.utc).isoformat(),
+            "cases": captures,
+        }
     if not results:
         raise ValueError("An empty dataset cannot pass")
 
@@ -513,24 +566,32 @@ async def seed_corpus(controller, cases, records, chunk_size=None, overlap=0):
             )
         chunks = expanded
         chunk_ids = list(range(1, len(chunks) + 1))
+    batch_size = int(os.environ.get("INDEX_BATCH_SIZE", "50"))
+    if not 1 <= batch_size <= 100:
+        raise ValueError("INDEX_BATCH_SIZE must be between 1 and 100")
     for project_id in sorted({case["project_id"] for case in cases}):
-        for offset in range(0, len(chunks), 50):
+        for offset in range(0, len(chunks), batch_size):
             inserted = await controller.index_into_vector_db(
                 project=SimpleNamespace(project_id=project_id),
-                chunks=chunks[offset : offset + 50],
-                chunks_ids=chunk_ids[offset : offset + 50],
+                chunks=chunks[offset : offset + batch_size],
+                chunks_ids=chunk_ids[offset : offset + batch_size],
                 do_reset=False,
             )
             if not inserted:
                 raise RuntimeError("Evaluation corpus indexing failed")
-            print(f"Indexed {min(offset + 50, len(chunks))}/{len(chunks)}", flush=True)
-            if offset + 50 < len(chunks):
+            print(
+                f"Indexed {min(offset + batch_size, len(chunks))}/{len(chunks)}",
+                flush=True,
+            )
+            if offset + batch_size < len(chunks):
                 await asyncio.sleep(
                     float(os.environ.get("INDEX_BATCH_DELAY_SECONDS", "0"))
                 )
 
 
-async def run_live(cases, threshold, corpus=None, config=None, checkpoint=None):
+async def run_live(
+    cases, threshold, corpus=None, config=None, checkpoint=None, capture_only=False
+):
     corpus = Path(corpus).resolve() if corpus else None
     checkpoint = Path(checkpoint).resolve() if checkpoint else None
     records = json.loads(Path(corpus).read_text(encoding="utf-8")) if corpus else None
@@ -634,7 +695,13 @@ async def run_live(cases, threshold, corpus=None, config=None, checkpoint=None):
                     )
                 return str(result["answer"]) if result else "", list(actual_contexts)
 
-            report = await evaluate(cases, answer_case, judge, threshold, checkpoint)
+            report = await evaluate(
+                cases,
+                answer_case,
+                None if capture_only else judge,
+                threshold,
+                checkpoint,
+            )
             exporter = get_client()
             for row in report["cases"]:
                 row["request_id"] = answer_ids.get(row["id"])

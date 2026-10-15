@@ -99,16 +99,24 @@ async def run(args):
     manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
     summaries = []
     for config in CONFIGS:
-        with mlflow.start_run(run_name=config["name"]):
+        with mlflow.start_run(
+            run_name=config["name"] + ("-capture" if args.capture_only else "")
+        ):
             mlflow.log_params(
                 {
                     key: value if value is not None else "article"
                     for key, value in config.items()
                 }
             )
-            path = args.reports / f"{config['name']}.json"
+            path = (
+                args.reports
+                / f"{config['name']}{'.capture' if args.capture_only else ''}.json"
+            )
+            scored = args.reports / f"{config['name']}.json"
             checkpoint = args.reports / f"{config['name']}.checkpoint.json"
-            if path.exists() and args.resume:
+            if scored.exists() and args.resume:
+                report = json.loads(scored.read_text())
+            elif path.exists() and args.resume:
                 report = json.loads(path.read_text())
             else:
                 for attempt in range(4):
@@ -119,6 +127,7 @@ async def run(args):
                             args.corpus,
                             config=config,
                             checkpoint=checkpoint,
+                            capture_only=args.capture_only,
                         )
                         break
                     except Exception as error:
@@ -152,9 +161,10 @@ async def run(args):
                     "metrics": report["metrics"],
                 }
             )
-    (args.reports / "comparison.json").write_text(
-        json.dumps(summaries, indent=2) + "\n"
-    )
+    (
+        args.reports
+        / ("capture-comparison.json" if args.capture_only else "comparison.json")
+    ).write_text(json.dumps(summaries, indent=2) + "\n")
 
 
 def main():
@@ -168,6 +178,11 @@ def main():
     parser.add_argument("--env-file", type=Path)
     parser.add_argument("--full-metrics", action="store_true")
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument(
+        "--capture-only",
+        action="store_true",
+        help="Save real RAG answers/contexts without waiting for an external judge",
+    )
     args = parser.parse_args()
     if args.env_file:
         from dotenv import load_dotenv

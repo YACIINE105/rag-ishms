@@ -550,3 +550,34 @@ def test_experiment_retries_wrapped_rate_limits_but_not_auth_errors(monkeypatch)
     auth_error = RuntimeError("Invalid credentials")
     auth_error.status_code = 401
     assert not experiments.is_transient_provider_error(auth_error)
+
+
+@pytest.mark.asyncio
+async def test_capture_only_can_resume_judging_without_generating_again(tmp_path):
+    calls = []
+    cases = [
+        {"id": "1", "question": "Question", "language": "en", "article_number": 44}
+    ]
+    checkpoint = tmp_path / "capture.json"
+
+    async def answer(case):
+        calls.append(case["id"])
+        return "Twenty-one", [{"text": "Source", "metadata": {"article_number": 44}}]
+
+    capture = await evaluation.evaluate(cases, answer, None, 0.75, checkpoint)
+    assert capture["status"] == "awaiting_judge"
+    assert not capture["passed"]
+    assert capture["reference_accuracy"] is None
+    assert capture["metrics"]["article_hit_rate"] == 1
+    assert len(json.loads(checkpoint.read_text())["answers"]) == 1
+
+    async def judge(*args):
+        return {
+            "claims": [{"text": "Twenty-one", "supported": True}],
+            "answers_reference": True,
+            "ragas_faithfulness": 1.0,
+        }
+
+    scored = await evaluation.evaluate(cases, answer, judge, 0.75, checkpoint)
+    assert scored["passed"]
+    assert calls == ["1"]
