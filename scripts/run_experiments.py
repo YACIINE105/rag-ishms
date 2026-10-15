@@ -148,12 +148,25 @@ async def run(args):
                     "embedding_model": report["index_metadata"]["embedding_model_id"],
                     "generation_model": report["generation_model"],
                     "prompt_version": report["prompt_version"],
+                    "judge_model": report.get("judge_model") or "not_scored",
+                    "judge_rubric_version": report.get(
+                        "judge_rubric_version", "legacy"
+                    ),
+                    "capture_only": report.get("status") == "awaiting_judge",
                 }
             )
             mlflow.log_metrics(
                 {
                     key: value
                     for key, value in report["metrics"].items()
+                    if type(value) in (int, float)
+                }
+            )
+            mlflow.log_metrics(
+                {
+                    f"{language}_{key}": value
+                    for language, metrics in report.get("by_language", {}).items()
+                    for key, value in metrics.items()
                     if type(value) in (int, float)
                 }
             )

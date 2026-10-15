@@ -117,7 +117,7 @@ def package(results, destination, secret_file):
             "cache" in part.lower() for part in path.relative_to(results).parts[:-1]
         )
         and path.suffix
-        in {".json", ".csv", ".png", ".pdf", ".html", ".prom", ".log", ".db"}
+        in {".json", ".csv", ".png", ".pdf", ".html", ".prom", ".log", ".db", ".md"}
         and path.name != "evidence-manifest.json"
     ] + fixed
     # Secret candidates come through a private file; never print their contents.
