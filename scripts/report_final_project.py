@@ -1,4 +1,4 @@
-"""Create a reproducible report and figures from completed evaluation/load evidence."""
+"""Create a reproducible report and figures from saved evaluation/load evidence."""
 
 import argparse
 import csv
@@ -119,7 +119,27 @@ def main():
         path = root / "configurations" / f"{name}.json"
         if not path.exists() and args.allow_incomplete:
             path = root / "configurations" / f"{name}.capture.json"
-        reports.append(read_json(path))
+        report = read_json(path)
+        if report.get("status") == "awaiting_judge":
+            report["by_language"] = {}
+            for language in ("ar", "en"):
+                rows = [row for row in report["cases"] if row["language"] == language]
+                hits = [
+                    row["reference_article_retrieved"]
+                    for row in rows
+                    if row["reference_article_retrieved"] is not None
+                ]
+                report["by_language"][language] = {
+                    "cases": len(rows),
+                    "article_hit_rate": sum(hits) / len(hits) if hits else None,
+                }
+        checkpoint = root / "configurations" / f"{name}.checkpoint.json"
+        report["scored_cases"] = (
+            len(read_json(checkpoint)["cases"])
+            if checkpoint.exists()
+            else (62 if report.get("status") != "awaiting_judge" else 0)
+        )
+        reports.append(report)
     if any(len(report.get("cases", [])) != 62 for report in reports):
         raise ValueError(
             "All five frozen 62-case comparisons must finish before reporting"
@@ -128,6 +148,11 @@ def main():
         Path(__file__).resolve().parents[1] / "eval/civil_code_full.json"
     )
     references = {case["id"]: case["expected_answer"] for case in dataset}
+    if any(
+        {case["id"] for case in report["cases"]} != set(references)
+        for report in reports
+    ):
+        raise ValueError("Every configuration must contain the exact frozen case IDs")
     with (root / "case-review.csv").open(
         "w", encoding="utf-8-sig", newline=""
     ) as output:
@@ -292,6 +317,7 @@ def main():
             dict(
                 name=name,
                 status=r.get("status", "scored"),
+                scored_cases=r["scored_cases"],
                 passed=r["passed"],
                 metrics=r["metrics"],
                 by_language=r["by_language"],
@@ -320,6 +346,7 @@ def main():
             "Evaluation uses direct NVIDIA embeddings, not the production OpenRouter free route.",
             "25 source articles have reference questions; corpus retrieval includes 1149.",
             "Single local 4-bit Qwen serving run per configuration; no new model training.",
+            "Runs span a host restart and variable GPU clocks/provider availability; latency differences are observational.",
         ],
     )
     (root / "summary.json").write_text(
@@ -331,7 +358,7 @@ def main():
         "Measured Civil Code retrieval, answer quality and local serving capacity. These results are engineering diagnostics; they do not certify legal correctness.",
         "",
         (
-            "**Scoring is incomplete.** All five configurations have captured 62 answers each, but the external judge is unavailable. Missing scores are n/a; no five-way quality winner or promotion is claimed."
+            "**Scoring is incomplete.** All five configurations have captured 62 answers each, but the external judge is rate-limited. Missing scores are n/a; no five-way quality winner or promotion is claimed."
             if summary["status"] == "awaiting_judge"
             else "All five configurations have completed automated scoring; the judge limitations below still apply."
         ),
@@ -343,15 +370,23 @@ def main():
         "- Qalam: 1,149 articles and 2,297 nonempty language chunks; known Article 1021/1022 alignment defect retained and excluded from references.",
         "- Frozen questions: 62, with 25 answerable and six unanswerable in each language, covering 25 distinct articles. Assistant source review; no independent legal expert review.",
         "- All five configurations use full-corpus retrieval, local Qwen3-4B-Instruct-2507 at the pinned revision, temperature zero, maximum 256 output tokens, and the existing BGE GPU reranker where enabled.",
+        "- Quality runs seed disposable embedded Qdrant indexes from the extracted Qalam articles and use the existing RAG controller. The separate real upload/process/index load workflow uses PGVector; no backend-quality equivalence is inferred.",
         "- Generator uses 4-bit NF4 on the 6-GiB RTX 3060; context 2,048, one active generation sequence. No adapter is loaded and no training was performed.",
         "- Direct NVIDIA Nemotron VL 1B v2 embeddings (2,048 dimensions) avoid exhausting the production OpenRouter 50-request daily allowance. Existing production settings/indexes were preserved.",
         "- Independent judge: NVIDIA Nemotron 3 Super 120B, temperature zero. Twelve simple calibration items passed. Subsequent inspection found Arabic misreadings: judge correctness remains provisional, even where a score passes its engineering gate.",
         "- HTTP 429 interrupted the first scoring attempt. Saved answers and completed scores were resumed with request pacing; no answers were regenerated to improve scores.",
+        "- An unterminated judge JSON response also interrupted scoring. Invalid/truncated output is rejected; rubric calls use 2,048 output tokens, with one 4,096-token retry only when the API reports length termination. Partial responses never become scores. Successful rubric/RAGAS calls are cached against exact inputs for resume.",
+        "",
+        "## Application fixes and validation",
+        "",
+        "The real upload/process workflow exposed a numeric asset-ID lookup bug; processing now accepts the ID returned by upload while retaining filename lookup and project scope. Queued model calls now wait asynchronously before entering a worker, so the model lock does not consume the worker pool. Bulk SQL operations have a 30-second budget; readiness retains its separate deadline. PGVector reindex batches replace only their supplied chunk IDs transactionally, with configurable batch size (default 50).",
+        "",
+        "Verification: 238 tests passed with 86.55% source coverage. Two actual same-vector reinsertions into the isolated PGVector project left exactly 2,297 rows. The existing Docker API was rebuilt after confirming no active production jobs; nginx health returned 200, missing-key requests 401 and authenticated blank queries 422, all with request IDs. These health/authentication checks also passed after the subsequent laptop restart on 16 October. Existing credentials, documents and production indexes were preserved.",
         "",
         "## Five configuration comparisons",
         "",
-        "| Configuration | Faithfulness | Relevancy | Context precision | Context recall | Reference accuracy | p95 seconds | Gate |",
-        "|---|---:|---:|---:|---:|---:|---:|---|",
+        "| Configuration | Faithfulness | Relevancy | Context precision | Context recall | Reference accuracy | p95 seconds | Scored / 62 | Gate |",
+        "|---|---:|---:|---:|---:|---:|---:|---:|---|",
     ]
     for name, r in zip(NAMES, reports):
         m = r["metrics"]
@@ -370,6 +405,7 @@ def main():
                     "p95_latency_seconds",
                 )
             )
+            + f" | {r['scored_cases']}/62"
             + (
                 " | PENDING |"
                 if r.get("status") == "awaiting_judge"
@@ -399,6 +435,8 @@ def main():
         "",
         "Faithfulness excludes expected refusals; reference accuracy includes them. Additional RAGAS scores cover answerable questions only. Generation remains sequential; remote grading is overlapped and excluded from response latency. Completed per-case answers and exact retrieved contexts are saved. MLflow records the five configurations and artifacts; interrupted attempts remain visible.",
         "",
+        "Runs were collected sequentially across a host restart with variable GPU clocks and provider availability. Latency differences are observations from these runs, not a controlled speedup estimate. Missing judge scores are withheld rather than averaging incomplete case subsets.",
+        "",
         "## Load and streaming",
         "",
         f"Locust used 50 independent identities (observed peak {load['observed_peak_users']}), spawn rate 5/s, 180 seconds plus up to 180 seconds to drain. Exit code: {load['locust_exit_code']}. The isolated API uses the existing application code on localhost:8003, {load.get('vector_backend', 'QDRANT')}, the full Qalam-upload/process/index workflow, local GPU servers and direct NVIDIA embeddings. This measures the application directly; it is not a production nginx/OpenRouter capacity claim.",
@@ -406,6 +444,8 @@ def main():
         "The original Qdrant load run exposed worker-pool starvation: 66 answer requests, 49 failures, and all four health checks failed. An async wait gate now keeps queued model calls outside the worker pool. The later PGVector run also changes the backend and fixes the workload seed, so differences cannot be attributed solely to that fix. A preceding PGVector setup indexed all 2,297 chunks but stopped during SSE after a CUDA unknown-error crash; it is preserved separately. The measured PGVector retry reused that verified index after the host restart.",
         "",
         f"Answer requests: {answer_stats['Request Count']}; failed: {answer_stats['Failure Count']}; median: {answer_stats['Median Response Time']} ms; p95: {answer_stats['95%']} ms; p99: {answer_stats['99%']} ms. Inspect the failure CSV and provider logs alongside aggregate rates; HTTP 200 with empty answers/sources is also a load-test failure.",
+        "",
+        f"Nonempty-answer goodput: {(int(answer_stats['Request Count']) - int(answer_stats['Failure Count'])) / load['actual_wall_seconds']:.3f} requests/s over {load['actual_wall_seconds']:.1f} seconds including drain. This counts responses passing the workload's answer/source check, not legally correct answers. The configuration does not meet the 50-user capacity target.",
         "",
         "| Stage | Samples | Mean seconds | p95 histogram upper bound seconds |",
         "|---|---:|---:|---:|",
@@ -426,15 +466,27 @@ def main():
         "",
         "The Super judge also misread a clear Arabic court-address refusal and invented claims when grading the Article 374 answer. Their original machine scores are preserved. The evidence includes assistant-answer-review.json with exact case IDs; no corrected legal accuracy percentage is inferred. Alternative judges were rejected when unavailable or when calibration controls failed; their results were not mixed into this comparison.",
         "",
+        "A further existing-account recovery check on 16 October found Nemotron 3.5 Super VL callable, but it failed 11 of 28 bilingual numerical, completeness and refusal controls. It accepted wrong Arabic ages and invented personal/court facts, sometimes replacing the actual answer's claims with reference claims. It was rejected before comparison scoring; super35-judge-calibration.json preserves all controls and verdicts. DeepSeek V4.1 Flash timed out even with its documented non-thinking option. Availability alone is insufficient to choose a judge, and no alternative results were substituted for missing scores.",
+        "",
+        "Provider availability was checked on 2026-10-15. NVIDIA's official catalogue marks the free endpoints for [Qwen3.5-397B](https://build.nvidia.com/qwen/qwen3.5-397b-a17b?api=true) and [GPT-OSS-120B](https://build.nvidia.com/openai/gpt-oss-120b) as deprecated; a model listing is not evidence that the existing account can call it. Existing-account probes and failed calibration results remain in the evidence; no paid endpoint or new account was introduced.",
+        "",
+        "Targeted comparison reviews cover 11 Arabic no-rerank cases and seven 250-character cases. Several baseline omissions persist. The 250-character configuration answers age 20 for Article 44 even though its retrieved Arabic and English passages both state twenty-one; this is a numerical generation error with the correct evidence present. Its English Article 1 answer also introduces incorrect article attributions and an extra fallback. These examples prevent an error-free-accuracy claim independently of the judge's availability.",
+        "",
+        "Seven-case reviews of the 500-character and top-three article variants are also saved. Top-three retrieval includes the missing Article 147 void-agreement clause and the required Article 226 conditions, but its Article 44 response contradicts itself: twenty-one in the opening, then 18 twice. The person-name refusal failure persists. These targeted improvements and regressions do not establish an overall winner; the existing production retrieval configuration is retained.",
+        "",
         "## Scope and remaining human decisions",
         "",
         "No new fine-tuning, remote deployment, index replacement, Canary/BentoML/Redis stack, or Cue/Kaggle work was performed. Existing runtime architecture remains intact. Model choice from the earlier acceptance study remains the untuned Qwen base; this comparison varies retrieval configuration, not trained adapters.",
         "",
         "Legal expert review and a larger independently labeled held-out benchmark remain human work. Automated judge errors must be resolved before treating these scores as legal accuracy. External Langfuse credentials, alert destinations, registry promotion and protected CI secrets are optional external setup, not completed experiments. Do not promise that a small benchmark eliminates model failure.",
         "",
+        "The SSE tokenizer counts support the reported end-to-end output rate. No provider price table or hardware energy accounting was configured, so no dollar-cost-per-answer estimate is fabricated.",
+        "",
         "## Evidence and reproduction",
         "",
         "See `eval/CIVIL_CODE_EVALUATION.md` for the frozen dataset, extraction and five-run command. Raw reports, checkpoints, calibration, exact contexts, MLflow tracking database, Locust CSV/HTML, streaming probes and metric snapshots remain local under `eval/reports/final-project/` and `reports/mlflow.db`. No secrets are included in the shareable evidence archive.",
+        "",
+        "The Grafana screenshot shows the configured production dashboard and published completed article-rerank pilot scores. The isolated port-8003 load API was not a Prometheus scrape target; its stage figures use the saved before/after metric snapshots. Locust HTML is a periodic snapshot; final JSON counts after draining take precedence.",
         "",
     ]
     args.report.parent.mkdir(parents=True, exist_ok=True)
