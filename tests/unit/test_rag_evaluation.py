@@ -525,6 +525,18 @@ async def test_judge_obeys_rate_limit_cooldown(
     monkeypatch.setenv("RAG_EVAL_FULL_METRICS", "0")
     client, judge = evaluation.make_judge()
     try:
+        from openai import RateLimitError
+
+        with pytest.raises(RateLimitError):
+            await judge(
+                {
+                    "question": "Name?",
+                    "expected_answer": "Unavailable",
+                    "expect_no_answer": True,
+                },
+                "Unavailable",
+                [],
+            )
         verdict = await judge(
             {
                 "question": "Name?",

@@ -386,7 +386,8 @@ def make_judge():
         api_key=api_key,
         base_url=os.environ.get("RAG_EVAL_JUDGE_BASE_URL") or None,
         timeout=120,
-        max_retries=3,
+        # The checkpoint runner owns retries; do not multiply SDK/Instructor retries.
+        max_retries=0,
         http_client=JudgeHTTPClient(
             event_hooks={"request": [pace_request], "response": [observe_response]}
         ),
