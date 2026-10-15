@@ -158,3 +158,38 @@ def test_prediction_events_survive_quiet_root_level():
     record = json.loads(stream.getvalue())
     assert record["message"] == "prediction.done"
     assert record["retrieved_ids"] == [1]
+
+
+async def test_serialized_waiters_leave_threadpool_capacity_for_other_routes():
+    import asyncio
+    import threading
+    from types import SimpleNamespace
+
+    from anyio.to_thread import current_default_thread_limiter
+    from starlette.concurrency import run_in_threadpool
+
+    limiter = current_default_thread_limiter()
+    original_tokens = limiter.total_tokens
+    limiter.total_tokens = 2
+    owner = SimpleNamespace()
+    started = threading.Event()
+    release = threading.Event()
+
+    def blocked_provider():
+        started.set()
+        release.wait(timeout=2)
+
+    tasks = [
+        asyncio.create_task(run_serialized(owner, blocked_provider)) for _ in range(5)
+    ]
+    try:
+        assert await asyncio.to_thread(started.wait, 1)
+        result = await asyncio.wait_for(
+            run_in_threadpool(lambda: "responsive"), timeout=0.25
+        )
+        assert result == "responsive"
+        assert not release.is_set()
+    finally:
+        release.set()
+        await asyncio.gather(*tasks)
+        limiter.total_tokens = original_tokens

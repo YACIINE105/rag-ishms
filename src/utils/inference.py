@@ -1,6 +1,8 @@
 """Run blocking operations off the event loop with one lock per shared client."""
 
+import asyncio
 from threading import Lock, RLock
+from weakref import WeakKeyDictionary
 
 from starlette.concurrency import run_in_threadpool
 
@@ -12,6 +14,12 @@ async def run_serialized(owner, function, *args, **kwargs):
         if not hasattr(owner, "_operation_lock"):
             owner._operation_lock = RLock()
         operation_lock = owner._operation_lock
+        if not hasattr(owner, "_async_operation_locks"):
+            owner._async_operation_locks = WeakKeyDictionary()
+        loop = asyncio.get_running_loop()
+        if loop not in owner._async_operation_locks:
+            owner._async_operation_locks[loop] = asyncio.Lock()
+        async_operation_lock = owner._async_operation_locks[loop]
 
     def call():
         with operation_lock:
@@ -49,4 +57,6 @@ async def run_serialized(owner, function, *args, **kwargs):
                         )
                 return result
 
-    return await run_in_threadpool(call)
+    # Wait outside the worker pool so queued inference cannot consume every slot.
+    async with async_operation_lock:
+        return await run_in_threadpool(call)

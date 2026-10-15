@@ -44,7 +44,8 @@ async def lifespan(app: FastAPI):
     )
     app.db_engine = create_async_engine(
         postgres_conn,
-        connect_args={"timeout": 3, "command_timeout": 3},
+        # Bulk chunk writes/deletes need more time than the bounded readiness probe.
+        connect_args={"timeout": 3, "command_timeout": 30},
     )
 
     # Setup MongoDB
