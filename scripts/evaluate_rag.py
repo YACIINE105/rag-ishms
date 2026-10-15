@@ -2,6 +2,7 @@
 
 import argparse
 import asyncio
+import hashlib
 import importlib
 import json
 import logging
@@ -71,14 +72,46 @@ def score_verdict(verdict):
     return float(score)
 
 
-async def evaluate(cases, answer_case, judge, threshold):
+async def evaluate(cases, answer_case, judge, threshold, checkpoint=None):
     if not math.isfinite(threshold) or not 0 <= threshold <= 1:
         raise ValueError("Threshold must be between zero and one")
-    results = []
-    for case in cases:
-        started = perf_counter()
-        answer, contexts = await answer_case(case)
-        latency = perf_counter() - started
+    checkpoint = Path(checkpoint) if checkpoint else None
+    fingerprint = hashlib.sha256(
+        json.dumps(cases, sort_keys=True, ensure_ascii=False).encode()
+    ).hexdigest()
+    saved = {}
+    if checkpoint and checkpoint.exists():
+        saved = json.loads(checkpoint.read_text())
+        if saved.get("dataset_fingerprint") != fingerprint:
+            raise ValueError("Checkpoint belongs to a different dataset")
+    results = saved.get("cases", [])
+    completed = {row["id"] for row in results}
+    answers = saved.get("answers", {})
+    if saved.get("pending"):
+        answers[saved["pending"]["id"]] = saved["pending"]
+
+    def persist(pending=None):
+        if checkpoint:
+            checkpoint.parent.mkdir(parents=True, exist_ok=True)
+            temporary = checkpoint.with_suffix(".tmp")
+            temporary.write_text(
+                json.dumps(
+                    {
+                        "dataset_fingerprint": fingerprint,
+                        "cases": results,
+                        "pending": pending,
+                        "answers": answers,
+                    },
+                    ensure_ascii=False,
+                    indent=2,
+                )
+                + "\n"
+            )
+            temporary.replace(checkpoint)
+
+    async def grade(case, raw):
+        answer, contexts = raw["answer"], raw["contexts"]
+        latency = raw["latency_seconds"]
         verdict = None
         faithfulness = 0.0
         metrics = {}
@@ -90,6 +123,11 @@ async def evaluate(cases, answer_case, judge, threshold):
                 "I could not find information in the indexed documents to answer your question.",
                 "لم أجد معلومات في المستندات المفهرسة للإجابة عن سؤالك.",
             }
+            if case.get("semantic_refusal") and not correct:
+                verdict = await judge(case, answer, contexts)
+                if type(verdict.get("answers_reference")) is not bool:
+                    raise ValueError("Refusal verdict must be boolean")
+                correct = verdict["answers_reference"]
         elif isinstance(answer, str) and answer.strip() and contexts:
             verdict = await judge(case, answer, contexts)
             faithfulness = score_verdict(verdict)
@@ -119,9 +157,59 @@ async def evaluate(cases, answer_case, judge, threshold):
                 ),
                 "latency_seconds": latency,
                 "expect_no_answer": expected_refusal,
+                "article_number": case.get("article_number"),
+                "reference_article_retrieved": (
+                    any(
+                        item.get("metadata", {}).get("article_number")
+                        == case.get("article_number")
+                        for item in contexts
+                    )
+                    if case.get("article_number")
+                    else None
+                ),
                 **metrics,
             }
         )
+        persist()
+        print(f"Evaluated {len(results)}/{len(cases)}: {case['id']}", flush=True)
+
+    concurrency = int(os.environ.get("RAG_EVAL_GRADING_CONCURRENCY", "1"))
+    if not 1 <= concurrency <= 4:
+        raise ValueError("Grading concurrency must be between one and four")
+    semaphore = asyncio.Semaphore(concurrency)
+
+    async def bounded_grade(case, raw):
+        async with semaphore:
+            await grade(case, raw)
+
+    tasks = []
+    try:
+        # Keep generation sequential for comparable latency; overlap only remote grading.
+        for case in cases:
+            if case["id"] in completed:
+                continue
+            raw = answers.get(case["id"])
+            if raw is None:
+                started = perf_counter()
+                answer, contexts = await answer_case(case)
+                raw = dict(
+                    id=case["id"],
+                    answer=answer,
+                    contexts=contexts,
+                    latency_seconds=perf_counter() - started,
+                )
+                answers[case["id"]] = raw
+                persist(raw)
+            tasks.append(asyncio.create_task(bounded_grade(case, raw)))
+        await asyncio.gather(*tasks)
+    finally:
+        for task in tasks:
+            if not task.done():
+                task.cancel()
+        await asyncio.gather(*tasks, return_exceptions=True)
+    order = {case["id"]: index for index, case in enumerate(cases)}
+    results.sort(key=lambda row: order[row["id"]])
+    persist()
     if not results:
         raise ValueError("An empty dataset cannot pass")
 
@@ -139,6 +227,26 @@ async def evaluate(cases, answer_case, judge, threshold):
             row["answers_reference"] for row in rows
         ) / len(rows)
         metrics["cases"] = len(rows)
+        negatives = [row for row in rows if row["expect_no_answer"]]
+        positives = [row for row in rows if not row["expect_no_answer"]]
+        metrics["abstention_accuracy"] = (
+            sum(row["answers_reference"] for row in negatives) / len(negatives)
+            if negatives
+            else None
+        )
+        metrics["answerable_accuracy"] = (
+            sum(row["answers_reference"] for row in positives) / len(positives)
+            if positives
+            else None
+        )
+        retrieved = [
+            row["reference_article_retrieved"]
+            for row in positives
+            if row["reference_article_retrieved"] is not None
+        ]
+        metrics["article_hit_rate"] = (
+            sum(retrieved) / len(retrieved) if retrieved else None
+        )
         latencies = sorted(row["latency_seconds"] for row in rows)
         metrics["p95_latency_seconds"] = latencies[math.ceil(len(latencies) * 0.95) - 1]
         return metrics
@@ -175,18 +283,43 @@ def make_judge():
     model = os.environ.get("RAG_EVAL_JUDGE_MODEL")
     if not api_key or not model:
         raise ValueError("Configure the judge API key and model")
+    import httpx
     from openai import AsyncOpenAI
     from ragas.llms import llm_factory
     from ragas.metrics.collections import Faithfulness
 
+    interval = float(os.environ.get("RAG_EVAL_REQUEST_INTERVAL_SECONDS", "0"))
+    request_lock = asyncio.Lock()
+    next_request = 0.0
+
+    async def pace_request(request):
+        nonlocal next_request
+        async with request_lock:
+            await asyncio.sleep(max(0, next_request - perf_counter()))
+            next_request = perf_counter() + interval
+
     client = AsyncOpenAI(
         api_key=api_key,
         base_url=os.environ.get("RAG_EVAL_JUDGE_BASE_URL") or None,
-        timeout=60,
-        max_retries=1,
+        timeout=120,
+        max_retries=3,
+        http_client=httpx.AsyncClient(event_hooks={"request": [pace_request]}),
     )
 
-    llm = llm_factory(model, client=client, temperature=0)
+    extra_body = json.loads(os.environ.get("RAG_EVAL_JUDGE_EXTRA_BODY", "{}"))
+    from ragas.cache import DiskCacheBackend
+
+    cache = DiskCacheBackend(
+        cache_dir=os.environ.get("RAG_EVAL_CACHE_DIR", ".cache/ragas")
+    )
+    llm = llm_factory(
+        model,
+        client=client,
+        temperature=0,
+        max_tokens=4096,
+        extra_body=extra_body,
+        cache=cache,
+    )
     faithfulness_metric = Faithfulness(llm=llm)
     extra_metrics = None
     if os.environ.get("RAG_EVAL_FULL_METRICS") == "1":
@@ -202,24 +335,37 @@ def make_judge():
             raise ValueError(
                 "RAG_EVAL_EMBEDDING_MODEL is required for response relevancy"
             )
+
+        class EvaluationEmbeddings(OpenAIEmbeddings):
+            async def aembed_text(self, text, **kwargs):
+                input_type = os.environ.get("RAG_EVAL_EMBEDDING_INPUT_TYPE")
+                if input_type:
+                    kwargs["extra_body"] = {"input_type": input_type}
+                return await super().aembed_text(text, **kwargs)
+
+            async def aembed_texts(self, texts, **kwargs):
+                input_type = os.environ.get("RAG_EVAL_EMBEDDING_INPUT_TYPE")
+                if input_type:
+                    kwargs["extra_body"] = {"input_type": input_type}
+                return await super().aembed_texts(texts, **kwargs)
+
         extra_metrics = (
             AnswerRelevancy(
                 llm=llm,
-                embeddings=OpenAIEmbeddings(client=client, model=embedding_model),
+                embeddings=EvaluationEmbeddings(
+                    client=client, model=embedding_model, cache=cache
+                ),
             ),
             ContextPrecisionWithoutReference(llm=llm),
             ContextRecall(llm=llm),
         )
 
     async def judge(case, answer, contexts):
-        faithfulness = await faithfulness_metric.ascore(
-            user_input=case["question"],
-            response=answer,
-            retrieved_contexts=[item["text"] for item in contexts],
-        )
         response = await client.chat.completions.create(
             model=model,
             temperature=0,
+            max_tokens=2048,
+            extra_body=extra_body,
             response_format={"type": "json_object"},
             messages=[
                 {
@@ -230,6 +376,10 @@ def make_judge():
                         "the retrieved contexts ALONE support it, without outside knowledge. "
                         "Decide whether the answer addresses the question consistently with "
                         "the reviewed expected answer; evasive answers are false. Return JSON: "
+                        "Check ALL required conditions, exceptions and numerical values. "
+                        "For expect_no_answer=true, a clear semantic refusal without invented "
+                        "facts is correct; exact wording is unnecessary. A refusal followed "
+                        "by an unsupported answer is false. Judge Arabic and English equally. "
                         '{"claims": [{"text": "...", "supported": true}], '
                         '"answers_reference": true}. If there are no factual claims, '
                         "return one unsupported claim."
@@ -241,6 +391,8 @@ def make_judge():
                         {
                             "question": case["question"],
                             "expected_answer": case["expected_answer"],
+                            "required_claims": case.get("required_claims", []),
+                            "expect_no_answer": case.get("expect_no_answer", False),
                             "answer": answer,
                             "retrieved_contexts": contexts,
                         }
@@ -249,6 +401,13 @@ def make_judge():
             ],
         )
         verdict = json.loads(response.choices[0].message.content)
+        if case.get("expect_no_answer") or case.get("_rubric_only"):
+            return verdict
+        faithfulness = await faithfulness_metric.ascore(
+            user_input=case["question"],
+            response=answer,
+            retrieved_contexts=[item["text"] for item in contexts],
+        )
         verdict["ragas_faithfulness"] = faithfulness.value
         if extra_metrics:
             relevancy, precision, recall = extra_metrics
@@ -284,18 +443,27 @@ async def seed_corpus(controller, cases, records, chunk_size=None, overlap=0):
         raise ValueError("Corpus must contain unique articles")
     chunks = [
         SimpleNamespace(
-            chunk_text=f"{row['citation']}\n{row['text_en']}",
+            chunk_text=f"{row['citation']}\n{row[f'text_{language}']}",
             chunk_asset_id=1,
             chunk_metadata={
                 "asset_name": row["asset_name"],
                 "page": row["source_pages"][0] - 1,
                 "article_number": row["article_number"],
                 "citation": row["citation"],
+                "language": language,
+                "source_pages": row["source_pages"],
             },
         )
         for row in records
+        for language in ("en", "ar")
+        if row.get(f"text_{language}", "").strip()
     ]
-    chunk_ids = numbers
+    chunk_ids = [
+        row["article_number"] + (10000 if language == "ar" else 0)
+        for row in records
+        for language in ("en", "ar")
+        if row.get(f"text_{language}", "").strip()
+    ]
     if chunk_size is not None:
         if chunk_size < 1 or not 0 <= overlap < chunk_size:
             raise ValueError("Invalid experiment chunking settings")
@@ -322,17 +490,25 @@ async def seed_corpus(controller, cases, records, chunk_size=None, overlap=0):
         chunks = expanded
         chunk_ids = list(range(1, len(chunks) + 1))
     for project_id in sorted({case["project_id"] for case in cases}):
-        inserted = await controller.index_into_vector_db(
-            project=SimpleNamespace(project_id=project_id),
-            chunks=chunks,
-            chunks_ids=chunk_ids,
-            do_reset=False,
-        )
-        if not inserted:
-            raise RuntimeError("Evaluation corpus indexing failed")
+        for offset in range(0, len(chunks), 50):
+            inserted = await controller.index_into_vector_db(
+                project=SimpleNamespace(project_id=project_id),
+                chunks=chunks[offset : offset + 50],
+                chunks_ids=chunk_ids[offset : offset + 50],
+                do_reset=False,
+            )
+            if not inserted:
+                raise RuntimeError("Evaluation corpus indexing failed")
+            print(f"Indexed {min(offset + 50, len(chunks))}/{len(chunks)}", flush=True)
+            if offset + 50 < len(chunks):
+                await asyncio.sleep(
+                    float(os.environ.get("INDEX_BATCH_DELAY_SECONDS", "0"))
+                )
 
 
-async def run_live(cases, threshold, corpus=None, config=None):
+async def run_live(cases, threshold, corpus=None, config=None, checkpoint=None):
+    corpus = Path(corpus).resolve() if corpus else None
+    checkpoint = Path(checkpoint).resolve() if checkpoint else None
     records = json.loads(Path(corpus).read_text(encoding="utf-8")) if corpus else None
     client, judge = make_judge()
     temporary_index = (
@@ -377,7 +553,14 @@ async def run_live(cases, threshold, corpus=None, config=None):
                 reranker_client=main.app.reranker_client,
                 template_parser=main.app.template_parser,
             )
-            if records is not None:
+            cached_ids = set()
+            if checkpoint and checkpoint.exists():
+                saved = json.loads(checkpoint.read_text())
+                cached_ids = set(saved.get("answers", {})) | {
+                    row["id"] for row in saved.get("cases", [])
+                }
+            needs_generation = any(case["id"] not in cached_ids for case in cases)
+            if records is not None and needs_generation:
                 await seed_corpus(
                     controller,
                     cases,
@@ -427,10 +610,10 @@ async def run_live(cases, threshold, corpus=None, config=None):
                     )
                 return str(result["answer"]) if result else "", list(actual_contexts)
 
-            report = await evaluate(cases, answer_case, judge, threshold)
+            report = await evaluate(cases, answer_case, judge, threshold, checkpoint)
             exporter = get_client()
             for row in report["cases"]:
-                row["request_id"] = answer_ids[row["id"]]
+                row["request_id"] = answer_ids.get(row["id"])
                 row["trace_id"] = trace_id(row["request_id"]) if exporter else None
                 if exporter and row["faithfulness"] is not None:
                     try:
@@ -474,6 +657,14 @@ async def run_live(cases, threshold, corpus=None, config=None):
             )
             report["judge_temperature"] = 0
             report["judge_model"] = os.environ["RAG_EVAL_JUDGE_MODEL"]
+            report["embedding_base_url"] = getattr(
+                app_settings, "OPENAI_BASE_URL", None
+            )
+            report["corpus_sha256"] = (
+                hashlib.sha256(Path(corpus).read_bytes()).hexdigest()
+                if corpus
+                else None
+            )
             report["git_sha"] = os.environ.get("GITHUB_SHA")
 
             return report
@@ -495,7 +686,12 @@ def main():
     parser.add_argument("--threshold", type=float, default=0.75)
     parser.add_argument("--minimum-cases", type=int, default=20)
     parser.add_argument("--full-metrics", action="store_true")
+    parser.add_argument("--env-file", type=Path)
     args = parser.parse_args()
+    if args.env_file:
+        from dotenv import load_dotenv
+
+        load_dotenv(args.env_file, override=True)
     if args.full_metrics:
         os.environ["RAG_EVAL_FULL_METRICS"] = "1"
     try:

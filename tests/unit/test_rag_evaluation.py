@@ -358,3 +358,95 @@ def test_monitoring_dataset_has_bilingual_provenance():
     assert sum(case.get("expect_no_answer", False) for case in cases) == 2
     assert {case["language"] for case in cases} == {"ar", "en"}
     assert all(case["review_status"] == "draft" for case in cases)
+
+
+@pytest.mark.asyncio
+async def test_checkpoint_retains_answer_when_judge_fails(tmp_path):
+    calls = []
+    checkpoint = tmp_path / "checkpoint.json"
+    cases = [{"id": "1", "question": "Question"}]
+
+    async def answer(case):
+        calls.append(case["id"])
+        return "Answer", [{"text": "Context"}]
+
+    async def unavailable(*args):
+        raise TimeoutError("Judge unavailable")
+
+    with pytest.raises(TimeoutError):
+        await evaluation.evaluate(cases, answer, unavailable, 0.75, checkpoint)
+    assert json.loads(checkpoint.read_text())["pending"]["answer"] == "Answer"
+
+    async def judge(*args):
+        return {
+            "claims": [{"text": "Answer", "supported": True}],
+            "answers_reference": True,
+            "ragas_faithfulness": 1.0,
+        }
+
+    report = await evaluation.evaluate(cases, answer, judge, 0.75, checkpoint)
+    assert report["passed"]
+    assert calls == ["1"]
+    with pytest.raises(ValueError, match="different dataset"):
+        await evaluation.evaluate(
+            [{"id": "2", "question": "Other"}], answer, judge, 0.75, checkpoint
+        )
+
+
+@pytest.mark.asyncio
+async def test_semantic_refusal_uses_judge_without_claiming_faithfulness():
+    async def answer(case):
+        return "The provision does not identify any particular person.", [
+            {"text": "General statute"}
+        ]
+
+    async def judge(case, answer, contexts):
+        return {"answers_reference": True}
+
+    report = await evaluation.evaluate(
+        [
+            {
+                "id": "negative",
+                "question": "Who?",
+                "expect_no_answer": True,
+                "semantic_refusal": True,
+            }
+        ],
+        answer,
+        judge,
+        0.75,
+    )
+    assert report["reference_accuracy"] == 1.0
+    assert report["faithfulness"] is None
+
+
+@pytest.mark.asyncio
+async def test_bilingual_seed_batches_have_unique_ids_and_language_metadata():
+    batches = []
+
+    class Controller:
+        async def index_into_vector_db(self, **kwargs):
+            batches.append(kwargs)
+            return True
+
+    records = [
+        dict(
+            article_number=n,
+            citation=f"Article {n}",
+            text_en="English",
+            text_ar="عربي",
+            asset_name="source.pdf",
+            source_pages=[1],
+        )
+        for n in range(1, 28)
+    ]
+    await evaluation.seed_corpus(Controller(), [{"project_id": 1}], records)
+    assert [len(batch["chunks"]) for batch in batches] == [50, 4]
+    ids = [item for batch in batches for item in batch["chunks_ids"]]
+    assert len(ids) == len(set(ids)) == 54
+    assert {
+        chunk.chunk_metadata["language"]
+        for batch in batches
+        for chunk in batch["chunks"]
+    } == {"ar", "en"}
+    assert all(not batch["do_reset"] for batch in batches)

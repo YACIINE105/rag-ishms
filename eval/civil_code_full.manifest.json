@@ -1,0 +1,19 @@
+{
+  "dataset_sha256": "18bcdaee5525639b721be2a2a6d473da33b1d8bfe5e68b55317cc7c9306a72b0",
+  "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+  "cases": 62,
+  "answerable": 50,
+  "unanswerable": 12,
+  "languages": {
+    "ar": 31,
+    "en": 31
+  },
+  "distinct_answerable_articles": 25,
+  "corpus_articles": 1149,
+  "excluded_source_issue_articles": [
+    1021,
+    1022
+  ],
+  "review": "Assistant source review, not independent human legal review",
+  "frozen_before_generation": true
+}

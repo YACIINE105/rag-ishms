@@ -2,7 +2,9 @@
 
 import argparse
 import asyncio
+import hashlib
 import json
+import os
 from pathlib import Path
 
 from evaluate_rag import load_cases, run_live
@@ -53,6 +55,28 @@ async def run(args):
     mlflow.set_experiment("rag-ishms-configurations")
     cases = load_cases(args.dataset)
     args.reports.mkdir(parents=True, exist_ok=True)
+    manifest = {
+        "dataset_sha256": hashlib.sha256(args.dataset.read_bytes()).hexdigest(),
+        "corpus_sha256": hashlib.sha256(args.corpus.read_bytes()).hexdigest(),
+        "configurations": CONFIGS,
+        "profile": {
+            key: os.environ.get(key)
+            for key in (
+                "EMBEDDING_MODEL_ID",
+                "OPENAI_BASE_URL",
+                "GENERATION_MODEL_ID",
+                "GENERATION_BASE_URL",
+                "RAG_EVAL_JUDGE_MODEL",
+                "RAG_EVAL_JUDGE_BASE_URL",
+                "MAX_OUTPUT_TOKENS",
+                "RAG_EVAL_FULL_METRICS",
+            )
+        },
+    }
+    manifest_path = args.reports / "manifest.json"
+    if manifest_path.exists() and json.loads(manifest_path.read_text()) != manifest:
+        raise ValueError("Use a new report directory for changed evaluation inputs")
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n")
     summaries = []
     for config in CONFIGS:
         with mlflow.start_run(run_name=config["name"]):
@@ -62,8 +86,14 @@ async def run(args):
                     for key, value in config.items()
                 }
             )
-            report = await run_live(cases, 0.75, args.corpus, config=config)
             path = args.reports / f"{config['name']}.json"
+            checkpoint = args.reports / f"{config['name']}.checkpoint.json"
+            if path.exists() and args.resume:
+                report = json.loads(path.read_text())
+            else:
+                report = await run_live(
+                    cases, 0.75, args.corpus, config=config, checkpoint=checkpoint
+                )
             path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n")
             mlflow.log_params(
                 {
@@ -100,7 +130,16 @@ def main():
     )
     parser.add_argument("--reports", type=Path, default=Path("reports/experiments"))
     parser.add_argument("--tracking-uri", default="sqlite:///reports/mlflow.db")
+    parser.add_argument("--env-file", type=Path)
+    parser.add_argument("--full-metrics", action="store_true")
+    parser.add_argument("--resume", action="store_true")
     args = parser.parse_args()
+    if args.env_file:
+        from dotenv import load_dotenv
+
+        load_dotenv(args.env_file, override=True)
+    if args.full_metrics:
+        os.environ["RAG_EVAL_FULL_METRICS"] = "1"
     asyncio.run(run(args))
 
 
