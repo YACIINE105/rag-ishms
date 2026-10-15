@@ -391,6 +391,7 @@ def main():
         ),
         "- HTTP 429 interrupted the first scoring attempt. Saved answers and completed scores were resumed with request pacing; no answers were regenerated to improve scores.",
         "- An unterminated judge JSON response also interrupted scoring. Invalid/truncated output is rejected; rubric calls use 2,048 output tokens, with one 4,096-token retry only when the API reports length termination. Partial responses never become scores. Successful rubric/RAGAS calls are cached against exact inputs for resume.",
+        "- The offline scorer was deliberately checkpointed to load scheduling/recovery fixes. KeyboardInterrupt entries in scoring-unicode-v2.log document those worker restarts; they are not repeated model training or RAG generation. Intermittent provider 500s retain cached work and reset the recovery budget only after completed-case progress; four consecutive failures without progress remain bounded.",
         "",
         "## Earlier training and model selection",
         "",
@@ -464,7 +465,7 @@ def main():
             )
     lines += [
         "",
-        "Faithfulness excludes expected refusals; reference accuracy includes them. Additional RAGAS scores cover answerable questions only. Generation remains sequential; remote grading is overlapped and excluded from response latency. Completed per-case answers and exact retrieved contexts are saved. MLflow records the five configurations and artifacts; interrupted attempts remain visible.",
+        "Faithfulness excludes expected refusals; reference accuracy includes them. Additional RAGAS scores cover answerable questions only. PASS is the automated engineering threshold, not legal acceptance: the judge's known false positives below can overestimate correctness. Generation remains sequential; remote grading is excluded from response latency. Completed per-case answers and exact retrieved contexts are saved. MLflow records the five configurations and artifacts; interrupted attempts remain visible.",
         "",
         "Runs were collected sequentially across a host restart with variable GPU clocks and provider availability. Latency differences are observations from these runs, not a controlled speedup estimate. Missing judge scores are withheld rather than averaging incomplete case subsets.",
         "",
@@ -497,7 +498,7 @@ def main():
         "",
         "The legacy Super judge misread a clear Arabic court-address refusal and invented claims when grading the Article 374 answer. Its original machine scores are preserved under configurations/ for audit. The evidence includes assistant-answer-review.json with exact case IDs; no assistant-corrected legal accuracy percentage is inferred.",
         "",
-        "The revised judge also misses a real defect: for Arabic Article 44 it assigns full faithfulness while omitting the answer's unsupported definition of legal interdiction from its claim list. The earlier assistant source review retains that defect. Passing calibration controls does not guarantee exhaustive claim extraction or legally correct grading; every reported correctness score remains an automated estimate.",
+        "The revised judge also misses real defects: for Arabic Article 44 it assigns full faithfulness while omitting the unsupported definition of legal interdiction from its claim list. It accepts the incomplete Arabic Article 94, 147 and truncated Article 226 answers despite the earlier source review's findings. The shorter omission control passed, but that did not transfer reliably to these longer real outputs. Passing calibration does not guarantee exhaustive claim extraction or legally correct grading; every reported correctness score remains an automated estimate. See revised-judge-review.json; original scores are preserved.",
         "",
         "A recovery check on 16 October found Nemotron 3.5 Super VL callable, but the legacy rubric failed 11 of 28 controls. Investigation found that Arabic rubric inputs were Unicode-escaped and candidate claims could be confused with reference claims. The revised rubric sends readable Arabic, explicitly identifies candidate_answer, forbids replacing its words/numbers with reference claims and rejects omitted required conditions. It passed all 28 controls; super35-judge-calibration.json records the revised results and super35-legacy-rubric-calibration.json retains the failures. Changing serialization, instructions and judge requires regrading every configuration separately; earlier scores are not comparable as a model-quality improvement. DeepSeek V4.1 Flash timed out with its documented non-thinking option.",
         "",

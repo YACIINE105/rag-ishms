@@ -138,9 +138,29 @@ def package(results, destination, secret_file):
         manifest["files"][str(path.relative_to(ROOT))] = hashlib.sha256(
             data
         ).hexdigest()
+    readme = (
+        "# RAG-ISHMS measured evidence\n\n"
+        "Open eval/reports/final-project/final-project-report.pdf or "
+        "docs/final-project-report.md first. The report identifies completed "
+        "scores, remaining limits and known model/judge errors.\n\n"
+        "This is an evidence bundle with selected reproduction tools, not a "
+        "standalone application checkout. Use the repository commit in "
+        "evidence-manifest.json with the setup instructions in README.md and "
+        "eval/CIVIL_CODE_EVALUATION.md. Credentials and model weights are "
+        "configured separately.\n\n"
+        "Current versioned scores are under configurations-unicode-v2/; "
+        "configurations/ retains original captures and legacy scores. "
+        "prior-model-study/ contains historical remote-experiment audits, "
+        "not new local GPU training.\n\n"
+        "evidence-manifest.json pins every payload SHA-256. The adjacent "
+        ".zip.sha256 file pins the whole archive. ZIP integrity and every "
+        "archived payload checksum were verified after export.\n"
+    ).encode()
+    manifest["files"]["EVIDENCE_README.md"] = hashlib.sha256(readme).hexdigest()
     with zipfile.ZipFile(destination, "w", compression=zipfile.ZIP_DEFLATED) as archive:
         for path in files:
             archive.write(path, str(path.relative_to(ROOT)))
+        archive.writestr("EVIDENCE_README.md", readme)
         archive.writestr(
             "evidence-manifest.json", json.dumps(manifest, indent=2) + "\n"
         )
@@ -157,7 +177,7 @@ def package(results, destination, secret_file):
     (results / "evidence-manifest.json").write_text(
         json.dumps(manifest, indent=2) + "\n"
     )
-    print(f"Verified {len(files)} files: {destination} (SHA-256 {digest})")
+    print(f"Verified {len(manifest['files'])} files: {destination} (SHA-256 {digest})")
 
 
 def main():
