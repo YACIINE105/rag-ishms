@@ -415,5 +415,6 @@ privacy or answer correctness; use public documents for the course demonstration
 - [Plan review and scope limits](docs/plan-review.md)
 - [Verified Docker and API results](docker/VERIFICATION.md)
 - [Docker/Qdrant details](docker/README.md)
+- [Send queries to the Cue bot and read replies](docs/cue-mail.md)
 
 `certifcates_sys/` is a separate assignment and is not needed to run this RAG API.

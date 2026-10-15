@@ -27,5 +27,6 @@ eval/reports/
 reports/experiments/
 reports/metrics/*.prom
 reports/mlflow.db*
+reports/cue-mail/
 mlruns/
 mlartifacts/

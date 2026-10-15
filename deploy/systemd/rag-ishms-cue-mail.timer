@@ -1,0 +1,11 @@
+[Unit]
+Description=Check the Cue mailbox every minute
+
+[Timer]
+OnStartupSec=30
+OnUnitInactiveSec=60
+AccuracySec=5
+Unit=rag-ishms-cue-mail.service
+
+[Install]
+WantedBy=timers.target
