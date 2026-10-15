@@ -453,10 +453,8 @@ async def test_bilingual_seed_batches_have_unique_ids_and_language_metadata():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("truncated_response", [False, True])
-async def test_judge_obeys_rate_limit_cooldown(
-    tmp_path, monkeypatch, truncated_response
-):
+@pytest.mark.parametrize("invalid_response", [None, "length", "schema"])
+async def test_judge_obeys_rate_limit_cooldown(tmp_path, monkeypatch, invalid_response):
     import asyncio
 
     import httpx
@@ -490,17 +488,23 @@ async def test_judge_obeys_rate_limit_cooldown(
                 "choices": [
                     {
                         "finish_reason": "length"
-                        if truncated_response and len(attempts) == 2
+                        if invalid_response == "length" and len(attempts) == 2
                         else "stop",
                         "index": 0,
                         "message": {
                             "role": "assistant",
                             "content": '{"claims": ['
-                            if truncated_response and len(attempts) == 2
+                            if invalid_response == "length" and len(attempts) == 2
                             else json.dumps(
                                 {
                                     "claims": [
-                                        {"text": "Unavailable", "supported": True}
+                                        {
+                                            "text": "Unavailable",
+                                            "supported": "true"
+                                            if invalid_response == "schema"
+                                            and len(attempts) == 2
+                                            else True,
+                                        }
                                     ],
                                     "answers_reference": True,
                                 }
@@ -537,20 +541,24 @@ async def test_judge_obeys_rate_limit_cooldown(
                 "Unavailable",
                 [],
             )
-        verdict = await judge(
-            {
-                "question": "Name?",
-                "expected_answer": "Unavailable",
-                "expect_no_answer": True,
-            },
-            "Unavailable",
-            [],
-        )
+        case = {
+            "question": "Name?",
+            "expected_answer": "Unavailable",
+            "expect_no_answer": True,
+        }
+        if invalid_response == "schema":
+            with pytest.raises(evaluation.JudgeResponseError):
+                await judge(case, "Unavailable", [])
+            diagnostic = next((tmp_path / "cache/invalid-rubrics").glob("*.json"))
+            assert json.loads(diagnostic.read_text())["validation_error"] == (
+                "Invalid judge claim"
+            )
+        verdict = await judge(case, "Unavailable", [])
         assert verdict["answers_reference"] is True
-        expected_attempts = 3 if truncated_response else 2
+        expected_attempts = 3 if invalid_response else 2
         assert len(attempts) == expected_attempts
         assert attempts[1] - attempts[0] >= 65
-        if truncated_response:
+        if invalid_response == "length":
             assert limits == [2048, 2048, 4096]
             diagnostic = next((tmp_path / "cache/invalid-rubrics").glob("*.json"))
             assert json.loads(diagnostic.read_text())["finish_reason"] == "length"

@@ -512,8 +512,9 @@ def make_judge():
                     if choice.finish_reason == "length":
                         raise JudgeResponseError("Judge output reached its token limit")
                     verdict = json.loads(choice.message.content)
+                    validate_reference_verdict(verdict)
                     break
-                except (json.JSONDecodeError, TypeError, JudgeResponseError) as error:
+                except (ValueError, TypeError, JudgeResponseError) as error:
                     diagnostics = Path(cache.cache.directory) / "invalid-rubrics"
                     diagnostics.mkdir(exist_ok=True)
                     (
@@ -524,6 +525,7 @@ def make_judge():
                                 "case_id": case.get("id"),
                                 "finish_reason": choice.finish_reason,
                                 "max_tokens": output_limit,
+                                "validation_error": str(error),
                                 "content": choice.message.content,
                             },
                             ensure_ascii=False,
@@ -531,7 +533,7 @@ def make_judge():
                         + "\n"
                     )
                     logging.getLogger(__name__).warning(
-                        "evaluation.judge.invalid_json case=%s finish=%s limit=%s",
+                        "evaluation.judge.invalid_output case=%s finish=%s limit=%s",
                         case.get("id"),
                         choice.finish_reason,
                         output_limit,
@@ -540,10 +542,6 @@ def make_judge():
                         raise JudgeResponseError(
                             "Judge returned invalid structured output"
                         ) from error
-            try:
-                validate_reference_verdict(verdict)
-            except ValueError as error:
-                raise JudgeResponseError("Invalid reference rubric schema") from error
             cache.set(rubric_key, verdict)
         if case.get("expect_no_answer") or case.get("_rubric_only"):
             return verdict
