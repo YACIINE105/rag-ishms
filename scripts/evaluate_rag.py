@@ -367,6 +367,23 @@ def make_judge():
 
     async def observe_response(response):
         nonlocal next_request
+        if response.is_error and os.environ.get("RAG_EVAL_HTTP_DIAGNOSTICS") == "1":
+            await response.aread()
+            request = json.loads(response.request.content)
+            diagnostics = Path(os.environ["RAG_EVAL_CACHE_DIR"]) / "http-errors"
+            diagnostics.mkdir(parents=True, exist_ok=True)
+            key = hashlib.sha256(response.request.content).hexdigest()
+            (diagnostics / f"{key}.json").write_text(
+                json.dumps(
+                    {
+                        "status": response.status_code,
+                        "request": request,
+                        "response": response.text[:4000],
+                    },
+                    ensure_ascii=False,
+                )
+                + "\n"
+            )
         if response.status_code == 429:
             try:
                 delay = max(60, float(response.headers.get("retry-after", "60")))

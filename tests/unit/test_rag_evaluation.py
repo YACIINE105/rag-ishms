@@ -529,6 +529,7 @@ async def test_judge_obeys_rate_limit_cooldown(tmp_path, monkeypatch, invalid_re
     monkeypatch.setenv("RAG_EVAL_JUDGE_BASE_URL", "https://judge.invalid/v1")
     monkeypatch.setenv("RAG_EVAL_CACHE_DIR", str(tmp_path / "cache"))
     monkeypatch.setenv("RAG_EVAL_FULL_METRICS", "0")
+    monkeypatch.setenv("RAG_EVAL_HTTP_DIAGNOSTICS", "1")
     client, judge = evaluation.make_judge()
     try:
         from openai import RateLimitError
@@ -543,6 +544,9 @@ async def test_judge_obeys_rate_limit_cooldown(tmp_path, monkeypatch, invalid_re
                 "Unavailable",
                 [],
             )
+        diagnostic = next((tmp_path / "cache/http-errors").glob("*.json"))
+        assert json.loads(diagnostic.read_text())["status"] == 429
+        assert "test-key" not in diagnostic.read_text()
         case = {
             "question": "Name?",
             "expected_answer": "Unavailable",
