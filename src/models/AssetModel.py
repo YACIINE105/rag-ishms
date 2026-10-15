@@ -34,10 +34,16 @@ class AssetModel(BaseDataModel):
             return results.scalars().all()
 
     async def get_asset_record(self, asset_project_id: int, unique_asset_name: str):
+        asset_filter = Asset.unique_asset_name == unique_asset_name
+        # Upload returns a numeric asset ID; keep stored filenames compatible.
+        if unique_asset_name.isdecimal():
+            if len(unique_asset_name) > 10 or not 0 < int(unique_asset_name) < 2**31:
+                return None
+            asset_filter = Asset.asset_id == int(unique_asset_name)
         async with self.db_client() as session:
             query = select(Asset).where(
                 Asset.asset_project_id == asset_project_id,
-                Asset.unique_asset_name == unique_asset_name,
+                asset_filter,
             )
             results = await session.execute(query)
             records = results.scalar_one_or_none()

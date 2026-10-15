@@ -2,7 +2,10 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class ProcessRequest(BaseModel):
-    file_id: str | None = None
+    file_id: str | None = Field(
+        default=None,
+        description="Asset ID returned by upload, or the unique stored filename.",
+    )
     W_qalam: bool = Field(
         default=False,
         description="Use Qalam to create separate Arabic and English article chunks.",

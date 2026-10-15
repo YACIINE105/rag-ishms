@@ -173,3 +173,34 @@ def test_project_and_vector_paths(tmp_path):
         tmp_path / "vectors" / "qdrant"
     )
     assert len(controller.generate_random_strings(12)) == 12
+
+
+@pytest.mark.parametrize(
+    "identifier,field,value",
+    [
+        ("22", "asset_id_1", 22),
+        ("stored_law.pdf", "unique_asset_name_1", "stored_law.pdf"),
+    ],
+)
+async def test_asset_lookup_accepts_upload_id_and_preserves_project_scope(
+    database, identifier, field, value
+):
+    from models.AssetModel import AssetModel
+
+    client, session = database
+    result = MagicMock()
+    record = SimpleNamespace(asset_id=22, asset_project_id=7)
+    result.scalar_one_or_none.return_value = record
+    session.execute.return_value = result
+    assert await AssetModel(client).get_asset_record(7, identifier) is record
+    query = session.execute.call_args.args[0]
+    assert query.compile().params == {"asset_project_id_1": 7, field: value}
+
+
+@pytest.mark.parametrize("identifier", ["0", "2147483648", "9" * 100])
+async def test_invalid_numeric_asset_id_does_not_reach_database(database, identifier):
+    from models.AssetModel import AssetModel
+
+    client, session = database
+    assert await AssetModel(client).get_asset_record(7, identifier) is None
+    session.execute.assert_not_awaited()
