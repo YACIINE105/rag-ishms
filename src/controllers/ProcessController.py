@@ -137,7 +137,7 @@ class ProcessController(BaseController):
 
                     chunks.append(
                         Document(
-                            page_content=article_text,
+                            page_content=f"{article['citation']}\n{article_text}",
                             metadata={
                                 **article_metadata,
                                 "source": file_id,

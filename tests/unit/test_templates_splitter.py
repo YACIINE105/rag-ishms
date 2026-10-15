@@ -212,9 +212,13 @@ def test_qalam_document_to_articles_and_language_chunks(tmp_path, caplog):
         (chunk.metadata["article_number"], chunk.metadata["language"])
         for chunk in chunks
     ] == [(147, "ar"), (147, "en"), (148, "en")]
-    assert chunks[0].page_content == arabic_text.strip() + "\n\nتكملة المادة."
+    assert chunks[0].page_content == (
+        "Egyptian Civil Code, Article 147\n" + arabic_text.strip() + "\n\nتكملة المادة."
+    )
     assert chunks[1].page_content == (
-        english_text.strip() + "\n\nContinuation of the article."
+        "Egyptian Civil Code, Article 147\n"
+        + english_text.strip()
+        + "\n\nContinuation of the article."
     )
     assert chunks[0].metadata["citation"] == "Egyptian Civil Code, Article 147"
     assert chunks[0].metadata["source_pages"] == [16, 17]

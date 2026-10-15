@@ -232,8 +232,8 @@ async def test_processing_modes_and_separate_vector_storage(
             for vector in stored_vectors
         )
         assert {vector.text for vector in stored_vectors} == {
-            "العقد شريعة المتعاقدين.",
-            "A complete English article provision.",
+            "Egyptian Civil Code, Article 147\nالعقد شريعة المتعاقدين.",
+            "Egyptian Civil Code, Article 147\nA complete English article provision.",
         }
 
 
