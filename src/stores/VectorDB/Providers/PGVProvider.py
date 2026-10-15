@@ -3,6 +3,7 @@ import logging
 import re
 from typing import List
 
+from sqlalchemy import bindparam
 from sqlalchemy.sql import text as sql_text
 
 from models.db_schems import RetrievedDocuments
@@ -369,6 +370,10 @@ class PGVectorProvider(VectorDBInterface):
             f"INSERT INTO {collection_name} ({columns}) "
             "VALUES (:text, :vector, :metadata, :record_id)"
         )
+        replace_existing = sql_text(
+            f"DELETE FROM {collection_name} WHERE "
+            f"{PGVectorTableSchemeEnums.CHUNK_ID.value} IN :record_ids"
+        ).bindparams(bindparam("record_ids", expanding=True))
 
         try:
             async with self.db_client() as session:
@@ -396,6 +401,10 @@ class PGVectorProvider(VectorDBInterface):
                             )
                         ]
 
+                        # Retrying an interrupted index must not duplicate chunk vectors.
+                        await session.execute(
+                            replace_existing, {"record_ids": batch_record_ids}
+                        )
                         await session.execute(batch_sql_insertion, values)
                 # await self.create_vector_index(collection_name=collection_name)
                 return True

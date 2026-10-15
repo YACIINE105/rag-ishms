@@ -60,6 +60,7 @@ async def index_project(request: Request, project_id: int, push_request: PushReq
     inserted_items_count = 0
     idx = 0
     batch_delay = get_settings().INDEX_BATCH_DELAY_SECONDS
+    batch_size = get_settings().INDEX_BATCH_SIZE
 
     collection_name = nlp_controller.create_collection_name(
         project_id=project.project_id
@@ -80,7 +81,7 @@ async def index_project(request: Request, project_id: int, push_request: PushReq
 
     while has_records:
         page_chunks = await chunk_model.get_project_chunks(
-            project_id=project.project_id, page_number=page_number
+            project_id=project.project_id, page_number=page_number, page_size=batch_size
         )
 
         if not page_chunks or len(page_chunks) == 0:

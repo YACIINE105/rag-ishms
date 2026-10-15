@@ -273,6 +273,28 @@ async def test_pg_insert_parameters_and_failures(pg):
     assert await p.search_by_vector("collection_2_1", [1.0, 0.0], k=3) is None
 
 
+async def test_pg_reindex_replaces_only_supplied_chunk_ids(pg):
+    provider, session = pg
+    provider.collection_exists = AsyncMock(return_value=True)
+    rows = {7: "old", 8: "unrelated"}
+
+    async def execute(statement, parameters):
+        if str(statement).startswith("DELETE"):
+            for record_id in parameters["record_ids"]:
+                rows.pop(record_id, None)
+        else:
+            for value in parameters:
+                assert value["record_id"] not in rows
+                rows[value["record_id"]] = value["text"]
+
+    session.execute.side_effect = execute
+    for _ in range(2):
+        assert await provider.insert_many(
+            "collection_2_1", ["updated"], [[1.0, 0.0]], record_ids=[7]
+        )
+    assert rows == {7: "updated", 8: "unrelated"}
+
+
 async def test_pg_indexes(pg):
     p, s = pg
     p.collection_exists = AsyncMock(return_value=True)

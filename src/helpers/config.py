@@ -17,6 +17,7 @@ class Settings(BaseSettings):
     RATE_LIMIT_PER_MINUTE: int = Field(default=60, ge=1, le=10000)
     RATE_LIMIT_BURST: int = Field(default=60, ge=1, le=10000)
     INDEX_BATCH_DELAY_SECONDS: float = Field(default=0, ge=0, le=60)
+    INDEX_BATCH_SIZE: int = Field(default=50, ge=1, le=100)
     GUARDRAILS_ENABLED: bool = True
     RERANK_POOL: int = Field(default=30, ge=1, le=200)
     RERANKER_ENABLED: bool = True
