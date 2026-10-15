@@ -48,6 +48,26 @@ CONFIGS = [
 ]
 
 
+def is_transient_provider_error(error):
+    pending = [error]
+    seen = set()
+    while pending:
+        current = pending.pop()
+        if current is None or id(current) in seen:
+            continue
+        seen.add(id(current))
+        if getattr(current, "status_code", None) in {429, 500, 502, 503, 504}:
+            return True
+        if type(current).__name__ in {"APITimeoutError", "APIConnectionError"}:
+            return True
+        pending.extend([current.__cause__, current.__context__])
+        pending.extend(
+            attempt.exception
+            for attempt in getattr(current, "failed_attempts", None) or []
+        )
+    return False
+
+
 async def run(args):
     import mlflow
 
@@ -91,9 +111,24 @@ async def run(args):
             if path.exists() and args.resume:
                 report = json.loads(path.read_text())
             else:
-                report = await run_live(
-                    cases, 0.75, args.corpus, config=config, checkpoint=checkpoint
-                )
+                for attempt in range(4):
+                    try:
+                        report = await run_live(
+                            cases,
+                            0.75,
+                            args.corpus,
+                            config=config,
+                            checkpoint=checkpoint,
+                        )
+                        break
+                    except Exception as error:
+                        if attempt == 3 or not is_transient_provider_error(error):
+                            raise
+                        print(
+                            f"Provider temporarily unavailable ({type(error).__name__}); resuming saved scores after cooldown",
+                            flush=True,
+                        )
+                        await asyncio.sleep(60 * (attempt + 1))
             path.write_text(json.dumps(report, indent=2, ensure_ascii=False) + "\n")
             mlflow.log_params(
                 {

@@ -295,15 +295,39 @@ def make_judge():
     async def pace_request(request):
         nonlocal next_request
         async with request_lock:
-            await asyncio.sleep(max(0, next_request - perf_counter()))
+            while next_request > perf_counter():
+                await asyncio.sleep(min(5, next_request - perf_counter()))
             next_request = perf_counter() + interval
+
+    async def observe_response(response):
+        nonlocal next_request
+        if response.status_code == 429:
+            try:
+                delay = max(60, float(response.headers.get("retry-after", "60")))
+            except ValueError:
+                delay = 60
+            next_request = max(next_request, perf_counter() + delay)
+            logging.getLogger(__name__).warning(
+                "evaluation.judge.rate_limited", extra={"retry_after_seconds": delay}
+            )
+
+    class JudgeHTTPClient(httpx.AsyncClient):
+        def __init__(self, **kwargs):
+            super().__init__(**kwargs)
+            self.request_slots = asyncio.Semaphore(2)
+
+        async def send(self, request, **kwargs):
+            async with self.request_slots:
+                return await super().send(request, **kwargs)
 
     client = AsyncOpenAI(
         api_key=api_key,
         base_url=os.environ.get("RAG_EVAL_JUDGE_BASE_URL") or None,
         timeout=120,
         max_retries=3,
-        http_client=httpx.AsyncClient(event_hooks={"request": [pace_request]}),
+        http_client=JudgeHTTPClient(
+            event_hooks={"request": [pace_request], "response": [observe_response]}
+        ),
     )
 
     extra_body = json.loads(os.environ.get("RAG_EVAL_JUDGE_EXTRA_BODY", "{}"))

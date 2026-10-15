@@ -450,3 +450,103 @@ async def test_bilingual_seed_batches_have_unique_ids_and_language_metadata():
         for chunk in batch["chunks"]
     } == {"ar", "en"}
     assert all(not batch["do_reset"] for batch in batches)
+
+
+@pytest.mark.asyncio
+async def test_judge_obeys_rate_limit_cooldown(tmp_path, monkeypatch):
+    import asyncio
+
+    import httpx
+
+    original_client = httpx.AsyncClient
+    real_sleep = asyncio.sleep
+    clock = [0.0]
+    attempts = []
+
+    async def sleep(seconds):
+        clock[0] += seconds
+        await real_sleep(0)
+
+    async def respond(request):
+        attempts.append(clock[0])
+        if len(attempts) == 1:
+            return httpx.Response(
+                429,
+                headers={"Retry-After": "65"},
+                json={"error": {"message": "Rate limited"}},
+            )
+        return httpx.Response(
+            200,
+            json={
+                "id": "test",
+                "object": "chat.completion",
+                "created": 0,
+                "model": "test",
+                "choices": [
+                    {
+                        "finish_reason": "stop",
+                        "index": 0,
+                        "message": {
+                            "role": "assistant",
+                            "content": json.dumps(
+                                {
+                                    "claims": [
+                                        {"text": "Unavailable", "supported": True}
+                                    ],
+                                    "answers_reference": True,
+                                }
+                            ),
+                        },
+                    }
+                ],
+            },
+        )
+
+    class MockClient(original_client):
+        def __init__(self, **kwargs):
+            super().__init__(transport=httpx.MockTransport(respond), **kwargs)
+
+    monkeypatch.setattr(httpx, "AsyncClient", MockClient)
+    monkeypatch.setattr(evaluation, "perf_counter", lambda: clock[0])
+    monkeypatch.setattr(asyncio, "sleep", sleep)
+    monkeypatch.setenv("RAG_EVAL_JUDGE_API_KEY", "test-key")
+    monkeypatch.setenv("RAG_EVAL_JUDGE_MODEL", "test-model")
+    monkeypatch.setenv("RAG_EVAL_JUDGE_BASE_URL", "https://judge.invalid/v1")
+    monkeypatch.setenv("RAG_EVAL_CACHE_DIR", str(tmp_path / "cache"))
+    monkeypatch.setenv("RAG_EVAL_FULL_METRICS", "0")
+    client, judge = evaluation.make_judge()
+    try:
+        verdict = await judge(
+            {
+                "question": "Name?",
+                "expected_answer": "Unavailable",
+                "expect_no_answer": True,
+            },
+            "Unavailable",
+            [],
+        )
+        assert verdict["answers_reference"] is True
+        assert len(attempts) == 2
+        assert attempts[1] - attempts[0] >= 65
+    finally:
+        await client.close()
+
+
+def test_experiment_retries_wrapped_rate_limits_but_not_auth_errors(monkeypatch):
+    from types import SimpleNamespace
+
+    scripts = Path(__file__).resolve().parents[2] / "scripts"
+    monkeypatch.syspath_prepend(str(scripts))
+    spec = importlib.util.spec_from_file_location(
+        "run_experiments", scripts / "run_experiments.py"
+    )
+    experiments = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(experiments)
+    rate_error = RuntimeError("Rate limited")
+    rate_error.status_code = 429
+    wrapped = RuntimeError("Instructor wrapper")
+    wrapped.failed_attempts = [SimpleNamespace(exception=rate_error)]
+    assert experiments.is_transient_provider_error(wrapped)
+    auth_error = RuntimeError("Invalid credentials")
+    auth_error.status_code = 401
+    assert not experiments.is_transient_provider_error(auth_error)
