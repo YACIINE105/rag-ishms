@@ -626,6 +626,56 @@ async def test_offline_scoring_rejects_incomparable_judge_results(
     sys.modules.pop("score_captured", None)
 
 
+@pytest.mark.asyncio
+@pytest.mark.parametrize("makes_progress", [False, True])
+async def test_offline_recovery_preserves_progress_and_bounds_stalled_retries(
+    tmp_path, monkeypatch, makes_progress
+):
+    import asyncio
+    from types import SimpleNamespace
+
+    scripts = Path(__file__).resolve().parents[2] / "scripts"
+    monkeypatch.syspath_prepend(str(scripts))
+    import score_captured
+
+    checkpoint = tmp_path / "checkpoint.json"
+    checkpoint.write_text(json.dumps({"cases": []}))
+    calls = []
+    closed = []
+
+    async def close():
+        closed.append(True)
+
+    async def sleep(seconds):
+        assert seconds > 0
+
+    async def evaluate(*args):
+        calls.append(True)
+        if makes_progress and len(calls) == 6:
+            return {"completed": True}
+        if makes_progress:
+            checkpoint.write_text(json.dumps({"cases": list(range(len(calls)))}))
+        error = RuntimeError("Temporary provider failure")
+        error.status_code = 500
+        raise error
+
+    monkeypatch.setattr(score_captured, "evaluate", evaluate)
+    monkeypatch.setattr(
+        score_captured, "make_judge", lambda: (SimpleNamespace(close=close), None)
+    )
+    monkeypatch.setattr(asyncio, "sleep", sleep)
+    monkeypatch.setattr(score_captured, "monotonic", lambda: 0)
+    if makes_progress:
+        result = await score_captured.score_with_recovery([], checkpoint, 3600, "test")
+        assert result == {"completed": True}
+        assert len(calls) == 6
+    else:
+        with pytest.raises(RuntimeError, match="Temporary provider failure"):
+            await score_captured.score_with_recovery([], checkpoint, 3600, "test")
+        assert len(calls) == 4
+    assert len(closed) == len(calls)
+
+
 def test_experiment_retries_wrapped_rate_limits_but_not_auth_errors(monkeypatch):
     from types import SimpleNamespace
 

@@ -12,6 +12,37 @@ from evaluate_rag import JUDGE_RUBRIC_VERSION, evaluate, load_cases, make_judge
 from run_experiments import CONFIGS, is_transient_provider_error
 
 
+async def score_with_recovery(cases, checkpoint, deadline, name):
+    async def captured_answer(case):
+        raise RuntimeError("Scoring requires saved answers, never new generation")
+
+    completed = len(json.loads(checkpoint.read_text())["cases"])
+    consecutive_failures = 0
+    while True:
+        client, judge = make_judge()
+        try:
+            return await evaluate(cases, captured_answer, judge, 0.75, checkpoint)
+        except Exception as error:
+            current = len(json.loads(checkpoint.read_text())["cases"])
+            if current > completed:
+                consecutive_failures = 0
+                completed = current
+            consecutive_failures += 1
+            if (
+                consecutive_failures >= 4
+                or monotonic() >= deadline
+                or not is_transient_provider_error(error)
+            ):
+                raise
+            print(
+                f"{name}: judge unavailable ({type(error).__name__}); retained {completed} grades",
+                flush=True,
+            )
+            await asyncio.sleep(min(60 * consecutive_failures, deadline - monotonic()))
+        finally:
+            await client.close()
+
+
 async def run(args):
     cases = load_cases(args.dataset)
     fingerprint = hashlib.sha256(
@@ -87,24 +118,7 @@ async def run(args):
                 + "\n"
             )
 
-        async def captured_answer(case):
-            raise RuntimeError("Scoring requires saved answers, never new generation")
-
-        for attempt in range(4):
-            client, judge = make_judge()
-            try:
-                report = await evaluate(cases, captured_answer, judge, 0.75, checkpoint)
-                break
-            except Exception as error:
-                if attempt == 3 or not is_transient_provider_error(error):
-                    raise
-                print(
-                    f"{name}: judge unavailable ({type(error).__name__}); retained checkpoint",
-                    flush=True,
-                )
-                await asyncio.sleep(60 * (attempt + 1))
-            finally:
-                await client.close()
+        report = await score_with_recovery(cases, checkpoint, deadline, name)
         for key in (
             "index_metadata",
             "collections",
@@ -140,7 +154,12 @@ def main():
     )
     parser.add_argument("--reports", type=Path, required=True)
     parser.add_argument("--env-file", type=Path, required=True)
-    parser.add_argument("--wait-seconds", type=int, default=7200)
+    parser.add_argument(
+        "--wait-seconds",
+        type=int,
+        default=7200,
+        help="Total budget for waiting on captures and transient judge recovery",
+    )
     args = parser.parse_args()
     from dotenv import load_dotenv
 
