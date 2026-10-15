@@ -438,7 +438,7 @@ def make_judge():
         )
 
     async def judge(case, answer, contexts):
-        response = await client.chat.completions.create(
+        rubric_request = dict(
             model=model,
             temperature=0,
             max_tokens=2048,
@@ -477,7 +477,23 @@ def make_judge():
                 },
             ],
         )
-        verdict = json.loads(response.choices[0].message.content)
+        rubric_key = (
+            "reference-rubric:"
+            + hashlib.sha256(
+                json.dumps(
+                    {"base_url": str(client.base_url), **rubric_request},
+                    sort_keys=True,
+                    ensure_ascii=False,
+                ).encode()
+            ).hexdigest()
+        )
+        verdict = cache.get(rubric_key)
+        if verdict is None:
+            response = await client.chat.completions.create(**rubric_request)
+            verdict = json.loads(response.choices[0].message.content)
+            if type(verdict.get("answers_reference")) is not bool:
+                raise ValueError("Reference rubric verdict must be boolean")
+            cache.set(rubric_key, verdict)
         if case.get("expect_no_answer") or case.get("_rubric_only"):
             return verdict
         faithfulness = await faithfulness_metric.ascore(

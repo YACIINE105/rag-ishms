@@ -528,6 +528,29 @@ async def test_judge_obeys_rate_limit_cooldown(tmp_path, monkeypatch):
         assert verdict["answers_reference"] is True
         assert len(attempts) == 2
         assert attempts[1] - attempts[0] >= 65
+        # RAGAS can fail after the independent rubric has succeeded. Reusing the
+        # exact rubric avoids paying for that call again on checkpoint resume.
+        again = await judge(
+            {
+                "question": "Name?",
+                "expected_answer": "Unavailable",
+                "expect_no_answer": True,
+            },
+            "Unavailable",
+            [],
+        )
+        assert again == verdict
+        assert len(attempts) == 2
+        await judge(
+            {
+                "question": "A different question?",
+                "expected_answer": "Unavailable",
+                "expect_no_answer": True,
+            },
+            "Unavailable",
+            [],
+        )
+        assert len(attempts) == 3
     finally:
         await client.close()
 
