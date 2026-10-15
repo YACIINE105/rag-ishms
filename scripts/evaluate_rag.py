@@ -375,7 +375,8 @@ def make_judge():
     class JudgeHTTPClient(httpx.AsyncClient):
         def __init__(self, **kwargs):
             super().__init__(**kwargs)
-            self.request_slots = asyncio.Semaphore(2)
+            # Avoid overlapping prototype requests while respecting its cooldown.
+            self.request_slots = asyncio.Semaphore(1)
 
         async def send(self, request, **kwargs):
             async with self.request_slots:
