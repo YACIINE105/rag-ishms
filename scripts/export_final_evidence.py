@@ -138,6 +138,9 @@ def package(results, destination, secret_file):
         manifest["files"][str(path.relative_to(ROOT))] = hashlib.sha256(
             data
         ).hexdigest()
+    scoring_directory = Path(
+        json.loads((results / "summary.json").read_text())["scoring_directory"]
+    ).name
     readme = (
         "# RAG-ISHMS measured evidence\n\n"
         "Open eval/reports/final-project/final-project-report.pdf or "
@@ -148,7 +151,7 @@ def package(results, destination, secret_file):
         "evidence-manifest.json with the setup instructions in README.md and "
         "eval/CIVIL_CODE_EVALUATION.md. Credentials and model weights are "
         "configured separately.\n\n"
-        "Current versioned scores are under configurations-unicode-v2/; "
+        f"Current versioned scores are under {scoring_directory}/; "
         "configurations/ retains original captures and legacy scores. "
         "prior-model-study/ contains historical remote-experiment audits, "
         "not new local GPU training.\n\n"

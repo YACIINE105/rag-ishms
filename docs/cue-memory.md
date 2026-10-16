@@ -1134,3 +1134,52 @@ schedule change, not a new scoring rubric or model. New log:
 `eval/reports/final-project/scoring-after-cooldown.log`. The prior log/failed
 attempts are preserved. Wait for actual grading progress before claiming service
 recovery; the tiny probe alone does not establish a completed evaluation.
+
+### Real-request fallback check — 2026-10-16T03:56:21.451151+00:00
+
+The VL scorer was checkpointed with 11/62 third-configuration grades after
+continued 429s. A replay of a real 4,096-token-budget RAGAS request against the
+previously used nvidia/nemotron-3-super-120b-a12b returned 200 in 4.791 seconds
+(super-legacy-real-request-probe.json). This is stronger availability evidence
+than a tiny prompt, but is not a quality result. A separate 28-control calibration
+is running with the unchanged candidate-unicode-v2 rubric, using ignored
+.env.evaluation-super-candidate; outputs are super-candidate-judge-calibration.*.
+Existing VL calibration/scores are preserved. No fallback scores may be mixed
+with VL scores; switching requires its own profile and all five comparisons.
+Exact original-model RAGAS cache entries may be reused only through the existing
+input/model/options hash, while revised custom-rubric requests have different
+cache keys. No generation, indexing or training is repeated.
+
+### Calibrated original-Super recovery — 2026-10-16T03:58:55.972212+00:00
+
+The separate original-Super calibration passed all 28 controls with the unchanged
+candidate-unicode-v2 rubric. Started only offline scoring into
+configurations-super-candidate-v2/ using .env.evaluation-super-candidate. Log:
+scoring-super-candidate-v2.log. Initial progress is steady without VL throttling.
+The existing judge-cache permits hash-verified original-model RAGAS stage reuse;
+custom-rubric keys change with the revised instructions. All five configurations
+must complete with this profile before claiming a five-way result. Preserve both
+legacy and VL directories; do not duplicate this active worker. Final report and
+export code now read the selected judge identity/directory explicitly. The current
+committed report remains the earlier incomplete VL snapshot until refreshed.
+
+### Typed-schema recovery and resumed scoring — 2026-10-16T04:08:34.508198+00:00
+
+The original-Super fallback reached 41/62 steadily, then deterministic malformed
+JSON omitted every claim's supported boolean on the Arabic interest-percentage
+negative. No invalid output was scored. Added one format-only 4,096-token retry
+after the primary 2,048-token response fails typed validation; a second invalid
+response still raises. Quoted booleans are never cast. The format retry has an
+explicit cache-key version; primary grading rules/model are unchanged. The real
+failing case recovered, all 28 controls passed again, 33 focused evaluation tests
+passed, and the full suite passed 243 tests/12 subtests at 86.55% source coverage.
+
+Resumed the same original-Super score directory with 2.1-second pacing, two HTTP
+slots and three grading workers to overlap remote waits. Source answers are never
+regenerated. This schedule is distinct from the throttled VL recovery profile.
+Active command: score_captured.py --env-file .env.evaluation-super-candidate
+--reports eval/reports/final-project/configurations-super-candidate-v2
+--wait-seconds 14400. Its append-only scoring-super-candidate-v2.log retains the
+earlier malformed-response attempt and deliberate checkpoint interruption.
+Do not launch a duplicate. Both the incomplete VL results and original legacy
+results remain preserved and must not be merged into the final comparison.

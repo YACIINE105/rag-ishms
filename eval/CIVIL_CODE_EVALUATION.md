@@ -25,7 +25,7 @@ article citation so questions about numbered provisions have that identity in th
 retrieved text as well as the source metadata. Existing indexes require explicit
 reprocessing/reindexing to pick up the restored citation.
 
-Use the ignored `.env.evaluation` profile for this local run. It uses the existing
+Use the ignored `.env.evaluation-super-candidate` profile for quality scoring. It uses the existing
 NVIDIA endpoint for Nemotron VL 1B v2 embeddings and an independent Nemotron 120B
 judge because the production OpenRouter free endpoint has a 50-request daily cap.
 Production Docker settings and collections are unchanged. Record this endpoint and
@@ -35,8 +35,8 @@ model-alias distinction; this is not a measurement of OpenRouter capacity.
 .venv/bin/python scripts/run_experiments.py \
   --dataset eval/civil_code_full.json \
   --corpus eval/reports/final-project/corpus/articles.json \
-  --reports eval/reports/final-project/configurations \
-  --env-file .env.evaluation --full-metrics --resume
+  --reports reports/civil-code-new-run \
+  --env-file .env.evaluation-super-candidate --full-metrics
 ```
 
 The five predefined configurations vary article/250/500-character chunking,
@@ -91,7 +91,7 @@ uses disposable embedded storage that is removed when the run exits.
   --reports eval/reports/final-project/load
 
 ~/.cache/rag-final-tools/bin/python scripts/report_final_project.py \
-  --configurations eval/reports/final-project/configurations-unicode-v2
+  --configurations eval/reports/final-project/configurations-super-candidate-v2
 ```
 
 Do not run load and quality tests concurrently on the shared laptop GPU. A
@@ -120,13 +120,13 @@ generation:
 
 ```bash
 .venv/bin/python scripts/score_captured.py \
-  --env-file .env.evaluation-super35 \
-  --reports eval/reports/final-project/configurations-unicode-v2
+  --env-file .env.evaluation-super-candidate \
+  --reports eval/reports/final-project/configurations-super-candidate-v2
 ```
 
 After all five score files exist, the ordinary `run_experiments.py --resume`
 command records them in MLflow and writes the scored comparison without rerunning
-generation. Use the same new scoring directory and `.env.evaluation-super35` for
+generation. Use the same new scoring directory and `.env.evaluation-super-candidate` for
 that command. Keep judges consistent across configurations. A different judge or
 rubric requires a separate report directory and complete regrading. A persisted
 `judge-profile.json` prevents accidental mixing; unversioned legacy grades cannot
@@ -134,13 +134,22 @@ be resumed into the revised rubric. The report's explicit
 `--allow-incomplete` mode accepts all five captured runs but marks pending scores
 as n/a; it never claims that scoring or quality selection is complete.
 
-The final evidence snapshot records five `final-measured-*` MLflow runs under
+The earlier evidence snapshot records five `final-measured-*` MLflow runs under
 the `2026-10-16-unicode-v2` release tag. Two have complete revised quality scores;
 the others record only captured-case counts, retrieval hits, latency and completed
 grading counts. Their `provider_limited` tags are not failed legal judgments.
 `mlflow-release.json` identifies these runs separately from historical attempts.
 The exported database retains its original local artifact paths; the actual
 report files are also included separately in the evidence ZIP.
+
+The current recovery uses `nvidia/nemotron-3-super-120b-a12b` with the same revised
+rubric. A real RAGAS request and all 28 controls passed, including a repeat after
+the format-retry fix. It uses `configurations-super-candidate-v2/`, separate from
+the VL regrade and legacy reference scores. Its ignored profile uses 2.1-second
+request spacing, two HTTP slots and three grading workers. A malformed rubric gets
+one format-only retry at 4,096 tokens; a second invalid response fails. Missing or
+quoted booleans are never cast into grades. Valid saved grades and exact
+input/model/options RAGAS cache entries remain reusable.
 
 If a measurement fails after a successful PGVector ingestion, preserve its report
 directory and use `--reuse-index PATH_TO_PRIOR_REPORTS` for a measurement-only

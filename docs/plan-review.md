@@ -19,7 +19,7 @@ External Langfuse, alerting and protected CI settings remain optional configurat
 The historical implementation review below is retained with these updates. Both
 GPU services and nginx/API readiness recovered after the latest laptop restart;
 authentication checks again returned the expected 401/422 responses. The latest
-suite passes 242 tests with 86.55% coverage. The legacy rubric failed 11/28 controls
+suite passes 243 tests with 86.55% coverage. The legacy rubric failed 11/28 controls
 with Super VL. After fixing readable Arabic and candidate/reference separation,
 the versioned rubric passed 28/28 controls and started a separate consistent
 regrade. Two configurations have complete new scores; the remaining grades are
@@ -141,7 +141,7 @@ text was manufactured or relabeled. Human Arabic spot-checking remains necessary
 
 See docker/VERIFICATION.md for current source/container checks. DVC repro/status,
 editable installation and local tests are independent of an inference model.
-Latest full suite: 242 tests, 86.55% source coverage. Actual API findings led to
+Latest full suite: 243 tests, 86.55% source coverage. Actual API findings led to
 the numeric asset-ID lookup fix, asynchronous model wait gate, bulk SQL budget
 and idempotent PGVector batches. The existing Docker API was rebuilt and checked.
 No existing user database/vector volume was reset; isolated evaluation projects

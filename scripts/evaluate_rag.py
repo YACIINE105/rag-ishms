@@ -521,6 +521,7 @@ def make_judge():
                     {
                         "base_url": str(client.base_url),
                         "truncation_retry_max_tokens": 4096,
+                        "format_retry_version": 1,
                         **rubric_request,
                     },
                     sort_keys=True,
@@ -530,9 +531,14 @@ def make_judge():
         )
         verdict = cache.get(rubric_key)
         if verdict is None:
+            retry_messages = rubric_request["messages"]
             for output_limit in (2048, 4096):
                 response = await client.chat.completions.create(
-                    **{**rubric_request, "max_tokens": output_limit}
+                    **{
+                        **rubric_request,
+                        "messages": retry_messages,
+                        "max_tokens": output_limit,
+                    }
                 )
                 choice = response.choices[0]
                 try:
@@ -565,10 +571,25 @@ def make_judge():
                         choice.finish_reason,
                         output_limit,
                     )
-                    if choice.finish_reason != "length" or output_limit == 4096:
+                    if output_limit == 4096:
                         raise JudgeResponseError(
                             "Judge returned invalid structured output"
                         ) from error
+                    if choice.finish_reason != "length":
+                        retry_messages = rubric_request["messages"] + [
+                            {
+                                "role": "user",
+                                "content": (
+                                    "The response failed JSON schema validation. "
+                                    "Evaluate the original candidate again using the same rules. "
+                                    "Return only a JSON object with a nonempty claims array. "
+                                    "EVERY claim must contain text (a nonempty string) "
+                                    "and supported (a JSON boolean). Also include "
+                                    "answers_reference (a JSON boolean). "
+                                    "Use true/false, never quoted boolean strings."
+                                ),
+                            }
+                        ]
             cache.set(rubric_key, verdict)
         if case.get("expect_no_answer") or case.get("_rubric_only"):
             return verdict

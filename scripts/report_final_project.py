@@ -123,6 +123,9 @@ def main():
     profile_path = configurations / "judge-profile.json"
     judge_profile = read_json(profile_path) if profile_path.exists() else {}
     revised_rubric = judge_profile.get("rubric_version") == "candidate-unicode-v2"
+    revised_super = revised_rubric and judge_profile.get("model") == (
+        "nvidia/nemotron-3-super-120b-a12b"
+    )
     reports = []
     for name in NAMES:
         path = configurations / f"{name}.json"
@@ -385,12 +388,12 @@ def main():
         "- Generator uses 4-bit NF4 on the 6-GiB RTX 3060; context 2,048, one active generation sequence. No adapter is loaded and no training was performed.",
         "- Direct NVIDIA Nemotron VL 1B v2 embeddings (2,048 dimensions) avoid exhausting the production OpenRouter 50-request daily allowance. Existing production settings/indexes were preserved.",
         (
-            "- Independent judge: NVIDIA Nemotron 3.5 Super VL 120B, temperature zero, candidate-unicode-v2 rubric. All 28 bilingual numerical, completeness and refusal controls passed before scoring. All five configurations use this same judge/profile in a separate scoring directory; legacy scores are not mixed in. Controls are a sanity check, not legal expert validation."
+            f"- Independent judge: `{judge_profile['model']}`, temperature zero, candidate-unicode-v2 rubric. All 28 bilingual numerical, completeness and refusal controls passed before scoring. All five configurations use this same judge/profile in a separate scoring directory; legacy scores are not mixed in. Controls are a sanity check, not legal expert validation."
             if revised_rubric
             else "- Independent judge: NVIDIA Nemotron 3 Super 120B, temperature zero. Twelve simple calibration items passed. Subsequent inspection found Arabic misreadings: judge correctness remains provisional, even where a score passes its engineering gate."
         ),
         "- HTTP 429 interrupted the first scoring attempt. Saved answers and completed scores were resumed with request pacing; no answers were regenerated to improve scores.",
-        "- An unterminated judge JSON response also interrupted scoring. Invalid/truncated output is rejected; rubric calls use 2,048 output tokens, with one 4,096-token retry only when the API reports length termination. Partial responses never become scores. Successful rubric/RAGAS calls are cached against exact inputs for resume.",
+        "- Invalid/truncated judge JSON interrupted scoring. Rubric calls use 2,048 output tokens with one 4,096-token retry: length termination repeats the original request, while invalid JSON/schema adds a format-only reminder of the required typed fields. A second invalid response fails; missing or quoted booleans are never coerced into grades. The format-retry cache version is recorded in the request hash. Successful rubric/RAGAS calls are cached against exact inputs for resume.",
         "- The offline scorer was deliberately checkpointed to load scheduling/recovery fixes. KeyboardInterrupt entries in scoring-unicode-v2.log document those worker restarts; they are not repeated model training or RAG generation. Intermittent provider 500s retain cached work and reset the recovery budget only after completed-case progress; four consecutive failures without progress remain bounded.",
         "",
         "## Earlier training and model selection",
@@ -413,7 +416,7 @@ def main():
         "",
         "The real upload/process workflow exposed a numeric asset-ID lookup bug; processing now accepts the ID returned by upload while retaining filename lookup and project scope. Queued model calls now wait asynchronously before entering a worker, so the model lock does not consume the worker pool. Bulk SQL operations have a 30-second budget; readiness retains its separate deadline. PGVector reindex batches replace only their supplied chunk IDs transactionally, with configurable batch size (default 50).",
         "",
-        "Verification: 242 tests passed with 86.55% source coverage. Two actual same-vector reinsertions into the isolated PGVector project left exactly 2,297 rows. The existing Docker API was rebuilt after confirming no active production jobs; nginx health returned 200, missing-key requests 401 and authenticated blank queries 422, all with request IDs. These health/authentication checks also passed after the subsequent laptop restart on 16 October. Existing credentials, documents and production indexes were preserved.",
+        "Verification: 243 tests passed with 86.55% source coverage. Two actual same-vector reinsertions into the isolated PGVector project left exactly 2,297 rows. The existing Docker API was rebuilt after confirming no active production jobs; nginx health returned 200, missing-key requests 401 and authenticated blank queries 422, all with request IDs. These health/authentication checks also passed after the subsequent laptop restart on 16 October. Existing credentials, documents and production indexes were preserved.",
         "",
         "## Five configuration comparisons",
         "",
@@ -498,7 +501,7 @@ def main():
         "",
         "The legacy Super judge misread a clear Arabic court-address refusal and invented claims when grading the Article 374 answer. Its original machine scores are preserved under configurations/ for audit. The evidence includes assistant-answer-review.json with exact case IDs; no assistant-corrected legal accuracy percentage is inferred.",
         "",
-        "The revised judge also misses real defects: for Arabic Article 44 it assigns full faithfulness while omitting the unsupported definition of legal interdiction from its claim list. It accepts the incomplete Arabic Article 94, 147 and truncated Article 226 answers despite the earlier source review's findings. The shorter omission control passed, but that did not transfer reliably to these longer real outputs. Passing calibration does not guarantee exhaustive claim extraction or legally correct grading; every reported correctness score remains an automated estimate. See revised-judge-review.json; original scores are preserved.",
+        "The separately recorded revised Super VL judge also misses real defects: for Arabic Article 44 it assigns full faithfulness while omitting the unsupported definition of legal interdiction from its claim list. It accepts the incomplete Arabic Article 94, 147 and truncated Article 226 answers despite the earlier source review's findings. The shorter omission control passed, but that did not transfer reliably to these longer real outputs. Passing calibration does not guarantee exhaustive claim extraction or legally correct grading; every reported correctness score remains an automated estimate. See revised-judge-review.json; original scores are preserved.",
         "",
         "A recovery check on 16 October found Nemotron 3.5 Super VL callable, but the legacy rubric failed 11 of 28 controls. Investigation found that Arabic rubric inputs were Unicode-escaped and candidate claims could be confused with reference claims. The revised rubric sends readable Arabic, explicitly identifies candidate_answer, forbids replacing its words/numbers with reference claims and rejects omitted required conditions. It passed all 28 controls; super35-judge-calibration.json records the revised results and super35-legacy-rubric-calibration.json retains the failures. Changing serialization, instructions and judge requires regrading every configuration separately; earlier scores are not comparable as a model-quality improvement. DeepSeek V4.1 Flash timed out with its documented non-thinking option.",
         "",
@@ -523,6 +526,11 @@ def main():
         "The Grafana screenshot shows the configured production dashboard and the published completed article-rerank scores from the current versioned judge. The isolated port-8003 load API was not a Prometheus scrape target; its stage figures use the saved before/after metric snapshots. Locust HTML is a periodic snapshot; final JSON counts after draining take precedence.",
         "",
     ]
+    if revised_super:
+        lines += [
+            "The final scoring profile uses the original Nemotron 3 Super endpoint with the revised candidate-unicode-v2 rubric. A real RAGAS request succeeded and all 28 controls passed again (super-candidate-judge-calibration.json) after repeated VL endpoint throttling. It scores every configuration separately under configurations-super-candidate-v2/. Exact original-model RAGAS cache entries are reusable through their input/model/options hash; changed reference-rubric requests have new keys. VL grades and legacy reference grades are retained for audit and are not mixed into this comparison.",
+            "",
+        ]
     args.report.parent.mkdir(parents=True, exist_ok=True)
     lines += ["## Figures", ""]
     figure_directory = args.report.parent / "figures"

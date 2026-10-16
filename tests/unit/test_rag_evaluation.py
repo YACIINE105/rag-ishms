@@ -453,7 +453,7 @@ async def test_bilingual_seed_batches_have_unique_ids_and_language_metadata():
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("invalid_response", [None, "length", "schema"])
+@pytest.mark.parametrize("invalid_response", [None, "length", "schema", "repeated"])
 async def test_judge_obeys_rate_limit_cooldown(tmp_path, monkeypatch, invalid_response):
     import asyncio
 
@@ -503,8 +503,12 @@ async def test_judge_obeys_rate_limit_cooldown(tmp_path, monkeypatch, invalid_re
                                         {
                                             "text": "Unavailable",
                                             "supported": "true"
-                                            if invalid_response == "schema"
-                                            and len(attempts) == 2
+                                            if invalid_response
+                                            in {"schema", "repeated"}
+                                            and (
+                                                len(attempts) == 2
+                                                or invalid_response == "repeated"
+                                            )
                                             else True,
                                         }
                                     ],
@@ -552,22 +556,26 @@ async def test_judge_obeys_rate_limit_cooldown(tmp_path, monkeypatch, invalid_re
             "expected_answer": "Unavailable",
             "expect_no_answer": True,
         }
-        if invalid_response == "schema":
+        if invalid_response == "repeated":
             with pytest.raises(evaluation.JudgeResponseError):
                 await judge(case, "Unavailable", [])
             diagnostic = next((tmp_path / "cache/invalid-rubrics").glob("*.json"))
             assert json.loads(diagnostic.read_text())["validation_error"] == (
                 "Invalid judge claim"
             )
+            assert len(attempts) == 3
+            return
         verdict = await judge(case, "Unavailable", [])
         assert verdict["answers_reference"] is True
         expected_attempts = 3 if invalid_response else 2
         assert len(attempts) == expected_attempts
         assert attempts[1] - attempts[0] >= 65
-        if invalid_response == "length":
+        if invalid_response in {"length", "schema"}:
             assert limits == [2048, 2048, 4096]
             diagnostic = next((tmp_path / "cache/invalid-rubrics").glob("*.json"))
-            assert json.loads(diagnostic.read_text())["finish_reason"] == "length"
+            assert json.loads(diagnostic.read_text())["finish_reason"] == (
+                "length" if invalid_response == "length" else "stop"
+            )
         # RAGAS can fail after the independent rubric has succeeded. Reusing the
         # exact rubric avoids paying for that call again on checkpoint resume.
         again = await judge(
