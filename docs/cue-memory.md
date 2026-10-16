@@ -1256,3 +1256,55 @@ Resume the same directory/model using the existing 5s/one-HTTP/one-worker profil
 after cooldown; do not duplicate it. Keep the user's inline Codex checklist and
 actual graded-case progress bar updated. Final reporting must use 244 as the
 latest executed test count, while retaining historical counts in earlier notes.
+
+### Readiness and final-audit preparation — 2026-10-16T05:51:26.056789+00:00
+
+Repeated local read-only readiness/access checks at 2026-10-16T05:40:18.677590+00:00:
+nginx, generator, reranker, Prometheus and Grafana returned 200; missing-key
+and authenticated blank-query requests returned 401/422. Three deployed source
+files (NLPController, data routes and metrics) exactly match this checkout.
+final-readiness.json records the actual running image and request IDs. No new
+generation, upload/index, load run or Docker rebuild was performed.
+
+Four current original-Super configurations are complete; final k3 is 32/62
+(280/310 total). The sole scorer continues using the 5s/one-slot/one-worker
+profile, retaining successful stage progress despite 429s. No duplicate grader
+was launched. A one-off /tmp/rag-finalize-tracking.py is prepared and syntax
+checked, NOT executed: after all five score JSONs exist and the scorer exits, it
+checks exact captured-output identity, typed/finite values and reproduced means,
+then records five --resume MLflow runs without inference. It tags the current
+release 2026-10-16-super-candidate-v2 and retains historical runs. Reports, final
+figures/PDF/screenshots, current docs, audited ZIP and closeout commits still
+follow. /tmp/rag-final-export-secrets.json is private; never print/export it.
+
+### All scoring and final report checks complete — 2026-10-16T06:48:27.677952+00:00
+
+The sole offline scorer exited 0. All five original-Super/candidate-unicode-v2
+reports now contain 62 grades (310 total). No generation was repeated. Executed
+/tmp/rag-finalize-tracking.py: exact answers/contexts/latencies match their original
+captures, frozen dataset/PDF hashes match, typed values are finite, and every
+overall/per-language average, p95 and gate reproduces. capture-audit.json is complete.
+
+Five new finished MLflow runs are tagged 2026-10-16-super-candidate-v2; all have
+62 grades and actual source hashes. Eighteen earlier runs remain. The previous
+VL release snapshot is preserved as mlflow-release-unicode-v2.json; current
+mlflow-release.json selects only the final original-Super runs. No legacy/VL
+grades are merged. k3 finished at faithfulness 0.96917/reference 0.90323. The
+article/rerank baseline has the highest automated reference mean, 58/62; the
+250-character variant fails its Arabic gate (22/31). These are machine diagnostics
+with recorded false positives, not legal accuracy. Existing retrieval defaults
+and selected untuned Qwen base remain.
+
+Generated the strict complete report, 310 unique fully graded CSV rows and all
+four PNG/PDF figure pairs. The final PDF has 11 landscape pages. Visually inspected
+its first page/table (all five 62/62 rows, no clipped table), the full accuracy
+figure and actual Grafana-quality/Locust screenshots. Replaced the earlier PDF
+page screenshots with pages from this final PDF. report-export-audit.json records
+the checks and hashes. Full tests remain 244 passed/12 subtests, coverage 86.55%;
+report script lint/format and git whitespace checks pass. No extra suite/load run.
+
+Next: commit the completed report/docs, create the credential-scanned evidence
+ZIP on G: with that source commit, verify every payload/whole-archive hash, record
+the receipt and commit memory. Keep local GPU/Docker services running. No Cue
+query, remote deployment or new training is required. Preserve the untracked
+user transcript rag-ishms-current.md; never stage/export it.

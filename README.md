@@ -18,8 +18,9 @@ checked locally. A frozen 62-question bilingual Civil Code baseline and a real
 50 of 58 answer requests failed under the PGVector load test; this laptop does
 not meet that capacity target. See the [measured report](docs/final-project-report.md),
 [evaluation reproduction](eval/CIVIL_CODE_EVALUATION.md) and
-[model setup](docs/model-serving.md). Remote judge scores are provisional and
-pending comparisons are explicitly marked.
+[model setup](docs/model-serving.md). All five retrieval configurations now have
+complete automated scores for the same 62 questions. These scores remain
+provisional because inspection found judge errors as well as generator errors.
 
 ## Start the already configured project
 

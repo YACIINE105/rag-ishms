@@ -134,19 +134,24 @@ be resumed into the revised rubric. The report's explicit
 `--allow-incomplete` mode accepts all five captured runs but marks pending scores
 as n/a; it never claims that scoring or quality selection is complete.
 
-The earlier evidence snapshot records five `final-measured-*` MLflow runs under
-the `2026-10-16-unicode-v2` release tag. Two have complete revised quality scores;
-the others record only captured-case counts, retrieval hits, latency and completed
-grading counts. Their `provider_limited` tags are not failed legal judgments.
-`mlflow-release.json` identifies these runs separately from historical attempts.
+The final `mlflow-release.json` identifies five finished `final-scored-*` runs
+under `2026-10-16-super-candidate-v2`, each with all 62 scores from the original
+Super endpoint and revised rubric. The final audit verifies all 310 grades against
+the original captured answers and reproduces all overall/per-language aggregates.
+Eighteen earlier runs remain in the database. The earlier VL snapshot is preserved
+as `mlflow-release-unicode-v2.json`: its five `final-measured-*` runs under
+`2026-10-16-unicode-v2` include two complete scores and three capture/partial
+measurements. Their `provider_limited` tags are not failed legal judgments.
 The exported database retains its original local artifact paths; the actual
 report files are also included separately in the evidence ZIP.
 
-The current recovery uses `nvidia/nemotron-3-super-120b-a12b` with the same revised
+The completed comparison uses `nvidia/nemotron-3-super-120b-a12b` with the same revised
 rubric. A real RAGAS request and all 28 controls passed, including a repeat after
 the format-retry fix. It uses `configurations-super-candidate-v2/`, separate from
-the VL regrade and legacy reference scores. Its ignored profile uses 2.1-second
-request spacing, two HTTP slots and three grading workers. A malformed rubric gets
+the VL regrade and legacy reference scores. Its initial successful profile used
+2.1-second request spacing, two HTTP slots and three grading workers. After 429s
+recurred during the last configuration, recovery switched to five-second spacing,
+one HTTP slot and one grading worker. A malformed rubric gets
 one format-only retry at 4,096 tokens; a second invalid response fails. Missing or
 quoted booleans are never cast into grades. Valid saved grades and exact
 input/model/options RAGAS cache entries remain reusable.
@@ -170,13 +175,15 @@ Vendor capacity can still be unavailable below an advertised request-rate limit.
 Successful reference rubrics are cached separately from RAGAS stages. Invalid
 JSON/schema or length-terminated judge output cannot become a score. A rubric
 request that reports length termination at 2,048 output tokens receives one retry
-at 4,096; other malformed output uses the bounded transient-failure recovery.
+at 4,096. Other malformed output receives one format-only reminder at 4,096 tokens;
+a second invalid response enters bounded recovery. Neither missing nor quoted
+booleans are accepted as grades.
 Diagnostics retain the actual stop reason and output in the ignored judge cache.
 
-The final scoring profile uses `nvidia/nemotron-3.5-super-vl-120b-a12b` on the
+The earlier VL recovery profile used `nvidia/nemotron-3.5-super-vl-120b-a12b` on the
 same existing NVIDIA account, with temperature zero and
 `RAG_EVAL_JUDGE_EXTRA_BODY={"chat_template_kwargs":{"enable_thinking":false}}`.
-It now uses five-second request spacing, one HTTP request in flight and one grading
+It reached five-second request spacing, one HTTP request in flight and one grading
 worker after repeated 429 responses with the original 2.1-second spacing. A fresh
 availability probe alone is insufficient: actual scoring can still be throttled.
 An attempted two-request/three-worker schedule encountered provider 500s;
@@ -187,8 +194,10 @@ completed and is never called by offline scoring. The request concurrency option
 changes to the frozen answers or grading criteria. Optional
 `RAG_EVAL_HTTP_DIAGNOSTICS=1` saves failed request bodies and response status/body
 inside the private judge cache, excluding authorization headers.
-Recovery stops after four consecutive failures without completed-case progress;
-successful progress resets that counter. `--wait-seconds` bounds waiting/recovery.
+Recovery stops after four consecutive failures without completed-case or new
+persisted-stage progress. The actual DiskCache row count detects successful
+partial grading work; diagnostic files and failed responses do not reset the
+counter. `--wait-seconds` bounds waiting/recovery even when stages keep advancing.
 After provider capacity recovers, rerun the same command to reuse saved answers,
 scores and cached stages. Keep incomplete aggregate metrics n/a.
 

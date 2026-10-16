@@ -10,7 +10,7 @@
   and authenticated blank-query checks returned 401 and 422 with request IDs.
   The async wait gate is present in the running image. Existing chunks were not
   rewritten to acquire the new Qalam headers.
-- Full suite: **243 passed, 86.55% source coverage**. Actual evaluation-project
+- Full suite: **244 passed, 86.55% source coverage**. Actual evaluation-project
   SQL verified that two identical chunk reinsertions retain exactly 2,297 rows.
 - The real isolated PGVector load run observed 50 users, 58 answer requests and
   50 failures, with p95 at the 180-second timeout. Six guarded SSE probes finished.

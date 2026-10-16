@@ -10,26 +10,32 @@ limits and `docs/cue-memory.md` for the experiment/audit distinction.
 
 Measured evidence is now in [the final-project report](final-project-report.md).
 Qalam extracted all 1,149 Civil Code articles; the frozen set has 62 bilingual
-questions. All five configurations captured 62 real answers each. Complete
-RAGAS/reference scores and pending provider-limited scores are distinguished in
-the report; no five-way quality winner is claimed while grading is incomplete.
+questions. All five configurations captured and graded 62 real answers each:
+310 results with the same versioned Nemotron 3 Super judge. Exact saved answers,
+contexts and latencies are preserved; the final audit reproduces every aggregate
+and language-specific gate. The article/rerank baseline has the highest automated
+reference mean (58/62); the 250-character variant fails the Arabic quality gate.
+Known judge errors prevent interpreting these figures as legal accuracy.
 The real PGVector run observed 50 users but failed 50/58 answer requests; its
 six guarded SSE probes completed. This hardware does not pass the capacity target.
 External Langfuse, alerting and protected CI settings remain optional configuration.
 The historical implementation review below is retained with these updates. Both
 GPU services and nginx/API readiness recovered after the latest laptop restart;
 authentication checks again returned the expected 401/422 responses. The latest
-suite passes 243 tests with 86.55% coverage. The legacy rubric failed 11/28 controls
+suite passes 244 tests with 86.55% coverage. The legacy rubric failed 11/28 controls
 with Super VL. After fixing readable Arabic and candidate/reference separation,
-the versioned rubric passed 28/28 controls and started a separate consistent
-regrade. Two configurations have complete new scores; the remaining grades are
-limited by NVIDIA 429 responses even after cooldown and slower request pacing.
+the versioned rubric passed 28/28 controls. Following VL endpoint throttling, the
+original Super endpoint also passed all 28 controls and completed all five
+comparisons in a separate directory. NVIDIA 429/connection failures were recovered
+using saved answers, grades and successful intermediate stages. Legacy and VL
+scores are retained separately and are not mixed into the final comparison.
 Real-answer inspection still finds judge false positives; its passing controls
 and engineering gates do not establish legal correctness.
 
 The report is exported as an actual PDF with four figures, per-case review CSV
-and screenshots of Locust and Grafana. Five explicitly tagged final MLflow runs
-separate complete quality scores from provider-limited capture measurements.
+and screenshots of Locust and Grafana. Five finished final MLflow runs under
+`2026-10-16-super-candidate-v2` contain the complete scores; 18 earlier runs and
+the previous VL release snapshot are retained as history.
 The evidence export scans configured secrets and verifies ZIP integrity and
 every payload checksum. The exported tracking database preserves original local
 artifact paths; the actual result files are included separately.
@@ -73,9 +79,9 @@ DVC now tracks a reproducible source snapshot and the complete structured corpus
 through dvc.yaml/dvc.lock. The committed raw PDF can reproduce these outputs
 without a storage remote. Git continues to version the small evaluation datasets.
 A five-configuration MLflow experiment runner logs parameters, metrics and reports
-using disposable indexes. All five measured capture runs are now recorded; two
-have complete versioned automated grades. No model/config registry promotion or complete
-five-way quality ranking is claimed while the remaining grading is incomplete.
+using disposable indexes. All five configurations now have complete versioned
+automated grades recorded in MLflow. Model/config registry promotion was not
+performed; the measured comparison does not establish legal acceptance.
 
 ## Session 3
 
@@ -101,7 +107,7 @@ when measured bottlenecks or course requirements justify changing this scope.
 | 4.3 Grafana/alerts | Provisioned datasource and 13 panels including per-language quality, TTFT and guardrails. Six alert rules; recorded evaluation metrics use node_exporter's textfile collector. No fabricated baseline, token prices, GPU data or outbound notification destination. |
 | 4.4 Evidently | Tabular drift tooling skipped; it does not match this API's input or the current baseline. |
 | 4.5 Langfuse | Pinned opt-in SDK, answer/retrieve/provider/stream spans, correlation/index/project/prompt metadata, actual non-stream usage and scoped feedback. Raw content omitted before export. Optional system-prompt labels with local fallback. No additional hosting stack or external keys provisioned. |
-| 4.6 RAGAS | Preserved the 20-case gate; froze a 62-case assistant-reviewed Civil Code set. Actual four-metric and reference-rubric reports are saved where complete; 429/incomplete-JSON failures preserve checkpoints. All five configurations captured answers/contexts. Semantic refusal, numerical conditions and source articles are inspected. No legal expert review or certified judge agreement is claimed. |
+| 4.6 RAGAS | Preserved the 20-case gate; froze a 62-case assistant-reviewed Civil Code set. All five four-metric and reference-rubric reports are complete, with exact saved answers/contexts. Recovered 429/incomplete-JSON failures using checkpoints and validated cached stages. Semantic refusal, numerical conditions and source articles are inspected. No legal expert review or certified judge agreement is claimed. |
 | 4.7 Guardrails/access | API-key identities, explicit project ACLs (including job status/feedback), bounded key quotas with 429/Retry-After, deterministic Arabic/English input/document injection checks, bounded PII redaction, buffered stream filtering, source-required fallback and optional calibrated retrieval refusal. Docker auth enabled with an ignored local client secret. These rules do not establish medical-data safety or claim-by-claim groundedness. |
 | 4.8 Operations | Updated runbook, architecture, setup commands, model/observability/evaluation instructions and source-issue documentation. |
 
@@ -118,11 +124,11 @@ text was manufactured or relabeled. Human Arabic spot-checking remains necessary
 
 ## Remaining evidence and scope limits
 
-- Model setup, full-corpus extraction, 310 captured comparison answers, 50-user
+- Model setup, full-corpus extraction, 310 captured and graded comparison answers, 50-user
   load/SSE measurements, report/figures/screenshots and real Docker checks are
-  recorded. Remaining automated scores are explicitly pending while the NVIDIA
-  judge is throttled; partial scores do not establish a five-way quality winner.
-  The measured load target failed and generator numerical errors/omissions remain.
+  recorded. The final hash/identity audit and five finished MLflow runs are complete.
+  The measured load target failed and generator numerical errors/omissions remain;
+  these are observed limitations, not results converted into passes.
 - Langfuse credentials/hosting, an alert notification destination and protected
   GitHub evaluation secrets/variables are external configuration. No external
   project, notification or CI run has been created or claimed verified.
@@ -141,7 +147,7 @@ text was manufactured or relabeled. Human Arabic spot-checking remains necessary
 
 See docker/VERIFICATION.md for current source/container checks. DVC repro/status,
 editable installation and local tests are independent of an inference model.
-Latest full suite: 243 tests, 86.55% source coverage. Actual API findings led to
+Latest full suite: 244 tests, 86.55% source coverage. Actual API findings led to
 the numeric asset-ID lookup fix, asynchronous model wait gate, bulk SQL budget
 and idempotent PGVector batches. The existing Docker API was rebuilt and checked.
 No existing user database/vector volume was reset; isolated evaluation projects
