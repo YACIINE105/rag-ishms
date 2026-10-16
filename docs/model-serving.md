@@ -106,6 +106,16 @@ first delivered text arrived at 6.43 seconds because the configured guardrails
 buffered the answer. This does not demonstrate low TTFT or concurrent capacity.
 The ignored evidence is `eval/reports/qwen3-local-serving-verification.json`.
 
+The subsequent full-PDF evaluation uses the existing Qalam parser, 1,149 Civil
+Code articles and 62 frozen bilingual questions. The 50-user PGVector run failed
+50/58 answer requests; p95 reached the 180-second client timeout. Six sequential
+guarded SSE probes completed with first text at 16.5–33.6 seconds after the host
+restart. These measurements supersede any inference that the earlier small smoke
+checks proved concurrent capacity. A preceding SSE attempt failed with a vLLM
+CUDA unknown error; its logs are preserved rather than classified as a quality
+result. See [the final report](final-project-report.md) for exact profiles,
+configuration scoring status, answer omissions and judge disagreements.
+
 Verify a real generator request as well as health, without displaying the key:
 
 ```bash

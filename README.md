@@ -13,9 +13,13 @@ neither pilot adapter was selected. Embeddings still use OpenRouter's
 
 Qwen runs in 4-bit on the laptop GPU alongside the reranker. Authenticated
 generation, cited English/Arabic RAG answers, health and SSE completion have been
-checked locally. The larger quality benchmark and 50-user load test remain open;
-these small checks do not establish error-free legal answers. See
-[model setup and verification](docs/model-serving.md).
+checked locally. A frozen 62-question bilingual Civil Code baseline and a real
+50-user load test are now measured. The model still makes omissions/errors, and
+50 of 58 answer requests failed under the PGVector load test; this laptop does
+not meet that capacity target. See the [measured report](docs/final-project-report.md),
+[evaluation reproduction](eval/CIVIL_CODE_EVALUATION.md) and
+[model setup](docs/model-serving.md). Remote judge scores are provisional and
+pending comparisons are explicitly marked.
 
 ## Start the already configured project
 

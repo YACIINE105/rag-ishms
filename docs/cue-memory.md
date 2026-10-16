@@ -1,6 +1,16 @@
 # Cue coordination memory
 
-Last updated: 2026-10-14 (Africa/Cairo).
+Last updated: 2026-10-16 (Africa/Cairo).
+
+Current local status: Qwen base generation, BGE reranking and the existing Docker
+stack are running. Full-PDF Qalam extraction, 310 actual retrieved-context
+answers and real 50-user/SSE measurements are complete. Two configurations have
+complete candidate-unicode-v2 automated grades; remaining scoring is constrained
+by repeated NVIDIA 429 responses. See the latest entries and
+`docs/final-project-report.md` for current counts and known answer/judge errors.
+The report, figures, PDF and evidence export are the current local deliverables.
+Cue's artifacts are already reviewed through UID 221; Kaggle is reported stopped.
+Do not launch new training or replace the selected base with a pilot adapter.
 
 ## Responsibilities and communication
 
@@ -613,3 +623,514 @@ Remaining plan evidence: human-reviewed larger Civil Code/RAGAS evaluation,
 final project report/screenshots. Optional hosted observability/CI settings need
 their own external configuration. Fine-tuning and Cue's bounded handoff are
 finished; no further training or Kaggle work is required for local use.
+
+## Final-project evaluation authorized — 2026-10-15
+
+The user authorized completing the remaining quality evaluation, five measured
+configuration comparisons, 50-user load/TTFT test and final-project evidence.
+Use `G:\Downloads\1576751803.pdf` and the existing Qalam parser. They prefer
+progress updates only when requested; keep detailed progress in local artifacts.
+No new training or Cue/Kaggle task is needed. Preserve existing projects/indexes.
+
+The supplied file at `/mnt/g/Downloads/1576751803.pdf` is byte-identical to the
+existing corpus: SHA-256
+`2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf`.
+Independently reran `scripts/build_legal_corpus.py` on the user-specified path;
+output is `eval/reports/final-project/corpus/articles.json`: 1,149 articles,
+2,297 nonempty Arabic/English text fields, the known 1021/1022 alignment issue,
+and no new validation error. Longest field is 525 Qwen tokens. This is actual
+Qalam extraction, not a claim that every article has been legally reviewed.
+
+OpenRouter's current key has only 44 of 50 daily free-model requests remaining,
+so it cannot support the requested evaluation/load workload. The project's
+existing NVIDIA key in ignored `src/.env` independently passed an authenticated
+probe of **the same** Nemotron VL 1B v2 embedding model (2,048 dimensions).
+A separate large NVIDIA Nemotron judge also returned valid structured JSON.
+Plan: use a private local evaluation profile with that existing direct endpoint,
+keeping production Docker credentials/settings/index identities untouched.
+Record the exact endpoint/model distinction in the final evidence. No paid API,
+new account, external deployment or replacement model weights were requested.
+
+Next: freeze source-reviewed bilingual cases, validate the independent judge,
+extend the existing evaluator for full bilingual corpus/batched seeding and
+resumable evidence, execute five comparisons plus the full metric suite, then
+run the isolated HTTP load test and create the final report/screenshots. These
+experiments are authorized but **not yet executed** at this checkpoint.
+
+## Frozen Civil Code evaluation in progress — 2026-10-15
+
+Created `eval/civil_code_full.json` and its checksum manifest before generation:
+62 cases (25 answerable plus six unanswerable per language), covering 25 distinct
+articles. Historical acceptance references are retained, their oracle contexts
+removed, and ten source-reviewed questions add Articles 226/374/558/802/1148.
+Rendered bilingual PDF pages 28/50/74/113/170 were inspected locally. This is
+assistant review, not independent human legal review. Dataset SHA-256:
+`18bcdaee5525639b721be2a2a6d473da33b1d8bfe5e68b55317cc7c9306a72b0`.
+
+The independent NVIDIA Nemotron 120B judge correctly distinguished all 12
+correct/incorrect Arabic/English sanity examples. A real RAGAS probe produced
+all four metrics; NVIDIA embeddings require `input_type` for both single and
+batched RAGAS calls, now supplied in the evaluation adapter. These are actual
+executed checks, not agreement with legal experts.
+
+Evaluation now seeds all 2,297 language chunks in batches, uses semantic refusal
+checks for the new benchmark, retains raw answers before judging and checkpoints
+completed scores. Generation remains sequential; up to three remote grading
+workers overlap. Restored the citation header in Qalam's production chunk text
+so numbered provisions remain identifiable inside the prompt, matching the
+existing evaluator representation. Existing stored chunks are not rewritten.
+Expanded stage histogram buckets to measure queuing beyond ten seconds.
+
+Latest executed suite: **226 tests and 12 subtests passed**. The first complete
+62-case configuration has saved all answers (one in an earlier completed row,
+61 in the raw-answer map), with 39 fully scored before the judge returned HTTP
+429. No aggregate comparison is complete yet. Resumed from saved answers with
+HTTP-level request spacing of 2.1 seconds, retaining earlier scores and RAGAS
+cache. The interruption/rate-limit evidence stays in the experiment log.
+
+Outputs: `eval/reports/final-project/`; current checkpoints are under
+`configurations/`, and MLflow uses `reports/mlflow.db`. A focused isolated API
+load-test runner and delivered-SSE latency/token-throughput probe are prepared,
+but **load testing and the final report are still unexecuted** at this checkpoint.
+Production Docker settings and indexes remain untouched; no Cue/Kaggle action.
+
+### Status request / resumed scoring — 2026-10-15 15:49 Cairo
+
+The user asked whether everything is done. Answered that engineering evidence is
+still in progress; no completed comparison/load/report was claimed. Latest full
+suite remains 226 tests plus 12 subtests passing. Local commits `9e2882e` preserve
+Qalam citation headings and `36abf57` adds the frozen/resumable evaluation.
+
+Scoring resumed with request pacing; the first comparison reached 60/62 graded
+cases. Its raw answers were not regenerated. `scripts/run_experiments.py` remains
+active; after all five comparisons finish, the one-off local finalization runner
+(`/tmp/finish_rag_evidence.sh`, log `eval/reports/final-project/finalization.log`)
+is waiting to execute the isolated full-PDF API ingestion, SSE probes, 50-user
+Locust test and report generation. Check process and output state before starting
+anything again. Do not launch duplicate evaluation or load processes.
+
+Reviewed all 62 baseline answers against frozen references. Recorded specific
+model errors and judge disagreements in
+`eval/reports/final-project/assistant-answer-review.json`, without changing any
+automated score. Clear findings include the Arabic Article 94 missing meeting-end
+condition, Article 147 omitted void-agreement clause, a generic category passed as
+a personal name, and Arabic Article 226 output truncation. The judge also
+fabricated interpretations of some Arabic text (notably court-address refusal
+and Article 374). Its simple 12-item calibration therefore does not establish
+reliable legal correctness. All final accuracy conclusions must retain this caveat
+and source/answer review; no legal expert review exists.
+
+Tried the existing NVIDIA account for an alternative Kimi and Mistral judge;
+both returned 404 indicating those listed models are unavailable to this account.
+No new key/account, paid endpoint, or generator change was made. Existing
+Nemotron scores are preserved as provisional automated diagnostics.
+
+The report generator `scripts/report_final_project.py` requires all five complete
+62-case reports and actual load/streaming artifacts. It cannot produce a completed
+report from partial scores. Playwright rendering and Matplotlib imports were
+independently checked; final screenshots/PDF exports and final review/commits
+remain pending. Production Docker services/settings/indexes are unchanged.
+
+### First comparison complete — 2026-10-15 15:50 Cairo
+
+Verified `configurations/article-rerank.json`: all 62 cases scored. Automated
+faithfulness 0.9491, reference accuracy 58/62 (0.9355), article hit rate 1.0,
+p95 RAG latency 28.72 seconds; the existing engineering gate passes. These remain
+provisional LLM-judge scores because the independently recorded Arabic
+misreadings and model errors have not disappeared. Do not equate 58/62 with
+legally correct answers.
+
+The second configuration is actively building its disposable full-corpus index
+(850/2,297 chunks at the status check), so a missing checkpoint does not mean its
+process has not started. Four comparisons remain incomplete. The finalization
+runner is still waiting; no load/streaming results or final report exist yet.
+User asked only for the remaining list; no new scope or duplicate run was added.
+
+### Finish the remaining tasks authorized — 2026-10-15
+
+The user explicitly said to do the four remaining tasks now. Continue the
+existing live comparisons, then complete load/SSE measurements, result review,
+report/figures/screenshots and professional local commits. Keep updates quiet
+unless requested. Do not stop at another status list or launch duplicate runs.
+The same experiment process and finalization runner are still active; inspect
+saved progress and recover routine provider/tool errors autonomously.
+
+Prepared report rendering with actual Markdown tables and portable PNG/PDF
+figures; separate measurement dependencies are pinned in
+`loadtest/requirements.txt`. Load evidence will record observed peak users,
+actual failures and one-second GPU samples. These additions are prepared code,
+not claims that the load run already occurred. Human legal review remains
+outside what an automated agent can truthfully complete.
+
+### Provider availability and actual API/load execution — 2026-10-15
+
+The Super judge resumed but hit HTTP 429 again even below 40 observed responses
+per minute. Saved baseline scoring remains complete (62); no-rerank has all 62
+answers and 34 completed scores. Paused scoring to complete independent work.
+Request handling now respects Retry-After/minimum 60-second cooldown, limits
+judge HTTP concurrency to two and retries only transient failures from saved
+checkpoints. Regression tests cover cooldown and wrapped-error classification;
+commit `579a1a8`. No duplicate scoring process should be launched without checking.
+Alternative NVIDIA Kimi/Mistral were 404; Ultra passed a tiny probe and four
+English calibration calls, then 503; DeepSeek and GLM probes timed out. These
+alternatives are not accepted judges and no existing score was replaced/mixed.
+
+Grafana's running container had empty WSL bind directories after restart: only
+its folder existed and the dashboard API returned 404. Recreated **Grafana only**
+with the existing named volume and Compose mounts; dashboard now returns 200
+with all 13 panels. No orphan container/volume was deleted. Published the real
+completed baseline evaluation through the existing node-exporter textfile path;
+quality metrics are present. They remain provisional automated scores.
+
+Started the isolated real API load workflow. The first setup exposed an existing
+bug: upload returns numeric asset IDs, whereas processing looked up only stored
+filenames. Fixed the project-scoped AssetModel lookup to accept returned IDs
+while keeping stored filenames and rejecting out-of-range IDs. Thirty targeted
+checks passed, and the actual second API run processed the supplied PDF into
+2,297 Qalam chunks successfully. Commit `e13a19a`. Full suite after this fix:
+**233 tests, 12 subtests, 86.48% source coverage**, exceeding the 70% requirement.
+First failed setup artifacts are retained in `load-setup-attempt1/`.
+
+The second run indexed all 2,297 chunks and completed six delivered-SSE/tokenizer
+probes. The 50-user Locust run is active/draining under
+`eval/reports/final-project/load/`; wait for its metadata and stop before any
+new GPU-quality run. Initial failures/long health latency reveal threadpool
+starvation: run_serialized waits for its RLock *inside* a worker thread. A focused
+async wait gate outside the pool is being considered/tested next; retain the
+original load results and compare separately, without claiming the 6-GiB,
+one-generation-sequence setup meets a 50-user latency target.
+
+Added a capture-only evaluation phase (currently being verified) so real RAG
+answers/contexts/retrieval hits/latencies can finish across all five frozen
+configurations when the external judge is unavailable. It writes separate
+`.capture.json` artifacts with status `awaiting_judge`; it must not claim scored
+accuracy or a passed gate. Normal resume reuses exact saved answers. The final
+report must distinguish complete scores from captured-but-unscored work.
+
+### Continued after host restart — 2026-10-15
+
+The first 50-user run is preserved under `load-baseline/`: observed peak 50,
+66 answer requests / 49 failures in the final console (periodic CSV omits one
+trailing request), and four failed health probes. Six SSE probes completed.
+This failed capacity target is evidence, not a pass. Queued synchronous model
+locks exhausted the API worker pool; commit `e6c42a7` awaits the per-provider
+async gate before entering a worker and raises the general SQL command budget
+to 30 seconds for bulk chunk deletion. Targeted regression checks passed.
+The readiness check retains its separate bounded deadline.
+
+The PGVector setup successfully processed/indexed all 2,297 Qalam chunks, but
+its second SSE probe failed when vLLM raised `CUDA error: unknown error` at
+2026-10-15 13:57:56 UTC. It was not an embedding/indexing failure or a completed
+Locust run. That attempt remains in `load-setup-attempt3/`. The host subsequently
+restarted; both managed GPU services started automatically. No driver/reset or
+manual service interruption was performed during this continuation.
+
+Resumed measurements reuse only the already indexed disposable PGVector project
+900102, checking its saved/current index info first. No corpus upload or remote
+re-embedding is repeated. Independent keys remain temporary. Measurement tools
+now live at `~/.cache/rag-final-tools` so a `/tmp` cleanup cannot remove them;
+Chromium and package caches stay on G:. Inspect active processes before starting
+another load or GPU-quality run. No new Cue/Kaggle work is authorized/needed.
+
+### Measured PGVector capacity and verification — 2026-10-15
+
+The measurement-only retry completed: 50 observed users, 58 answer requests,
+50 failures (180-second p95/p99 client timeout), and four health requests with
+one failure. Locust exit 1 is retained. Final authoritative counts come from
+`load/load-final.json` after draining; periodic CSV/HTML may lag. Six SSE probes
+all completed: first delivered text 21.435, 16.485, 33.569, 18.553, 17.634,
+20.111 seconds. Buffered guardrails make these end-to-end delivery times, not
+engine TTFT. This hardware/profile does not meet a 50-user capacity target.
+The original Qdrant run and later seeded PGVector run are not a controlled causal
+comparison of the async gate; backend, boot/runtime and workload also differ.
+
+Added configurable index batches (default 50), scoped PGVector batch replacement,
+and verified the actual SQL against project 900102: reinserting the same saved
+chunk/vector twice leaves exactly 2,297 rows. No other collection was touched.
+The full suite initially exposed missing new settings in test fixtures; corrected
+those fixtures and exercised single-record pagination/pacing. Final executed
+suite: **236 passed, 86.55% source coverage**. Commits `a6d3bcb`, `e3967bd`.
+Capture/scoring separation is committed as `3acb758`; raw generation can finish
+without inventing quality scores while the independent judge is throttled.
+
+The capture runner is now building the 250-character full-corpus configuration
+(4,215 chunks). Offline judging resumed the existing no-rerank checkpoint from
+34 completed scores; it reached 35 and encountered another judge 429. No raw
+answers were regenerated. Both processes are active; inspect them before starting
+anything else. Five scored comparisons, final report exports and the shareable
+archive remain incomplete at this checkpoint. Grafana dashboard API returns 200
+with 13 panels and all five Prometheus scrape targets are up after this restart.
+
+Rebuilt only the existing Docker FastAPI image after confirming zero queued or
+running production jobs. The fixed code is now in the running image; nginx health
+200, missing-key 401 and authenticated blank-query 422 all include request IDs.
+Production model/embedding settings and indexes are preserved. No orphan Mongo
+container, user volume or GPU service was removed. Evidence is saved in
+`docker-rebuild.log` and `docker-verification.json`.
+
+Reference-rubric responses now share a checksum-bound cache with the existing
+RAGAS cache, so successful rubric calls are reused if later metrics fail. Model,
+endpoint, exact prompt/input, temperature and options form its key. Targeted
+26-test evaluation suite passed, including identical-input reuse and changed-input
+cache separation; commit `3338395`. Restarted only the offline scoring process to
+load this fix; raw RAG answers and completed grades were retained. A tiny direct
+Super judge probe still returned 429 / Too Many Requests without Retry-After.
+No alternative judge was silently substituted.
+
+### Captures and malformed judge output — 2026-10-15
+
+The 250-character configuration completed all 62 real answers/contexts with no
+empty answers or missing contexts; article hit rate 1.0 and observed p95 27.308s.
+A focused seven-case assistant review is saved as `assistant-250-review.json`.
+It found a real Arabic Article 44 numerical failure: answer 20 although both
+retrieved language passages say twenty-one. Incorrect English Article 1 article
+attributions/extra fallback, Article 94 omissions and the person-name failure
+remain. Targeted no-rerank review covers 11 Arabic cases. These are diagnostic
+reviews, not a new legal accuracy label set; no machine score was changed.
+
+The no-rerank judge reached 54/62, then returned unterminated JSON. This is an
+external structured-output failure, separate from HTTP 429. Its traceback is
+preserved in `scoring-invalid-output.log`. Added strict rubric schema validation,
+rejection of length-terminated output, one 4,096-token retry after a reported
+2,048-token length termination, and bounded retries of invalid judge output.
+Bad response diagnostics are saved in the existing ignored judge cache. The
+27-test evaluation suite passes, including truncated-output recovery, cooldown,
+exact cache reuse and changed-input separation. Resumed only offline scoring
+from saved answers/grades; it reached 55/62 at the latest check. No generation
+was repeated and no judge/prompt was replaced.
+
+The 500-character configuration is generating after indexing 2,694 chunks.
+The final top-three article configuration, full score comparison and final
+report/archive are still pending. Actual Locust and Grafana screenshots were
+rendered and visually inspected; the latter is the production dashboard, not
+an isolated-load scrape. Its ten per-language baseline quality series are live
+in node_exporter and Prometheus. No Kaggle/Cue work was opened.
+
+Latest full suite after structured-output handling: **237 passed, 86.55% source coverage** (see unit-tests.log).
+
+### Sequential judge scheduling / second full score — 2026-10-15
+
+Reduced only the judge request schedule to one HTTP request in flight and one
+case-grading worker (same model, prompts, temperature, frozen answers and cache).
+This reduces overlapping prototype pressure; it is not evidence of a legal-quality
+improvement. The 27 targeted evaluation tests pass; commit `b6f867d`.
+No-rerank then completed all 62 scores: faithfulness 0.9461, reference accuracy
+56/62 (0.9032), context precision 0.8936, recall 1.0, observed p95 28.000s.
+Arabic reference accuracy 26/31, English 30/31; abstention 8/12. Its engineering
+gate passes, while the independently recorded model/judge defects remain.
+
+All 62 500-character answers are captured with no empty answers or missing
+contexts; hit rate 1.0, p95 36.618s. Targeted review of seven cases preserves the
+same Arabic 94/147 omissions, unsupported Article 44 explanation, person-name
+failure and truncated Article 226. It does not establish aggregate legal accuracy.
+The final article-k3 run is generating; the offline worker has started scoring
+250-character outputs from the existing capture, with no generation repeated.
+
+### All five raw comparisons and report export — 2026-10-15
+
+All five configurations completed 62 real answers each: **310 captures**. A fresh
+coverage/hash audit confirms the exact frozen IDs, no empty answers, no missing
+contexts, the same prompt (`rag-4d3aa56930b0`) and encoder fingerprint. Five capture
+runs are saved in MLflow alongside the earlier scored/failed attempts (13 total
+runs at the audit). Source PDF bytes/hash, 1,149 articles, 2,297 language chunks and
+the frozen dataset hash were checked again. The GPU capture process has exited.
+
+Article-k3 observed p95 is 33.956s and article hit rate 1.0. A seven-case review
+finds better completeness for Arabic Articles 147 and 226, but Article 44 starts
+with twenty-one then incorrectly gives 18 twice; the generic-category-as-name
+failure persists. See assistant-k3-review.json. These are targeted observations,
+not a new legal accuracy average or an authorized default/prompt change.
+
+Scoring remains at two complete reports plus two graded 250-character cases;
+500-character/k3 grading has not started. Sequential requests did not eliminate
+429. Removed nested OpenAI SDK retries so the checkpoint runner owns bounded
+recovery instead of multiplying SDK/Instructor/runner retry counts (`238c793`).
+27 targeted checks pass; latest full suite is **237 passed / 86.55% coverage**.
+The offline worker is exhausting its existing bounded attempts; do not restart
+it indefinitely or replace missing grades with fabricated metrics.
+
+The Markdown/HTML report, four PNG/PDF figures and landscape report PDF have been
+exported with pending grades explicitly n/a. The PDF source/table pages, Locust
+and Grafana screenshots were rendered and visually inspected. A post-rebuild
+nginx/API smoke produced nonempty cited English and Arabic answers on existing
+project 900001; this is a connectivity/citation check, not another legal benchmark.
+The shareable archive, final snapshot/commits and pending-grade handoff are being
+finished. No new Cue/Kaggle work, training, deployment target or paid API was used.
+
+### Finalization resumed after host restart — 2026-10-16
+
+Read the latest mail history again; UID 221 is already reviewed and no new Cue
+work is needed. The laptop/WSL had restarted before this turn. Both managed GPU
+services became healthy automatically; Docker Desktop then restored the existing
+containers. Direct API and nginx readiness both returned 200 with all dependencies
+ready. `post-restart-verification.json` records this actual check. No volume was
+reset and no training/generation sweep was repeated.
+
+The offline scorer had stopped at 3/62 graded 250-character cases, after an invalid
+reference-rubric schema. Invalid schema responses now receive the same saved raw
+diagnostics as invalid/truncated JSON and are never cached as scores. A meaningful
+mocked recovery test verifies rejection of a quoted boolean, saved diagnostics,
+and exact-input reuse of the later valid rubric. Full suite: **238 passed**, 12
+subtests, **86.55% source coverage**; Ruff and formatting pass. Offline scoring
+resumed only from saved answers; the first resumed request again encountered
+NVIDIA HTTP 429. A bounded availability check of the existing account's current
+model catalogue is being made; any alternative would require calibration and
+separate complete scoring, never mixing judges in one comparison.
+
+The recovery probe found Nemotron 3.5 Super VL available, but **11/28** frozen
+bilingual control judgments were wrong. In particular, it accepted wrong Arabic
+ages, incomplete Article 147 answers, invented court/person facts and wrong
+prescription rules. Some returned claims substituted the expected answer for the
+actual supplied answer. The full inputs/outputs are retained in
+`super35-judge-calibration.json`; this judge was rejected without scoring any
+comparison case. DeepSeek V4.1 Flash with its documented `thinking=false` option
+timed out after 45 seconds. No alternative scores were mixed in. The original
+Super grader progressed to 4/62 for the 250-character configuration, but its
+bounded retry sequence continues to encounter HTTP 429.
+
+### Corrected bilingual rubric and consistent regrading — 2026-10-16
+
+The judge failure investigation found an implementation issue: the rubric's
+JSON-serialized user message used escaped Unicode for Arabic, and its instructions
+could confuse candidate claims with reference claims. The revised
+`candidate-unicode-v2` rubric sends readable Arabic, uses a distinct
+`candidate_answer` field, prohibits substituting reference numbers/claims, and
+explicitly rejects missing required conditions. With this revision the available
+Super VL judge passed **28/28** controls, including the previously failed ages,
+Article 147 omission and invented personal/court facts. This does not establish
+legal expert agreement or guarantee real-case grading quality.
+
+Started a fully separate regrading of all 310 existing captures in
+`configurations-unicode-v2/`, using the same Super VL judge/options across every
+configuration. Original generation, retrieval and production settings are unchanged.
+The legacy scores/failures remain under `configurations/` and are not mixed into
+this comparison. A versioned judge-profile manifest rejects mismatched or legacy
+scoring directories. Tests cover this rejection and preservation of literal Arabic
+in the request payload.
+
+The original Super worker exhausted its bounded retries with HTTP 429, retaining
+4/62 250-character grades. The revised scorer was checkpointed once to enable two
+HTTP slots/three grading workers while retaining 2.1-second request spacing; its
+completed grades/cache were reused. The KeyboardInterrupt in that scoring log is
+this intentional offline-worker scheduling restart, not a new GPU/model failure.
+No RAG answers, training or load test were rerun. Final comparison/report/archive
+will use the consistent revised scores once all five finish.
+
+The revised grading/profile checks pass in the full suite: **240 tests**, 12
+subtests and **86.55% source coverage**. The consistent regrade has completed five
+article-rerank cases. Its first transient provider HTTP 500 is being handled by
+the existing bounded checkpoint retry; this is not a changed model answer or a
+training failure. Final packaging waits for the actual result of that recovery.
+
+The two-slot Super VL attempt encountered repeated transient 500s. Its saved
+checkpoint/cache were retained and the offline scorer was returned to one HTTP
+slot/one grading worker, still at 2.1-second spacing. It then resumed real grading
+without repeating captured generation. A second intentional offline-worker
+KeyboardInterrupt appears in the log for this scheduling adjustment. The HTTP
+error diagnostic option stores request/response bodies only inside the ignored
+cache and excludes authorization headers; its mocked check confirms the API key
+is absent. Thirty targeted evaluation checks pass. Final recorded full suite
+remains 240 tests / 86.55% source coverage.
+
+Fresh post-restart English/Arabic requests through nginx/project 900001 each
+returned 200, a nonempty answer and one source (~12.5s each). These consume only
+two production embedding requests and are separate from the frozen benchmark.
+English gives the source's fallback order; Arabic adds a redundant circular final
+fallback sentence. This is a connectivity/citation smoke with a retained semantic
+caveat, not an accuracy claim. See post-restart-answer-smoke.json. All five current
+Prometheus targets are up and ten recorded per-language baseline series are live.
+
+Intermittent provider 500s continued even with serial requests. The offline
+runner's recovery budget now resets only when the checkpoint gained completed
+cases, instead of exhausting four retries over an entire long configuration.
+It still stops on four consecutive failures without progress, a non-transient
+error, or an exhausted recovery deadline. Two meaningful tests exercise continued
+progress past four total interruptions and bounded stalled retries, including
+client cleanup. All 32 targeted evaluation tests pass. The scorer was checkpointed
+once to load this recovery fix and enable private HTTP-error diagnostics; its
+completed 16 cases and exact cached work were retained. No model answers changed.
+
+Full suite after the recovery change: **242 passed**, 12 subtests, **86.55% source
+coverage**. Inspection of the revised judge's real Article 44 Arabic verdict found
+that it still omits the unsupported definition of legal interdiction from its
+claim list and gives full faithfulness. This is retained in
+`revised-judge-review.json`; the earlier assistant review already identified the
+model defect. Calibration passed but is not exhaustive legal validation. The report
+will explicitly preserve this current-judge limitation, without inventing corrected
+aggregate accuracy or changing the frozen answers/prompts to improve scores.
+
+The handoff now includes copies of the earlier independently checked training,
+controlled-inference and acceptance audit reports under prior-model-study/, with
+a README identifying their historical startup/remaining-work statements. The
+report distinguishes Cue's acceptance judgments (base 34/52, SFT 18/52, M/A 16/52)
+from locally reproduced counts, and from the new actual-retrieval benchmark. It
+also keeps the English-context/cross-language limitation and the five training
+mask-label conflicts. No adapter weights, private mail or model downloads are
+added to the evidence bundle. MLflow's final scored runs will log judge/rubric
+identity and per-language metrics alongside the existing global metrics.
+
+### First complete consistent regrade — 2026-10-16
+
+`configurations-unicode-v2/article-rerank.json` now contains all 62 completed
+scores from the candidate-unicode-v2/Super VL profile. The no-rerank configuration
+has started using exact saved captures/cache. The prior-model source review's
+Arabic Article 44/94/147/226 defects remain; the revised judge still gives false
+positive reference judgments for several of them. These are recorded in
+revised-judge-review.json and the report; aggregate correctness is an automated
+estimate, not legal acceptance. The complete current article-rerank report has
+been published to the existing Prometheus textfile collector; this supersedes the
+legacy dashboard pilot scores only, without changing production model/indexes.
+
+Current offline command (still running, do not duplicate):
+`.venv/bin/python scripts/score_captured.py --env-file .env.evaluation-super35 --reports eval/reports/final-project/configurations-unicode-v2 --wait-seconds 14400`
+Its log is `eval/reports/final-project/scoring-unicode-v2.log`. It never calls the
+RAG generator. Original captures and legacy grades remain in configurations/.
+All 310 original generated answers/contexts are complete and immutable.
+
+After all five new scored JSONs exist: run run_experiments.py with the frozen
+civil_code_full.json dataset, actual results/corpus/articles.json, --reports
+pointing to configurations-unicode-v2, --env-file .env.evaluation-super35,
+--full-metrics --resume, to log the five completed scores in MLflow without new
+inference. Then render report_final_project.py with --configurations pointing to
+that new directory (strict mode, no --allow-incomplete). Refresh capture/hash
+coverage audit, MLflow run export and current plan-review status; render the actual
+PDF/Locust/Grafana evidence with export_final_evidence.py --render using the tools
+environment ~/.cache/rag-final-tools and browser cache on G:. Private Grafana
+credentials are passed via dotenv/subprocess environment, never printed.
+
+Finish by visually checking report/table pages and figures; commit the report,
+figures, setup/evaluation/plan/runbook docs and memory professionally. Export a
+credential-scanned evidence ZIP under /mnt/g/Downloads/ with Oct16 date. The private
+scan candidate file currently exists at /tmp/rag-final-export-secrets.json (600);
+recreate from ignored profiles if needed, never display it. All ZIP CRCs and each
+manifest payload SHA must verify; save whole-archive SHA sidecar. Record archive
+path/hash in memory in a final follow-up commit. Leave the unrelated untracked
+rag-ishms-current.md user transcript alone; exclude it, all mail, profiles, caches
+and model weights from the archive. Keep Docker and the managed model services
+running. No new training/Cue/Kaggle/deployment/push is authorized or needed.
+
+The completed revised article-rerank metrics are faithfulness 0.98143, automated
+reference match 61/62 (0.98387), relevancy 0.71463, precision 0.95511, recall 1.0,
+article hit 1.0 and observed p95 28.719s. Arabic automated reference match 30/31,
+English 31/31. These high numbers are known to miss substantive defects; they must
+not be presented as legally correct-answer percentages. The gate passes only its
+automated threshold. Exact machine scores and the source-review disagreements
+are both retained.
+
+### Recovery after interruption / provider cooldown — 2026-10-16
+
+The prior user turn was interrupted; read memory/mail history again before
+continuing. UID 221 is still the latest incoming artifact and already reviewed.
+The independent offline process had continued and completed all 62 no-rerank
+scores, then stopped at 5/62 for 250-character scoring after four consecutive
+HTTP 429 failures without progress. No scorer was running at the new inspection.
+Original captures remain complete; no generation is needed.
+
+At 03:29 UTC a fresh same-account/same-judge availability probe returned 200 in
+0.6s (`judge-current-availability.json`). Resumed only offline scoring using the
+same versioned profile/checkpoints/cache, reducing request spacing from 2.1s to
+5s while retaining one HTTP slot/one grading worker. This is an operational
+schedule change, not a new scoring rubric or model. New log:
+`eval/reports/final-project/scoring-after-cooldown.log`. The prior log/failed
+attempts are preserved. Wait for actual grading progress before claiming service
+recovery; the tiny probe alone does not establish a completed evaluation.

@@ -369,7 +369,7 @@ def main():
         "Measured Civil Code retrieval, answer quality and local serving capacity. These results are engineering diagnostics; they do not certify legal correctness.",
         "",
         (
-            "**Scoring is incomplete.** All five configurations have captured 62 answers each, but the external judge is rate-limited. Missing scores are n/a; no five-way quality winner or promotion is claimed."
+            "**Scoring is incomplete.** All five configurations have captured 62 answers each. Missing scores are n/a; no five-way quality winner or promotion is claimed while the consistent regrade is unfinished."
             if summary["status"] == "awaiting_judge"
             else "All five configurations have completed automated scoring; the judge limitations below still apply."
         ),
@@ -520,7 +520,7 @@ def main():
         "",
         "See `eval/CIVIL_CODE_EVALUATION.md` for the frozen dataset, extraction and five-run command. Raw reports, checkpoints, calibration, exact contexts, MLflow tracking database, Locust CSV/HTML, streaming probes and metric snapshots remain local under `eval/reports/final-project/` and `reports/mlflow.db`. No secrets are included in the shareable evidence archive.",
         "",
-        "The Grafana screenshot shows the configured production dashboard and published completed article-rerank pilot scores. The isolated port-8003 load API was not a Prometheus scrape target; its stage figures use the saved before/after metric snapshots. Locust HTML is a periodic snapshot; final JSON counts after draining take precedence.",
+        "The Grafana screenshot shows the configured production dashboard and the published completed article-rerank scores from the current versioned judge. The isolated port-8003 load API was not a Prometheus scrape target; its stage figures use the saved before/after metric snapshots. Locust HTML is a periodic snapshot; final JSON counts after draining take precedence.",
         "",
     ]
     args.report.parent.mkdir(parents=True, exist_ok=True)

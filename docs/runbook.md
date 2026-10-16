@@ -9,6 +9,9 @@ For free upstream models, local `INDEX_BATCH_DELAY_SECONDS=3.5` paces indexing
 batches without blocking the event loop. A free-provider 429 can leave a failed
 job with partial writes; inspect job status, let the quota window reset and retry
 with pacing. Do not reset the collection merely because a batch was throttled.
+`INDEX_BATCH_SIZE` defaults to 50 (range 1–100); reduce it for a provider that
+cannot complete larger requests. PGVector batch retries replace the supplied
+chunk IDs within one transaction and preserve unrelated vectors.
 
 ## Alerts
 
@@ -55,8 +58,13 @@ Install Locust in a separate environment and run from the repository root:
 `locust -f loadtest/locustfile.py --host http://localhost:8000 --users 50 --spawn-rate 5 --run-time 3m --headless --csv reports/load`.
 Set LOADTEST_PROJECT_ID to a disposable project with the benchmark corpus indexed.
 Use stage p95 in Grafana to identify the bottleneck. The benchmark treats missing
-sources as failure because its questions are answerable. Do not report measured
-throughput/quality until the actual fine-tuned generation model is available.
+sources as failure because its questions are answerable. The selected generator
+is the untuned Qwen base; no adapter is required for this comparison. The measured
+PGVector 50-user run failed 50/58 answer requests, with p95 at the 180-second client
+timeout. Do not present this laptop as meeting the 50-user capacity target.
+The async provider wait gate protects worker availability; it does not create
+additional model capacity. See [evaluation reproduction](../eval/CIVIL_CODE_EVALUATION.md)
+and the final-project report for the recorded profile and guarded SSE timings.
 
 ## Exposure
 
@@ -75,9 +83,9 @@ Docker API authentication is configured by scripts/configure_api_access.py. Send
 X-API-Key from the ignored client environment file; keep it out of logs/reports.
 401 means missing/invalid key; 403 means the identity lacks this project; 429 means
 the single-worker key quota is exhausted. Follow Retry-After. To perform a measured
-50-user test, increase RATE_LIMIT_PER_MINUTE/BURST for the isolated benchmark
-identity/deployment, then restore normal limits afterward. A shared service key
-shares one quota; it is not a replacement for authenticated individual users.
+50-user test, use the isolated runner's 50 temporary project-scoped identities.
+Per-key limits remain enabled. A shared service key shares one quota; it is not
+a replacement for authenticated individual users.
 
 ## Quality alerts
 

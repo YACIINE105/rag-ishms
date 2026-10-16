@@ -1,5 +1,30 @@
 # Docker verification
 
+## Civil Code evaluation follow-up — 2026-10-16
+
+- Rebuilt the existing FastAPI image with the tested asset-ID processing lookup,
+  Qalam citation headers, async model wait gate, 30-second bulk SQL budget and
+  idempotent PGVector batch replacement. No active production job existed before
+  recreation; existing settings, documents and vector volumes were preserved.
+- Live nginx readiness returned 200 with all dependencies ready. Missing-key
+  and authenticated blank-query checks returned 401 and 422 with request IDs.
+  The async wait gate is present in the running image. Existing chunks were not
+  rewritten to acquire the new Qalam headers.
+- Full suite: **242 passed, 86.55% source coverage**. Actual evaluation-project
+  SQL verified that two identical chunk reinsertions retain exactly 2,297 rows.
+- The real isolated PGVector load run observed 50 users, 58 answer requests and
+  50 failures, with p95 at the 180-second timeout. Six guarded SSE probes finished.
+  This is a failed capacity target, not a successful 50-user qualification.
+- Grafana returns the provisioned dashboard with 13 panels; all five Prometheus
+  targets are up. The port-8003 load API used saved metric snapshots and was not
+  a production scrape target. See the final-project report for quality-scoring
+  status, endpoint differences and retained failures.
+- After the laptop restart, both managed GPU servers returned health 200 and
+  the existing Docker containers recovered. API/nginx readiness again returned
+  200; missing-key and blank-query checks returned 401/422 with request IDs.
+  The image ID matches the tested rebuild. This is a restart check, not a new
+  50-user capacity result.
+
 ## GPU reranker follow-up — 2026-10-12
 
 - Host RTX 3060 Laptop GPU (6 GiB) and existing vLLM 0.30.0 / CUDA environment
