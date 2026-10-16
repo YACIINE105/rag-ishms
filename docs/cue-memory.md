@@ -1483,3 +1483,49 @@ global Windows/WSL AGENTS.md preferences were saved earlier in this maintenance
 session. The memory profile still requires a WSL restart; it has NOT been
 verified live. No WSL shutdown/restart was performed or scheduled. Preserve the
 user's resource budget when planning future local jobs.
+
+### OpenRouter key selection and quota fallback prepared — 2026-10-16
+
+The user requested a JSON list of OpenRouter credentials, explicit selection of
+the first key, and automatic use of the next key when a quota/rate limit fails.
+Implemented OPENROUTER_API_KEYS and zero-based OPENROUTER_API_KEY_INDEX. Invalid
+indexes and blank entries fail settings validation. The list uses SecretStr,
+is excluded from settings repr, and validation errors hide input values.
+
+The existing OPENAI provider uses this list only when the effective API URL
+matches OPENROUTER_BASE_URL. Explicit GENERATION_API_KEY credentials remain
+separate. No embedding provider name, model, dimension or index fingerprint
+changed. Empty lists retain the existing OPENAI_API_KEY behavior. Configured
+lists start at the selected index, wrap once through distinct keys on HTTP
+402/429 or recognized OpenRouter 403 budget errors, and remember a successful
+key until restart. Other failures do not rotate keys. A stream is never replayed
+after it starts. SDK automatic retries are disabled for list-based requests so
+each key is attempted at most once per operation. Fallback logs omit key values.
+
+INDEPENDENTLY EXECUTED: the full local suite passed 272 tests plus 12 subtests,
+87.23% source coverage; Ruff lint/format checks and git diff whitespace checks
+passed. New tests use the real OpenAI SDK with HTTP mock transport, including
+selection, bounded exhaustion, sticky successful keys, ordinary generation,
+streaming and health checks. They make no real provider calls. Docker-style
+environment validation passed with unchanged existing credentials/model values.
+The private Docker env now contains its existing effective OpenRouter key as a
+one-entry JSON list, index 0, with a private backup; no additional key was
+invented or received. Both private files are mode 0600 and remain ignored.
+
+The assistant accidentally included the existing OpenRouter key in an earlier
+tool result and informed the user to rotate it. Never repeat it in output or
+commit credentials. The user will add the replacement/additional key locally.
+
+ACTIVATION PENDING: the Docker image/container has not been rebuilt or recreated
+for this change. After editing docker/env/.env.fastapi, use the rebuild/wait and
+nginx reload commands in README.md. Do not claim live fallback has been tested.
+Project 9 remains failed with zero vectors; no indexing retry, Qalam processing,
+quota-consuming probe, reset, provider switch or model experiment was launched.
+The last observed quota reset remains 17 October 2026 at 03:00 Cairo.
+
+The user suggested changing their IP. Explained that the diagnosed failure is
+the OpenRouter daily free-model limit, not evidence of an IP block. Official
+OpenRouter limits documentation says additional keys/accounts do not increase
+overall limits. Key fallback does not create more daily quota. No IP, VPN or
+network changes were made. No Cue email was needed. WSL restart/live memory
+verification remains an independent pending action.

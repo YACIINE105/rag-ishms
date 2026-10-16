@@ -1,7 +1,7 @@
 from functools import lru_cache
 from typing import List
 
-from pydantic import Field, model_validator
+from pydantic import Field, SecretStr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -71,6 +71,8 @@ class Settings(BaseSettings):
 
     OPENROUTER_API_KEY: str = None
     OPENROUTER_BASE_URL: str = None
+    OPENROUTER_API_KEYS: List[SecretStr] = Field(default_factory=list, repr=False)
+    OPENROUTER_API_KEY_INDEX: int = Field(default=0, ge=0)
 
     GENERATION_MODEL_ID_LITTERAL: List[str] = None
     GENERATION_MODEL_ID: str = None
@@ -99,6 +101,10 @@ class Settings(BaseSettings):
 
     @model_validator(mode="after")
     def validate_clients(self):
+        if self.OPENROUTER_API_KEY_INDEX >= max(1, len(self.OPENROUTER_API_KEYS)):
+            raise ValueError("OPENROUTER_API_KEY_INDEX is outside OPENROUTER_API_KEYS")
+        if any(not key.get_secret_value().strip() for key in self.OPENROUTER_API_KEYS):
+            raise ValueError("OPENROUTER_API_KEYS cannot contain blank keys")
         if self.LANGFUSE_ENABLED and not (
             self.LANGFUSE_PUBLIC_KEY and self.LANGFUSE_SECRET_KEY
         ):
@@ -126,7 +132,7 @@ class Settings(BaseSettings):
                 raise ValueError('API clients require positive project IDs or ["*"]')
         return self
 
-    model_config = SettingsConfigDict(env_file=".env")
+    model_config = SettingsConfigDict(env_file=".env", hide_input_in_errors=True)
 
 
 @lru_cache(maxsize=1)

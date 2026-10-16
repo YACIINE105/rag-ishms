@@ -1,7 +1,7 @@
 import logging
 from typing import List, Union
 
-from openai import OpenAI
+from openai import APIStatusError, OpenAI
 
 from utils.generation import GenerationText, truncate_text
 
@@ -17,9 +17,12 @@ class OpenAIProvider(LLM_Interface):
         default_generation_max_output_characters: int = 1000,
         default_generation_max_output_token: int = 1000,
         default_generation_temperature: float = 0.2,
+        api_keys: List[str] | None = None,
     ):
 
         self.api_key = api_key
+        self._api_keys = list(dict.fromkeys(api_keys or []))
+        self._active_key_index = 0
         self.api_url = api_url
         self.default_generation_max_output_characters = (
             default_generation_max_output_characters
@@ -46,6 +49,44 @@ class OpenAIProvider(LLM_Interface):
         self.client = OpenAI(**client_kwargs)
 
         self.logger = logging.getLogger(__name__)
+
+    def _request_with_key_fallback(self, operation):
+        if not self._api_keys:
+            return operation(self.client)
+
+        starting_index = self._active_key_index
+        for attempt in range(len(self._api_keys)):
+            key_index = (starting_index + attempt) % len(self._api_keys)
+            client = self.client.with_options(
+                api_key=self._api_keys[key_index], max_retries=0
+            )
+            try:
+                response = operation(client)
+            except APIStatusError as error:
+                details = error.body if isinstance(error.body, dict) else {}
+                details = details.get("error", details)
+                metadata = (
+                    details.get("metadata", {}) if isinstance(details, dict) else {}
+                )
+                limit_source = (
+                    metadata.get("limit_source") if isinstance(metadata, dict) else None
+                )
+                budget_limit = error.status_code == 403 and limit_source in {
+                    "openrouter_key_limit",
+                    "openrouter_guardrail_budget",
+                    "openrouter_workspace_budget",
+                }
+                if (
+                    error.status_code not in {402, 429} and not budget_limit
+                ) or attempt == len(self._api_keys) - 1:
+                    raise
+                self.logger.warning(
+                    "API key limit reached (HTTP %s); trying the next configured key",
+                    error.status_code,
+                )
+            else:
+                self._active_key_index = key_index
+                return response
 
     def set_generation_model(self, model_id: str):
         self.generation_model_id = model_id
@@ -86,11 +127,13 @@ class OpenAIProvider(LLM_Interface):
         )
 
         try:
-            response = self.client.chat.completions.create(
-                model=self.generation_model_id,
-                messages=chat_history,
-                max_tokens=max_output_token,
-                temperature=temperature,
+            response = self._request_with_key_fallback(
+                lambda client: client.chat.completions.create(
+                    model=self.generation_model_id,
+                    messages=chat_history,
+                    max_tokens=max_output_token,
+                    temperature=temperature,
+                )
             )
             if (
                 not response
@@ -133,11 +176,13 @@ class OpenAIProvider(LLM_Interface):
         if isinstance(text, str):
             text = [text]
 
-        response = self.client.embeddings.create(
-            model=self.embedding_model_id,
-            input=text,
-            encoding_format="float",
-            extra_body={"input_type": input_type},
+        response = self._request_with_key_fallback(
+            lambda client: client.embeddings.create(
+                model=self.embedding_model_id,
+                input=text,
+                encoding_format="float",
+                extra_body={"input_type": input_type},
+            )
         )
 
         if (
@@ -174,18 +219,22 @@ class OpenAIProvider(LLM_Interface):
         if not model_id or self.client is None:
             return False
         # Probe authentication and service reachability without generating tokens.
-        self.client.with_options(timeout=3.0, max_retries=0).models.list()
+        self._request_with_key_fallback(
+            lambda client: client.with_options(timeout=3.0, max_retries=0).models.list()
+        )
         return True
 
     def stream_text(self, prompt, chat_history=None):
         """Iterator consumed by StreamingResponse's threadpool."""
         messages = list(chat_history or []) + [self.construct_prompt(prompt, "user")]
-        response = self.client.chat.completions.create(
-            model=self.generation_model_id,
-            messages=messages,
-            max_tokens=self.default_generation_max_output_token,
-            temperature=self.default_generation_temperature,
-            stream=True,
+        response = self._request_with_key_fallback(
+            lambda client: client.chat.completions.create(
+                model=self.generation_model_id,
+                messages=messages,
+                max_tokens=self.default_generation_max_output_token,
+                temperature=self.default_generation_temperature,
+                stream=True,
+            )
         )
         try:
             for chunk in response:

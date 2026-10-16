@@ -120,6 +120,9 @@ GENERATION_PROVIDER=OPENAI
 EMBEDDING_PROVIDER=OPENAI
 OPENAI_BASE_URL=https://openrouter.ai/api/v1
 OPENAI_API_KEY=YOUR_OPENROUTER_API_KEY
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+OPENROUTER_API_KEYS=[]
+OPENROUTER_API_KEY_INDEX=0
 GENERATION_BASE_URL=
 GENERATION_API_KEY=
 GENERATION_MODEL_ID=nvidia/nemotron-3-ultra-550b-a55b:free
@@ -145,6 +148,36 @@ answer request is still needed to verify generation. See
 
 For Docker, `docker/env/.env.fastapi` controls the application. `src/.env` is for
 host execution and is not the configuration file to edit for this deployment.
+
+To configure multiple OpenRouter keys, edit the private Docker environment file:
+
+```dotenv
+OPENROUTER_API_KEYS='["YOUR_FIRST_KEY","YOUR_SECOND_KEY"]'
+OPENROUTER_API_KEY_INDEX=0
+```
+
+Use a JSON list with double-quoted entries. Index 0 starts with the first key;
+index 1 starts with the second. On HTTP 402/429 or a recognized OpenRouter 403
+budget-limit error, the client tries the remaining distinct keys once, in order,
+wrapping around the list. It remembers a successful key until the API restarts.
+After every key fails, the request fails normally; there is no infinite retry.
+Other errors do not trigger key fallback, and an already-started stream is not
+replayed. Key values are not included in fallback logs.
+
+The list applies when the effective API URL matches `OPENROUTER_BASE_URL`.
+An empty list preserves `OPENAI_API_KEY`. Explicit generation credentials, such
+as the local Qwen server key, remain separate. Changing only keys does not change
+the embedding model or require rebuilding existing vector indexes.
+
+OpenRouter's overall rate limits still apply across keys; this configuration
+does not increase the daily allowance. See the
+[provider's limits](https://openrouter.ai/docs/api_reference/limits).
+After adding keys, rebuild/recreate the API and reload nginx:
+
+```bash
+docker compose -f docker/docker-compose.yml up -d --build --wait fastapi
+docker compose -f docker/docker-compose.yml exec nginx nginx -s reload
+```
 
 ### 3. Build and start
 
@@ -420,7 +453,7 @@ uv run pytest
 uv run pre-commit run --all-files
 ```
 
-The verified suite has 249 tests plus 12 subtests, with 86.79% source coverage; tests
+The verified suite has 272 tests plus 12 subtests, with 87.23% source coverage; tests
 use mocks and do not download native model weights or make paid inference calls.
 
 For the reproducible legal corpus and optional evaluation tools:

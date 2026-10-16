@@ -245,7 +245,11 @@ Use the port actually assigned to vLLM (8001 avoids the API's port 8000).
 Compose maps host.docker.internal to the Docker host. The server must listen on
 an address reachable from the Docker bridge. Configure its API key accordingly.
 OPENAI_BASE_URL/OPENAI_API_KEY remain the embedding provider settings when
-EMBEDDING_PROVIDER=OPENAI. Changing generation requires no vector rebuild.
+EMBEDDING_PROVIDER=OPENAI. For OpenRouter, optional OPENROUTER_API_KEYS is a JSON
+list and OPENROUTER_API_KEY_INDEX selects the starting key. Quota-limit failures
+try the remaining keys once; local GENERATION_API_KEY is kept separate. See the
+[key configuration](../README.md#2-set-database-and-model-credentials).
+Changing generation requires no vector rebuild.
 Changing the embedding model requires reindexing into its new fingerprinted
 collection. Pin the model revision in your release record.
 
