@@ -1308,3 +1308,31 @@ ZIP on G: with that source commit, verify every payload/whole-archive hash, reco
 the receipt and commit memory. Keep local GPU/Docker services running. No Cue
 query, remote deployment or new training is required. Preserve the untracked
 user transcript rag-ishms-current.md; never stage/export it.
+
+### Final verified handoff — 2026-10-16T06:49:49.954636+00:00
+
+Requested engineering work is complete. Source/report commit: 4d94dbb20c6d3d3a8d926dfb23dada34ebf9d47b.
+Final archive: /mnt/g/Downloads/RAG_ISHMS_Final_Project_Evidence_2026-10-16.zip
+Size: 8,622,336 bytes; SHA-256: cbb9c30e7c52e426310931a1b70f9c66ce1a494ca11836002dbb23f50ef59db3.
+Adjacent .zip.sha256 matches. The exporter scanned configured credentials, passed
+ZIP integrity and verified every one of 215 payload SHA-256 hashes. Additional
+archive checks confirm unique paths, five complete current reports/310 grades,
+the selected final MLflow release plus prior snapshot, and no .env files, private
+caches, mail, model weights or user transcript. evidence-export-receipt.json
+records these checks outside the ZIP (avoiding a self-referential archive hash).
+
+Direct Windows-friendly report copy: /mnt/g/Downloads/RAG_ISHMS_Final_Project_Report_2026-10-16.pdf
+It matches the audited 11-page PDF in the archive. The manifest pins the source
+commit above; this subsequent memory receipt is intentionally outside that bundle.
+Final tests: 244 passed, 12 subtests, coverage 86.55%; commit hooks passed lint,
+format, whitespace, conflict and private-key checks. All 310 raw answers are
+unchanged and all five scoring reports complete. No remaining engineering action
+is queued. The user's inline Codex checklist can be marked complete.
+
+Keep the current Docker and local Qwen/BGE GPU services running. Preserve existing
+user projects/data and the untracked conversation transcript. No remote deployment,
+push, training or new Cue request was performed. Cue/Kaggle remains closed per the
+previous reported shutdown. Known model numerical/omission errors, unreliable
+automated legal grading, 50/58 failed load requests and the 50-user capacity limit
+remain explicit. Legal expert approval/larger independent labels and optional
+external Langfuse/alerts/CI/registry setup are outside this completed local work.
