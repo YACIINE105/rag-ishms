@@ -5,6 +5,7 @@ services:
       context: ..
       dockerfile: docker/rag_ishms/Dockerfile
     container_name: fastapi
+    gpus: all
     extra_hosts:
       - "host.docker.internal:host-gateway"
     ports:

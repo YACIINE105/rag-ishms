@@ -6,10 +6,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 RUN python -m venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
-# Compose does not expose a GPU; avoid shipping CUDA libraries in the default image.
+# Install CUDA-enabled PyTorch; Compose exposes the host NVIDIA GPU at runtime.
 ARG TORCH_VERSION=2.14.1
-ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cpu
-RUN pip install --no-cache-dir "torch==${TORCH_VERSION}" --index-url "${TORCH_INDEX_URL}"
+ARG TORCH_INDEX_URL=https://download.pytorch.org/whl/cu130
+RUN pip install --no-cache-dir "torch==${TORCH_VERSION}" --index-url "${TORCH_INDEX_URL}" \
+    && python -c "import torch; assert torch.version.cuda is not None, 'CUDA-enabled PyTorch is required'"
 COPY src/requirements.txt ./requirements.txt
 RUN CMAKE_BUILD_PARALLEL_LEVEL=2 pip install --no-cache-dir -r requirements.txt
 # Keep the article parser in its own layer so updates do not rebuild native LLM wheels.

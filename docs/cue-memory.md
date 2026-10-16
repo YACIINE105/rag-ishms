@@ -1529,3 +1529,44 @@ OpenRouter limits documentation says additional keys/accounts do not increase
 overall limits. Key fallback does not create more daily quota. No IP, VPN or
 network changes were made. No Cue email was needed. WSL restart/live memory
 verification remains an independent pending action.
+
+### Docker activation completed with CUDA PyTorch — 2026-10-16
+
+The user authorized rebuilding/replacing the current API image, then explicitly
+rejected CPU-only PyTorch while the first build was running. Cancelled that CPU
+build before it produced a replacement image. Updated the Dockerfile default
+wheel index to cu130 for the existing PyTorch 2.14.1 pin, added a build check for
+CUDA support, and granted FastAPI GPU access with Compose gpus: all. Updated the
+runtime instructions. No host vLLM packages or model-serving topology changed.
+
+INDEPENDENTLY EXECUTED: the CUDA image built successfully and FastAPI was
+recreated after confirming there were no queued/running jobs. nginx configuration
+validation and reload passed. The new image ID is
+5e4dd0082d554e843faac8ff6f5e93ecb2cb8a94af4518d4f3afac569ccc6e5e,
+approximately 9.59 GiB. It reports torch 2.14.1+cu130 / CUDA 13.0 and the RTX 3060
+Laptop GPU. An actual CUDA tensor calculation passed inside the running image.
+The direct and nginx API smoke checks, missing-key 401 and pip check passed.
+
+The three changed Python source files match their running-image hashes. The
+configured one-entry key list/index 0 is active; explicit generation credentials
+remain separate and embedding fingerprint e1d11bf3cb36 is unchanged. In-image
+HTTP-mock tests passed for fallback, sticky success and bounded exhaustion. No
+real embedding/generation request, model download, indexing retry or experiment
+was submitted. These checks do not establish renewed OpenRouter inference quota.
+
+Preservation audit passed: all 14 volumes, every other container ID, both GPU
+service PIDs, all 19 saved job records (identical jobs.json SHA-256), and all
+model settings retained. All 13 unrelated image IDs remain. The superseded API
+image 1156358c522a88a1bb070b86fd229221fad8dda1708001856eb6d53f230bb769 is
+absent after replacement; Docker dropped its old reference during replacement,
+so an additional rmi/prune was unnecessary. No volume, model or other image was
+deleted. Retained the new build cache for subsequent source rebuilds.
+
+Activation is COMPLETE, superseding the pending activation in the preceding
+entry. The user still needs another usable OpenRouter key or available quota
+before project-9 indexing can succeed; the old failed job remains unchanged.
+The last full application suite is 272 tests plus 12 subtests, 87.23% coverage.
+No new quality, legal or capacity qualification is claimed. Build logs,
+runtime-verification.json, API smoke logs and receipt.json are in
+G:\WSL\maintenance\api-rebuild-2026-10-16\. No Cue email or WSL restart occurred;
+saved WSL 4 GiB RAM / 12 GiB swap activation remains pending.

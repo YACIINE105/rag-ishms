@@ -97,11 +97,19 @@ Run Docker commands inside the WSL distribution containing the repository.
 Building from a Windows `\\wsl.localhost` path can fail when Docker transfers
 Hugging Face snapshot symlinks. The native Linux client preserves those links.
 
-The default image installs CPU-only PyTorch because this Compose configuration
-does not request a GPU. `TORCH_VERSION` and `TORCH_INDEX_URL` are Docker build
-arguments for an alternative PyTorch wheel source. GPU deployment also requires
-matching drivers, runtime configuration, and GPU access in Compose. Native llama
-builds are limited to two compiler jobs to reduce peak build memory.
+The default image installs CUDA-enabled PyTorch 2.14.1 from the CUDA 13.0 wheel
+index, and Compose grants FastAPI GPU access with `gpus: all`. The host needs
+an NVIDIA driver compatible with CUDA 13.0 and Docker GPU support. Verify access
+with `nvidia-smi` inside the container. `TORCH_VERSION` and `TORCH_INDEX_URL` are
+Docker build arguments; the build checks that the installed PyTorch has CUDA
+support. Native llama builds are limited to two compiler jobs to reduce peak
+build memory. The separate vLLM generator/reranker environment remains in use.
+
+```bash
+docker compose -f docker/docker-compose.yml exec fastapi nvidia-smi
+docker compose -f docker/docker-compose.yml exec fastapi python -c \
+  'import torch; print(torch.__version__, torch.version.cuda); assert torch.cuda.is_available(); print(torch.cuda.get_device_name(0))'
+```
 
 For container settings, use `POSTGRES_HOST=pgvector` and `HF_HOME=/app/.hf_cache`.
 Each environment assignment must occupy its own line; do not copy host cache

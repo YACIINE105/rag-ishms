@@ -1,5 +1,36 @@
 # Docker verification
 
+## CUDA PyTorch and OpenRouter key fallback — 2026-10-16
+
+- Rebuilt and recreated only FastAPI, then validated/reloaded nginx. The user
+  explicitly requested CUDA PyTorch; the earlier CPU build was cancelled.
+  Default builds now use the official CUDA 13.0 wheel index, check that PyTorch
+  includes CUDA support, and receive GPU access through Compose `gpus: all`.
+- The running image reports **PyTorch 2.14.1+cu130**, CUDA **13.0** and the
+  **RTX 3060 Laptop GPU**. An actual CUDA tensor calculation passed inside the
+  container. The completed image is approximately 9.59 GiB.
+- Direct and nginx readiness/API contract smoke checks passed, including POST
+  routes, answer schema, invalid-input 422 responses and request IDs. A separate
+  missing-key request returned 401. In-container `pip check` passed.
+- Running copies of config.py, LLMProviderFactory.py and OpenAIProvider.py match
+  the source hashes. The live key list has one entry, starting index 0; local
+  Qwen credentials remain separate. HTTP-mock checks inside the image verified
+  quota fallback, retaining a successful key and trying each key at most once.
+  No real embedding or generation request was submitted for these checks.
+- Embedding fingerprint **e1d11bf3cb36**, model settings, all 19 saved job records
+  and all 14 volumes are unchanged. Both GPU model service PIDs and every other
+  container ID are unchanged. All 13 unrelated images remain; the superseded API
+  image is absent after replacement, so no additional image prune was needed.
+- Application source remains covered by the verified **272 tests plus 12
+  subtests, 87.23% coverage**. Compose validation and changed-file pre-commit checks
+  passed. These are packaging/runtime checks, not a new quality or capacity test.
+
+The failed project-9 job was not retried. This rebuild does not establish that
+OpenRouter's daily quota is available; add usable credentials or wait for the
+provider reset before indexing. Evidence and the before/after receipt are in
+`G:\WSL\maintenance\api-rebuild-2026-10-16\`. The saved WSL memory profile still
+requires a user restart and live verification.
+
 ## Original full-PDF Qalam pipeline — 2026-10-16
 
 - Uploaded the unchanged 170-page `1576751803.pdf` through nginx into isolated

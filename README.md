@@ -81,8 +81,9 @@ for your trusted development environment.
 
 Skip this section if the project is already configured as above.
 
-You need Docker with Compose, Python 3.12, and `uv`. Docker runs the application's
-Python dependencies; a host installation of vLLM is not needed for this API setup.
+You need Docker with Compose GPU support, an NVIDIA driver compatible with CUDA
+13.0, Python 3.12, and `uv`. Docker runs the application's Python dependencies;
+a host installation of vLLM is not needed for this API setup.
 
 ### 1. Create the private configuration files
 
@@ -191,7 +192,11 @@ docker compose -f docker/docker-compose.yml logs --tail=100 fastapi
 curl --fail-with-body http://localhost/health
 ```
 
-The first image build compiles native dependencies and can take several minutes.
+The API image includes CUDA-enabled PyTorch 2.14.1 (CUDA 13.0), and Compose gives
+it NVIDIA GPU access. Docker GPU support and a compatible host driver are required;
+see the [GPU verification commands](docker/README.md#building-from-wsl).
+The first image build downloads CUDA libraries and compiles native dependencies,
+which can take several minutes.
 The first application start also downloads the multilingual reranker if its named
 Hugging Face cache is empty. Model caching, uploaded files, and database contents
 persist in Docker volumes. A fresh checkout does not include your existing local
@@ -201,8 +206,9 @@ project 6 database; upload and index documents using the next section.
 
 The current machine uses `BAAI/bge-reranker-v2-m3` served by vLLM 0.30.0 from
 `/home/yacine_105/vllm-env`, on port 8002. The Docker API calls its authenticated
-`/v1/rerank` endpoint; it does not load a second CrossEncoder or need CUDA packages
-inside its image. Your indexes and Postman request URLs remain the same.
+`/v1/rerank` endpoint. Reranking continues in that GPU service, while the API image
+also includes CUDA PyTorch and GPU access. Your indexes and Postman request URLs
+remain the same.
 
 To reproduce this setup on a machine with that vLLM environment and a CUDA GPU:
 
