@@ -5,6 +5,8 @@ import asyncio
 import hashlib
 import json
 import os
+import sqlite3
+from contextlib import closing
 from pathlib import Path
 from time import monotonic
 
@@ -12,11 +14,27 @@ from evaluate_rag import JUDGE_RUBRIC_VERSION, evaluate, load_cases, make_judge
 from run_experiments import CONFIGS, is_transient_provider_error
 
 
+def cached_stage_count():
+    database = Path(os.environ.get("RAG_EVAL_CACHE_DIR", ".cache/ragas")) / "cache.db"
+    if not database.exists():
+        return 0
+    try:
+        with closing(
+            sqlite3.connect(
+                database.resolve().as_uri() + "?mode=ro", uri=True, timeout=1
+            )
+        ) as cache:
+            return cache.execute("SELECT COUNT(*) FROM Cache").fetchone()[0]
+    except sqlite3.Error:
+        return 0
+
+
 async def score_with_recovery(cases, checkpoint, deadline, name):
     async def captured_answer(case):
         raise RuntimeError("Scoring requires saved answers, never new generation")
 
     completed = len(json.loads(checkpoint.read_text())["cases"])
+    cached = cached_stage_count()
     consecutive_failures = 0
     while True:
         client, judge = make_judge()
@@ -24,9 +42,12 @@ async def score_with_recovery(cases, checkpoint, deadline, name):
             return await evaluate(cases, captured_answer, judge, 0.75, checkpoint)
         except Exception as error:
             current = len(json.loads(checkpoint.read_text())["cases"])
-            if current > completed:
+            current_cached = max(cached, cached_stage_count())
+            new_stages = current_cached - cached
+            if current > completed or new_stages:
                 consecutive_failures = 0
-                completed = current
+            completed = max(completed, current)
+            cached = current_cached
             consecutive_failures += 1
             if (
                 consecutive_failures >= 4
@@ -35,7 +56,7 @@ async def score_with_recovery(cases, checkpoint, deadline, name):
             ):
                 raise
             print(
-                f"{name}: judge unavailable ({type(error).__name__}); retained {completed} grades",
+                f"{name}: judge unavailable ({type(error).__name__}); retained {completed} grades; cached {new_stages} additional grading stages",
                 flush=True,
             )
             await asyncio.sleep(min(60 * consecutive_failures, deadline - monotonic()))

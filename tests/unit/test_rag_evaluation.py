@@ -635,9 +635,9 @@ async def test_offline_scoring_rejects_incomparable_judge_results(
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("makes_progress", [False, True])
+@pytest.mark.parametrize("progress_kind", [None, "case", "stage"])
 async def test_offline_recovery_preserves_progress_and_bounds_stalled_retries(
-    tmp_path, monkeypatch, makes_progress
+    tmp_path, monkeypatch, progress_kind
 ):
     import asyncio
     from types import SimpleNamespace
@@ -648,6 +648,8 @@ async def test_offline_recovery_preserves_progress_and_bounds_stalled_retries(
 
     checkpoint = tmp_path / "checkpoint.json"
     checkpoint.write_text(json.dumps({"cases": []}))
+    cache_directory = tmp_path / "stage-cache"
+    monkeypatch.setenv("RAG_EVAL_CACHE_DIR", str(cache_directory))
     calls = []
     closed = []
 
@@ -659,10 +661,18 @@ async def test_offline_recovery_preserves_progress_and_bounds_stalled_retries(
 
     async def evaluate(*args):
         calls.append(True)
-        if makes_progress and len(calls) == 6:
+        if progress_kind and len(calls) == 6:
             return {"completed": True}
-        if makes_progress:
+        if progress_kind == "case":
             checkpoint.write_text(json.dumps({"cases": list(range(len(calls)))}))
+        elif progress_kind == "stage":
+            from diskcache import Cache
+
+            with Cache(str(cache_directory)) as cache:
+                cache.set(f"stage-{len(calls)}", {"validated": True})
+        else:
+            cache_directory.mkdir(exist_ok=True)
+            (cache_directory / "invalid-rubric.json").write_text("Invalid response")
         error = RuntimeError("Temporary provider failure")
         error.status_code = 500
         raise error
@@ -673,7 +683,7 @@ async def test_offline_recovery_preserves_progress_and_bounds_stalled_retries(
     )
     monkeypatch.setattr(asyncio, "sleep", sleep)
     monkeypatch.setattr(score_captured, "monotonic", lambda: 0)
-    if makes_progress:
+    if progress_kind:
         result = await score_captured.score_with_recovery([], checkpoint, 3600, "test")
         assert result == {"completed": True}
         assert len(calls) == 6

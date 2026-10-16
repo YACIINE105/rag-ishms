@@ -4,9 +4,10 @@ Last updated: 2026-10-16 (Africa/Cairo).
 
 Current local status: Qwen base generation, BGE reranking and the existing Docker
 stack are running. Full-PDF Qalam extraction, 310 actual retrieved-context
-answers and real 50-user/SSE measurements are complete. Two configurations have
-complete candidate-unicode-v2 automated grades; remaining scoring is constrained
-by repeated NVIDIA 429 responses. See the latest entries and
+answers and real 50-user/SSE measurements are complete. The original Super
+endpoint passed the revised controls and is actively finishing the consistent
+five-way regrade in configurations-super-candidate-v2/; two configurations are
+complete. The throttled VL attempt is preserved separately. See the latest entries and
 `docs/final-project-report.md` for current counts and known answer/judge errors.
 The report, figures, PDF and evidence export are the current local deliverables.
 Cue's artifacts are already reviewed through UID 221; Kaggle is reported stopped.
@@ -1183,3 +1184,75 @@ Active command: score_captured.py --env-file .env.evaluation-super-candidate
 earlier malformed-response attempt and deliberate checkpoint interruption.
 Do not launch a duplicate. Both the incomplete VL results and original legacy
 results remain preserved and must not be merged into the final comparison.
+
+### Consistent grading progress — 2026-10-16T04:42:00.131157+00:00
+
+The original-Super/candidate-unicode-v2 run has completed article-rerank,
+article-no-rerank and 250-rerank (62 cases each). Current reference-rubric means
+are 0.93548, 0.88710 and 0.77419 respectively; the 250-character Arabic subgroup
+is 0.70968. These are automated diagnostics, not legal accuracy. The 500-character
+run is active; article-k3 follows. Do not run the ordinary experiment runner until
+all five new score JSONs exist, as missing files would trigger fresh inference.
+Published the new completed article-rerank baseline to the existing node_exporter
+textfile collector; published-evaluation.json pins its source. final-judge-review.json
+records that the new reference rubric rejects Arabic Article 44/226 but still
+misses the Article 94/147 omissions. RAGAS faithfulness alone still misses an
+unsupported Article 44 definition. No source-review scores overwrite machine
+scores. Final report/archive must select configurations-super-candidate-v2/,
+refresh all five MLflow runs, audits, figures and PDF/screenshots, then export
+and verify the credential-scanned ZIP. The current committed report remains the
+earlier incomplete snapshot; the final ZIP has not yet been created.
+
+### Final-configuration throttling / user progress tracker — 2026-10-16T05:00:42.122019+00:00
+
+Four original-Super configurations are fully graded. 500-rerank has faithfulness
+0.92498, reference-rubric mean 0.91935, context precision 0.95819 and recall 1.0.
+The final article-k3 reached 14/62, then NVIDIA 429s recurred. Checkpointed its
+worker and allowed cooldown; resuming the same profile/cache with one HTTP slot,
+one grading worker and five-second spacing. HTTP error diagnostics are enabled
+only in the private cache; they remain excluded from export. No judge/model,
+rubric, token budgets, generated answers or existing completed grades change.
+
+The user requested a TODO list and progress bar inside Codex. Show it inline in
+commentary and update with actual counts (currently 262/310 = 84.5% evaluation),
+not an invented overall-completion percentage. Their request steers this active
+work; it does not cancel it. Remaining checklist: finish k3; final MLflow/audit;
+final report/charts/PDF/screenshots; verified ZIP and professional closeout commits.
+The current report draft now selects the recovered original-Super profile and
+contains four full score sets, with k3 marked incomplete. It will need a final
+strict regeneration after all five finish. No final ZIP exists yet.
+
+### Original-budget availability control — 2026-10-16T05:17:47.283101+00:00
+
+The final configuration reached 20/62 (268/310 total). Continued 429s led to a
+bounded diagnostic after checkpointing and at least 60 seconds of cooldown.
+Replaying the most recent actual failed 4,096-token RAGAS request succeeded in
+1.74 seconds with stop termination and complete JSON (271 characters). The
+smaller-budget probes were therefore not executed. This does not establish a
+quota cause; there is no basis for changing token budgets or grading semantics.
+No new RAGAS budget option/code or test was added. Keep all 4,096-token RAGAS
+settings and the existing two-budget validated custom-rubric retry unchanged.
+The reply is diagnostic only, not injected into cache or used as a metric score.
+super-active-budget-diagnostic.json records it; the raw reply stays in the private
+judge cache. Resume the same final directory and lower-pressure 5s/1-slot/1-worker
+schedule. All four completed reports and 20 saved k3 grades remain valid.
+
+### Recovery now recognizes validated cached stages — 2026-10-16T05:26:10.812600+00:00
+
+Observed seven successful DiskCache stage entries added after a completed-case
+checkpoint while the final case count stayed unchanged. The old retry guard
+recognized only whole-case progress, so it could abort useful partial work after
+four provider failures. score_captured.py now reads the actual Cache table in
+read-only SQLite, closes the connection, and resets the stalled-failure count
+when new persisted stage results or whole cases appear. Diagnostic file writes
+do not count as progress. Four failures with neither kind of progress and the
+wall deadline remain bounded. No prompt, model, budget or quality criterion changes.
+
+Regression tests use real DiskCache writes to prove more than four failures can
+recover with stage progress, and diagnostic-only changes still stop after four.
+34 focused tests pass; full suite: 244 tests/12 subtests, coverage 86.55%. The
+existing worker was checkpointed at 23/62 final cases to load this recovery fix.
+Resume the same directory/model using the existing 5s/one-HTTP/one-worker profile
+after cooldown; do not duplicate it. Keep the user's inline Codex checklist and
+actual graded-case progress bar updated. Final reporting must use 244 as the
+latest executed test count, while retaining historical counts in earlier notes.
