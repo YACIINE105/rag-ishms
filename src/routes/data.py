@@ -223,6 +223,7 @@ async def process_endpoint(
 
     number_of_records = 0
     number_of_files = 0
+    failed_files = 0
     number_of_records_by_language = {}
     chunk_model = await ChunkModel.create_instance(db_client=request.app.db_client)
 
@@ -277,6 +278,7 @@ async def process_endpoint(
 
         if not file_content:
             logger.error(f"error while processing file: {file_id}")
+            failed_files += 1
             continue
 
         # if do_emantic_chunk == 1:
@@ -305,6 +307,7 @@ async def process_endpoint(
 
         if file_chunks is None or len(file_chunks) == 0:
             logger.error(f"no chunks produced for file: {file_id}")
+            failed_files += 1
             continue
 
         ##### EDIT 2: this used to be chunk-only, which left orphaned
@@ -355,6 +358,19 @@ async def process_endpoint(
             )
 
         number_of_files += 1
+
+    if failed_files:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "signal": ResponseSignal.Processing_Failed.value,
+                "detail": "Could not extract readable chunks from one or more files. Use W_qalam=false for general PDFs without legal article headings.",
+                "failed_files": failed_files,
+                "inserted_chunks": number_of_records,
+                "processed_files": number_of_files,
+                "processing_mode": processing_mode,
+            },
+        )
 
     return JSONResponse(
         content={

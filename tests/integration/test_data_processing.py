@@ -332,3 +332,58 @@ async def test_qalam_rejects_non_pdf_before_deleting_chunks(processing_context):
     context.chunk_model.delete_chunk_by_project_id.assert_not_awaited()
     context.chunk_model.delete_chunk_by_asset_id.assert_not_awaited()
     context.qalam_factory.assert_not_called()
+
+
+@pytest.mark.parametrize("W_qalam", [True, False])
+async def test_empty_extraction_fails_processing_job(processing_context, W_qalam):
+    context = processing_context
+    context.qalam_factory.return_value.to_json = lambda: json.dumps({"pages": []})
+    context.baseline_loader.return_value.load.return_value = []
+
+    response = await context.client.post(
+        "/api/v1/data/process/jobs/1", json={"W_qalam": W_qalam}
+    )
+    assert response.status_code == 202
+    job_id = response.json()["job_id"]
+    job = await context.client.get(f"/api/v1/data/process/status/{job_id}")
+    assert job.json()["state"] == "failed"
+    assert job.json()["result"]["processed_files"] == 0
+    assert job.json()["result"]["inserted_chunks"] == 0
+    context.chunk_model.delete_chunk_by_asset_id.assert_not_awaited()
+    assert not context.records
+
+
+async def test_empty_extraction_keeps_previous_chunks_and_vectors(processing_context):
+    context = processing_context
+    await context.client.post("/api/v1/data/process/1", json={"W_qalam": True})
+    await context.client.post("/api/v1/nlp/index/push/1", json={})
+    previous_ids = {chunk.chunk_id for chunk in context.records}
+    context.chunk_model.delete_chunk_by_asset_id.reset_mock()
+    context.baseline_loader.return_value.load.return_value = []
+
+    response = await context.client.post(
+        "/api/v1/data/process/1", json={"W_qalam": False}
+    )
+    assert response.status_code == 400
+    assert response.json()["failed_files"] == 1
+    assert {chunk.chunk_id for chunk in context.records} == previous_ids
+    assert await context.vector.get_indexed_documents_count() == 1
+    context.chunk_model.delete_chunk_by_asset_id.assert_not_awaited()
+
+
+@pytest.mark.parametrize("background", [False, True])
+async def test_empty_project_cannot_be_indexed(processing_context, background):
+    context = processing_context
+    route = "jobs" if background else "push"
+    response = await context.client.post(f"/api/v1/nlp/index/{route}/1", json={})
+    if background:
+        assert response.status_code == 202
+        job_id = response.json()["job_id"]
+        job = await context.client.get(f"/api/v1/nlp/index/status/{job_id}")
+        assert job.json()["state"] == "failed"
+    else:
+        assert response.status_code == 400
+        assert "Process a document" in response.json()["detail"]
+    context.embedding.embed_text.assert_not_called()
+    collections = await context.vector.list_collections()
+    assert not collections.collections

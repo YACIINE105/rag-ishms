@@ -65,6 +65,18 @@ async def index_project(request: Request, project_id: int, push_request: PushReq
     collection_name = nlp_controller.create_collection_name(
         project_id=project.project_id
     )
+    total_records_count = await chunk_model.get_all_chunks_count(
+        project_id=project.project_id
+    )
+    if not total_records_count:
+        return JSONResponse(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            content={
+                "signal": ResponseSignal.INSERT_INTO_VECTOR_DB_ERROR.value,
+                "detail": "No processed chunks found. Process a document before indexing.",
+            },
+        )
+
     # creating collection
     _ = await request.app.vector_db_client.create_collection(
         collection_name=collection_name,
@@ -73,10 +85,6 @@ async def index_project(request: Request, project_id: int, push_request: PushReq
     )
 
     # setup batching
-    total_records_count = await chunk_model.get_all_chunks_count(
-        project_id=project.project_id
-    )
-
     logger.info("index.started", extra={"total_chunks": total_records_count})
 
     while has_records:
