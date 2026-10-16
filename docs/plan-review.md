@@ -160,3 +160,11 @@ the numeric asset-ID lookup fix, asynchronous model wait gate, bulk SQL budget
 and idempotent PGVector batches. The existing Docker API was rebuilt and checked.
 No existing user database/vector volume was reset; isolated evaluation projects
 were added. No new training or adapter integration was performed.
+
+A subsequent user-facing check used the original 170-page PDF through the current
+Qalam pipeline on project 900201: 2,297 article/language chunks and vectors, cited
+English/Arabic answers, SSE, feedback and refusal all completed. Corrected nginx's
+1 MiB upload default to an explicit 100 MiB request limit. Local indexing batches
+of 64 completed in 36 production OpenRouter calls. The Postman walkthrough now
+defaults to that original PDF with Qalam enabled. The frozen benchmark and known
+capacity/model limits remain unchanged; see docs/pipeline-test.md.

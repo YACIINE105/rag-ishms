@@ -2,7 +2,7 @@
   "info": {
     "name": "RAG-ISHMS — Full pipeline",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-    "description": "Send requests manually in numeric order. Repeat 04/06 until succeeded before continuing; a single unpaused Run does not poll jobs. Set api_key locally, choose the upload PDF, and use_qalam=false for the two-page sample. No credentials are included."
+    "description": "Upload the original PDF and use Qalam article extraction. Send requests manually in numeric order. Repeat 04/06 until succeeded before continuing; an unpaused Run does not poll jobs. Set api_key locally and select G:\\Downloads\\1576751803.pdf. No credentials are included."
   },
   "auth": {
     "type": "apikey",
@@ -32,7 +32,7 @@
     },
     {
       "key": "project_id",
-      "value": "900200",
+      "value": "900201",
       "type": "string"
     },
     {
@@ -42,7 +42,7 @@
     },
     {
       "key": "use_qalam",
-      "value": "false",
+      "value": "true",
       "type": "string"
     },
     {
@@ -102,7 +102,7 @@
         "method": "POST",
         "header": [],
         "url": "{{base_url}}/api/v1/data/upload/{{project_id}}",
-        "description": "Body > form-data > file: select your PDF. The sample is G:\\Downloads\\RAG_ISHMS_Pipeline_Sample.pdf. Reusing a filename replaces that asset in this project.",
+        "description": "Body > form-data > file: select the unchanged original G:\\Downloads\\1576751803.pdf (170 pages). Do not use the copied two-page sample for Qalam. Reusing a filename replaces that asset in this project.",
         "body": {
           "mode": "formdata",
           "formdata": [
@@ -140,10 +140,10 @@
           }
         ],
         "url": "{{base_url}}/api/v1/data/process/jobs/{{project_id}}",
-        "description": "use_qalam=false for the two-page sample/general PDFs; true for the original structured legal PDF. Wait at request 04 before continuing.",
+        "description": "use_qalam=true uses the existing Qalam PDF/article pipeline, producing separate Arabic/English article chunks. chunk_size and overlap_size are not used in this mode. Wait at request 04 before continuing.",
         "body": {
           "mode": "raw",
-          "raw": "{\n  \"file_id\": \"{{file_id}}\",\n  \"W_qalam\": {{use_qalam}},\n  \"chunk_size\": 500,\n  \"overlap_size\": 50,\n  \"do_reset\": 0\n}",
+          "raw": "{\n  \"file_id\": \"{{file_id}}\",\n  \"W_qalam\": {{use_qalam}},\n  \"do_reset\": 0\n}",
           "options": {
             "raw": {
               "language": "json"

@@ -10,8 +10,11 @@ batches without blocking the event loop. A free-provider 429 can leave a failed
 job with partial writes; inspect job status, let the quota window reset and retry
 with pacing. Do not reset the collection merely because a batch was throttled.
 `INDEX_BATCH_SIZE` defaults to 50 (range 1–100); reduce it for a provider that
-cannot complete larger requests. PGVector batch retries replace the supplied
-chunk IDs within one transaction and preserve unrelated vectors.
+cannot complete larger requests. The current local API overrides it to 64,
+verified with the configured OpenRouter embedding endpoint, so the full 2,297-chunk
+Qalam corpus uses 36 requests. An indexing retry embeds all project chunks again.
+PGVector batch retries replace the supplied chunk IDs within one transaction
+and preserve unrelated vectors.
 
 ## Alerts
 

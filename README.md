@@ -129,6 +129,7 @@ EMBEDDING_MODEL_ID=nvidia/llama-nemotron-embed-vl-1b-v2:free
 EMBEDDING_MODEL_SIZE=2048
 VECTOR_DB_BACKEND=PGVector
 RERANKER_ENABLED=true
+INDEX_BATCH_SIZE=64
 INDEX_BATCH_DELAY_SECONDS=3.5
 ```
 
@@ -240,8 +241,10 @@ The normal flow is **upload → process → index → ask**. Use a positive inte
 
 For an importable Postman collection and a ready-to-query test project, follow
 the [full pipeline walkthrough](docs/pipeline-test.md). The live Docker/nginx
-smoke test on project **900200** indexed a two-page Civil Code sample into 16
-chunks and completed English/Arabic answers, SSE and feedback.
+walkthrough uses the original `G:\Downloads\1576751803.pdf`, Qalam article
+extraction (`W_qalam=true`), and project **900201**. Processing the full 170-page
+PDF produces 2,297 separate Arabic/English article chunks. The collection defaults
+to this PDF/Qalam path; no manual JSON conversion is needed.
 
 The helper below handles upload, background job submission, and status polling.
 Load the client key first, then replace `/absolute/path/document.pdf` with your file:
@@ -382,6 +385,7 @@ work does not resume automatically, and partial writes may remain.
 
 | Symptom | What to check |
 |---|---|
+| Upload returns 413 | nginx permits 100 MiB request bodies; also check the application `FILE_MAX_SIZE`. Reload nginx after changing its mounted configuration. |
 | nginx is unavailable or returns 502 | Check `docker compose -f docker/docker-compose.yml ps` and API logs; nginx waits for API health |
 | `/health` returns 503 | Inspect its dependency fields, then API logs; check database credentials and model API reachability |
 | 401 | Reload `docker/env/.env.client` and send `X-API-Key` |

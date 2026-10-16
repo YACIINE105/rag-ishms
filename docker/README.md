@@ -70,6 +70,10 @@ into the server; it does not migrate existing local points automatically.
 30 seconds with a 180-second model startup allowance. Nginx waits for initial
 readiness; Compose does not continuously remove an unhealthy upstream.
 
+Nginx permits request bodies up to 100 MiB (`client_max_body_size 100m`); the
+application separately enforces `FILE_MAX_SIZE` in MiB. For larger uploads, adjust
+both limits as needed and reload nginx after editing its mounted configuration.
+
 Application logs are JSON. Set `LOG_LEVEL=DEBUG` to include prompt text.
 `HTTP_ACCESS_LOG_SAMPLE_RATE` controls successful access logs (default 0.1);
 prediction events containing the query, retrieved IDs, and answer are never

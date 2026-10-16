@@ -1384,3 +1384,55 @@ remain external setup. No Cue query, training, push or hosted deployment.
 The guide, collection and memory are committed with this entry. No further
 automated smoke-test work is queued; the user can import the files and try the
 already indexed project or repeat upload/process/index manually.
+
+### Original full-PDF Qalam path verified — 2026-10-16
+
+The user clarified that they want to upload the ORIGINAL PDF and use the current
+Qalam library and existing pipeline. The earlier baseline two-page sample was
+an assistant choice, not the requested default. Corrected the walkthrough and
+Postman collection/environment to use_qalam=true, project 900201 and the original
+G:\Downloads\1576751803.pdf. Both exported keys remain blank. Updated matching
+assistant-generated Windows copies after checking they had no independent edits.
+
+INDEPENDENTLY EXECUTED through normal http://localhost nginx/Docker API:
+
+- Original 170-page PDF, 2,599,703 bytes; uploaded source SHA-256 matches
+  2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf.
+- First full upload hit nginx's implicit 1 MiB limit (HTTP 413) before Qalam.
+  Added client_max_body_size 100m; nginx -t passed, reloaded it and the same
+  original PDF uploaded successfully. No parser or architecture replacement.
+- Project 900201, asset 28, processing job cc70d7e1-cf68-4d86-93f8-85fd8fbc8176:
+  W_qalam=true/do_reset=0 succeeded, 2,297 chunks, mode qalam. Database audit:
+  1,149 articles, 1,148 Arabic and 1,149 English chunks. Known source defects
+  around Articles 1021/1022 remain; no invented missing Arabic Article 1022.
+- Local ignored docker/env/.env.fastapi now INDEX_BATCH_SIZE=64 (existing config
+  supports 1–100), with delay 3.5 seconds. Recreated API before submitting jobs,
+  retained the embedding model/provider and user data. Production OpenRouter
+  model remains nvidia/llama-nemotron-embed-vl-1b-v2:free, 2048 dimensions.
+- Index job 60d152c2-d11e-4de4-b0d7-51402f687ee8 succeeded in ~196 seconds.
+  Audited all 36 embedding requests returned 200, ordered batch counts sum to
+  2,297, and final production collection e1d11bf3cb36 has 2,297 vectors.
+- Reranked retrieval succeeded. English Article 2 answer 7.34s, Arabic 9.09s,
+  buffered SSE 6.46s with sources/token/done, neutral feedback 200 and recipe
+  request refused. Actual English, Arabic and streamed text retain all three
+  repeal routes with Article 2/page 1 among cited sources. Refusal still includes
+  retrieved sources. This narrow content check is not general legal validation.
+
+Evidence is eval/reports/qalam-pipeline-2026-10-16/: result.json, chunk-audit.json,
+index-batch-audit.json, uploaded-source.sha256, nginx-config.sha256, proxy upload
+logs, completed-job logs and the initial proxy failure. The original/sample and
+frozen evaluation evidence remain separate. Official Postman v2.1 schema and all
+13 JavaScript script syntaxes pass; actual API requests used Python, not GUI
+Postman. nginx config validation, Compose validation and live full-PDF flow pass.
+No application Python changed; the latest full test run remains 249 passed,
+12 subtests, 86.79% coverage. No additional model benchmark was regenerated.
+
+Project 900201 is ready to query: skip upload/process/index to ask now. A full
+replay should use a fresh unused project ID and consumes another 36 embedding
+requests; retries re-embed all chunks, so inspect job/partial index first.
+Existing projects 6/8 and all other user data remain; no resets. Docker API/nginx
+and local Qwen/BGE services are up. No Cue email, training, remote deployment or
+push. Cue/Kaggle remains closed per previously reported shutdown. Remaining human
+legal review, independent labels and the observed 50-user capacity/model limits
+remain unchanged. Next action: user can import updated Postman files and test the
+original-PDF/Qalam route or query the already indexed full corpus.

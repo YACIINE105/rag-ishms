@@ -1,6 +1,32 @@
 # Docker verification
 
-## Fresh complete pipeline — 2026-10-16
+## Original full-PDF Qalam pipeline — 2026-10-16
+
+- Uploaded the unchanged 170-page `1576751803.pdf` through nginx into isolated
+  project 900201 and processed it with `W_qalam=true`, `do_reset=0`. Qalam
+  produced 2,297 chunks: 1,148 Arabic and 1,149 English, covering 1,149 articles.
+  The uploaded file hash matches the original supplied source.
+- The full PDF exposed nginx's implicit 1 MiB body limit (HTTP 413). Set
+  `client_max_body_size 100m`, passed `nginx -t`, reloaded nginx, then the actual
+  2,599,703-byte PDF uploaded successfully. No parser replacement was needed.
+- Local `INDEX_BATCH_SIZE=64`, delay 3.5 seconds, preserves the current production
+  embedding model/provider and reduces 2,297 chunks to 36 embedding requests.
+  All 36 production OpenRouter calls returned 200; batch counts/order and
+  final collection size were audited against the job and database. Indexing
+  completed in 196 seconds. The API already supports this setting.
+- Completed reranked retrieval, English answer (7.34s), Arabic answer (9.09s),
+  SSE `done` (6.46s), neutral feedback and an out-of-scope refusal. Both Article 2
+  answers retained all three repeal routes and cited the source article/page.
+  Sources on the refusal do not establish correctness. These are single-user
+  checks, not a repeated capacity test or new legal qualification.
+- Evidence: `eval/reports/qalam-pipeline-2026-10-16/`, including actual responses,
+  source hash, chunk/language counts, 36-batch audit and the before/after upload
+  limit failure/success. Existing projects and model services were preserved.
+- Postman now defaults to the original PDF, project 900201 and Qalam enabled.
+  Exported keys are blank; official v2.1 schema and all 13 script syntaxes pass.
+  Actual calls use Python requests; no Postman GUI execution is claimed.
+
+## Earlier sample pipeline — 2026-10-16
 
 - Normal nginx/Docker route on project 900200: uploaded a two-page source-PDF
   excerpt, processed 16 baseline chunks, indexed 16 vectors through the configured
