@@ -1,5 +1,23 @@
 # Docker verification
 
+## Fresh complete pipeline — 2026-10-16
+
+- Normal nginx/Docker route on project 900200: uploaded a two-page source-PDF
+  excerpt, processed 16 baseline chunks, indexed 16 vectors through the configured
+  OpenRouter embedding route, retrieved passages and completed cited English and
+  Arabic Qwen answers, SSE `done`, neutral feedback and an out-of-scope refusal.
+- Found and fixed empty extraction/indexing being reported as success. Focused
+  regression tests and live job checks pass; without reset, failed extraction preserves existing
+  chunks/vectors. Rebuilt the existing API after checking there were no active
+  jobs. Model services and existing user data were preserved.
+- Latest full suite: **249 passed**, 12 subtests, **86.79% source coverage**.
+  The preceding evaluation section records the earlier frozen 244-test snapshot.
+- The two-page copy loses Qalam table structure; the smoke test uses ordinary PDF
+  processing. The unchanged original still extracts 1,149 Qalam articles. See
+  [the Postman walkthrough](../docs/pipeline-test.md) and local evidence under
+  `eval/reports/pipeline-smoke-2026-10-16/`. This is a sequential smoke test,
+  not a new capacity or legal-quality qualification.
+
 ## Civil Code evaluation follow-up — 2026-10-16
 
 - Rebuilt the existing FastAPI image with the tested asset-ID processing lookup,

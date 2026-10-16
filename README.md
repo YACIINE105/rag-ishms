@@ -238,6 +238,11 @@ own private service key. No document reindexing is required for this switch.
 The normal flow is **upload → process → index → ask**. Use a positive integer as
 `project_id`; keep unrelated document collections in separate projects.
 
+For an importable Postman collection and a ready-to-query test project, follow
+the [full pipeline walkthrough](docs/pipeline-test.md). The live Docker/nginx
+smoke test on project **900200** indexed a two-page Civil Code sample into 16
+chunks and completed English/Arabic answers, SSE and feedback.
+
 The helper below handles upload, background job submission, and status polling.
 Load the client key first, then replace `/absolute/path/document.pdf` with your file:
 
@@ -316,6 +321,11 @@ Synchronous `/api/v1/data/process/{project_id}` and
 for larger documents. Keep `do_reset=0` for normal updates. Reset requests remove
 existing project processing/index data.
 
+Empty or unsupported extraction fails processing instead of reporting zero chunks
+as success. Indexing a project with no processed chunks also fails. A repeated
+processing request with no new eligible files can legitimately complete with
+zero changes; an initial upload must produce chunks before indexing.
+
 For streaming, add `-N` to curl:
 
 ```bash
@@ -357,10 +367,10 @@ docker compose -f docker/docker-compose.yml logs -f fastapi
 
 # Stop the stack while retaining its stored data.
 docker compose -f docker/docker-compose.yml down
-systemctl --user stop rag-ishms-reranker.service
+systemctl --user stop rag-ishms-reranker.service rag-ishms-generator.service
 
 # Start it again.
-systemctl --user start rag-ishms-reranker.service
+systemctl --user start rag-ishms-reranker.service rag-ishms-generator.service
 docker compose -f docker/docker-compose.yml up -d
 ```
 
@@ -406,7 +416,7 @@ uv run pytest
 uv run pre-commit run --all-files
 ```
 
-The verified suite has 202 tests plus 12 subtests, with 86.21% source coverage; tests
+The verified suite has 249 tests plus 12 subtests, with 86.79% source coverage; tests
 use mocks and do not download native model weights or make paid inference calls.
 
 For the reproducible legal corpus and optional evaluation tools:
@@ -419,10 +429,12 @@ uv run dvc status
 
 The corpus contains 1,149 article records. The exact source PDF has an Arabic
 alignment defect around Articles 1021–1022, recorded in a checksum-pinned issue
-manifest. The 52-case monitoring dataset is a draft requiring human review.
-Actual RAGAS grades, experiment results, and 50-user load measurements still need
-to be run; successful connectivity checks do not establish answer quality.
-See [evaluation instructions](eval/README.md).
+manifest. The complete evaluation uses 62 assistant-reviewed questions and five
+configurations: all 310 answers have saved four-metric RAGAS and reference-rubric
+grades. The measured 50-user load target failed. Legal expert review is still
+needed; successful connectivity and automated grades do not establish legal
+correctness. See the [measured report](docs/final-project-report.md) and
+[reproduction instructions](eval/CIVIL_CODE_EVALUATION.md).
 
 Grafana's 13 panels and Prometheus's six alert rules are provisioned automatically.
 Quality panels need a real evaluation report before displaying scores. Langfuse

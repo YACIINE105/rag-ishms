@@ -1,0 +1,511 @@
+{
+  "info": {
+    "name": "RAG-ISHMS — Full pipeline",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Send requests manually in numeric order. Repeat 04/06 until succeeded before continuing; a single unpaused Run does not poll jobs. Set api_key locally, choose the upload PDF, and use_qalam=false for the two-page sample. No credentials are included."
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "key",
+        "value": "X-API-Key",
+        "type": "string"
+      },
+      {
+        "key": "value",
+        "value": "{{api_key}}",
+        "type": "string"
+      },
+      {
+        "key": "in",
+        "value": "header",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost",
+      "type": "string"
+    },
+    {
+      "key": "project_id",
+      "value": "900200",
+      "type": "string"
+    },
+    {
+      "key": "api_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "use_qalam",
+      "value": "false",
+      "type": "string"
+    },
+    {
+      "key": "question",
+      "value": "According to Article 2, how can an existing legislative provision be repealed?",
+      "type": "string"
+    },
+    {
+      "key": "file_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "process_job_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "index_job_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "answer_request_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 Health",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/health",
+        "description": "",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Dependencies ready\", () => pm.expect(pm.response.json().status).to.eql(\"healthy\"));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 Upload PDF",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": "{{base_url}}/api/v1/data/upload/{{project_id}}",
+        "description": "Body > form-data > file: select your PDF. The sample is G:\\Downloads\\RAG_ISHMS_Pipeline_Sample.pdf. Reusing a filename replaces that asset in this project.",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "file",
+              "type": "file",
+              "src": null
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const result = pm.response.json();",
+              "pm.test(\"Asset ID returned\", () => pm.expect(result.file_id).to.be.a(\"string\").and.not.empty);",
+              "if (result.file_id) pm.collectionVariables.set(\"file_id\", result.file_id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 Start processing",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/data/process/jobs/{{project_id}}",
+        "description": "use_qalam=false for the two-page sample/general PDFs; true for the original structured legal PDF. Wait at request 04 before continuing.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"file_id\": \"{{file_id}}\",\n  \"W_qalam\": {{use_qalam}},\n  \"chunk_size\": 500,\n  \"overlap_size\": 50,\n  \"do_reset\": 0\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 202\", () => pm.response.to.have.status(202));",
+              "const result = pm.response.json();",
+              "if (result.job_id) pm.collectionVariables.set(\"process_job_id\", result.job_id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 Poll processing",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/v1/data/process/status/{{process_job_id}}",
+        "description": "Send repeatedly until state=succeeded AND inserted_chunks > 0. If failed, inspect the response/logs; do not continue to indexing."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const job = pm.response.json();",
+              "pm.test(\"Job did not fail\", () => pm.expect(job.state).not.to.eql(\"failed\"));",
+              "if (job.state === \"queued\" || job.state === \"running\") {",
+              "    console.log(\"Job is still \" + job.state + \". Send this status request again before continuing.\");",
+              "}",
+              "",
+              "if (job.state === \"succeeded\") {",
+              "    pm.test(\"Extracted chunks\", () => pm.expect(job.result.inserted_chunks).to.be.above(0));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 Start indexing",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/nlp/index/jobs/{{project_id}}",
+        "description": "",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"do_reset\": 0\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 202\", () => pm.response.to.have.status(202));",
+              "const result = pm.response.json();",
+              "if (result.job_id) pm.collectionVariables.set(\"index_job_id\", result.job_id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 Poll indexing",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/v1/nlp/index/status/{{index_job_id}}",
+        "description": "Send repeatedly until state=succeeded AND inserted_items_count > 0. Free embedding-provider quotas can delay/fail this job."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const job = pm.response.json();",
+              "pm.test(\"Job did not fail\", () => pm.expect(job.state).not.to.eql(\"failed\"));",
+              "if (job.state === \"queued\" || job.state === \"running\") {",
+              "    console.log(\"Job is still \" + job.state + \". Send this status request again before continuing.\");",
+              "}",
+              "",
+              "if (job.state === \"succeeded\") {",
+              "    pm.test(\"Indexed vectors\", () => pm.expect(job.result.inserted_items_count).to.be.above(0));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 Index information",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/v1/nlp/index/info/{{project_id}}",
+        "description": ""
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Collection contains vectors\", () => pm.expect(pm.response.json().collection_info.record_count).to.be.above(0));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 Search",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/nlp/index/search/{{project_id}}",
+        "description": "",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"text\": \"{{question}}\",\n  \"limit\": 5\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Retrieved passages\", () => pm.expect(pm.response.json().indexed_vectors).to.be.an(\"array\").and.not.empty);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 Answer English",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/nlp/index/answer/{{project_id}}",
+        "description": "Inspect answer and sources. A structural test pass does not grade legal correctness.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"text\": \"{{question}}\",\n  \"limit\": 5\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const result = pm.response.json();",
+              "pm.test(\"Nonempty answer with sources\", () => {",
+              "    pm.expect(result.answer).to.be.a(\"string\").and.not.empty;",
+              "    pm.expect(result.sources).to.be.an(\"array\").and.not.empty;",
+              "    pm.expect(result.request_id).to.be.a(\"string\").and.not.empty;",
+              "});",
+              "if (result.request_id) pm.collectionVariables.set(\"answer_request_id\", result.request_id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 Answer Arabic",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/nlp/index/answer/{{project_id}}",
+        "description": "",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"text\": \"كيف يُلغى النص التشريعي وفقًا للمادة الثانية؟\",\n  \"limit\": 5\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const result = pm.response.json();",
+              "pm.test(\"Nonempty answer with sources\", () => {",
+              "    pm.expect(result.answer).to.be.a(\"string\").and.not.empty;",
+              "    pm.expect(result.sources).to.be.an(\"array\").and.not.empty;",
+              "    pm.expect(result.request_id).to.be.a(\"string\").and.not.empty;",
+              "});",
+              "if (result.request_id) pm.collectionVariables.set(\"answer_request_id\", result.request_id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 Stream answer",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/nlp/index/answer/stream/{{project_id}}",
+        "description": "Wait for the done event. Guardrails buffer output before delivery.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"text\": \"{{question}}\",\n  \"limit\": 5\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "const text = pm.response.text();",
+              "pm.test(\"Stream completed\", () => {",
+              "    pm.expect(text).to.include(\"event: sources\");",
+              "    pm.expect(text).to.include(\"event: token\");",
+              "    pm.expect(text).to.include(\"event: done\");",
+              "    pm.expect(text).not.to.include(\"event: error\");",
+              "});"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "12 Feedback",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/nlp/answer/feedback/{{project_id}}",
+        "description": "Uses the last normal answer request ID. Score 0 is neutral; change it only after reviewing the answer.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"request_id\": \"{{answer_request_id}}\",\n  \"score\": 0,\n  \"comment\": \"Pipeline smoke test; no legal quality rating.\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "13 Out-of-scope question",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/v1/nlp/index/answer/{{project_id}}",
+        "description": "Inspect whether the model refuses. This request deliberately does not assert that any nonempty answer is correct.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"text\": \"Give me a recipe for chocolate cake.\",\n  \"limit\": 5\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP 200\", () => pm.response.to.have.status(200));",
+              "pm.test(\"Answer returned\", () => pm.expect(pm.response.json().answer).to.be.a(\"string\").and.not.empty);"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

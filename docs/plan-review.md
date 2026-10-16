@@ -22,7 +22,7 @@ External Langfuse, alerting and protected CI settings remain optional configurat
 The historical implementation review below is retained with these updates. Both
 GPU services and nginx/API readiness recovered after the latest laptop restart;
 authentication checks again returned the expected 401/422 responses. The latest
-suite passes 244 tests with 86.55% coverage. The legacy rubric failed 11/28 controls
+suite passes 249 tests with 86.79% coverage. The legacy rubric failed 11/28 controls
 with Super VL. After fixing readable Arabic and candidate/reference separation,
 the versioned rubric passed 28/28 controls. Following VL endpoint throttling, the
 original Super endpoint also passed all 28 controls and completed all five
@@ -63,6 +63,14 @@ Reviewed against the repository and the downloaded 81-page course handbook on
 inference measurements and optimization are deferred by request. The existing
 FastAPI/controllers/provider factories and PostgreSQL/PGVector/Qdrant architecture
 are retained. `certifcates_sys/` is a separate assignment.
+
+Fresh sequential pipeline follow-up: project 900200 passed upload, baseline PDF
+processing (16 chunks), indexing through the normal OpenRouter route, search,
+cited English/Arabic answers, SSE completion, neutral feedback and refusal.
+Empty extraction/indexing now fail instead of reporting success with zero records.
+The original full PDF still extracts 1,149 Qalam articles; the two-page copy loses
+table structure and uses ordinary processing. See [the Postman walkthrough](pipeline-test.md).
+The earlier evaluation archive remains its recorded source/test snapshot.
 
 ## Sessions 1–2: prerequisite review
 
@@ -147,7 +155,7 @@ text was manufactured or relabeled. Human Arabic spot-checking remains necessary
 
 See docker/VERIFICATION.md for current source/container checks. DVC repro/status,
 editable installation and local tests are independent of an inference model.
-Latest full suite: 244 tests, 86.55% source coverage. Actual API findings led to
+Latest full suite: 249 tests, 86.79% source coverage. Actual API findings led to
 the numeric asset-ID lookup fix, asynchronous model wait gate, bulk SQL budget
 and idempotent PGVector batches. The existing Docker API was rebuilt and checked.
 No existing user database/vector volume was reset; isolated evaluation projects

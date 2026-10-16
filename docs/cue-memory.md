@@ -1336,3 +1336,51 @@ previous reported shutdown. Known model numerical/omission errors, unreliable
 automated legal grading, 50/58 failed load requests and the 50-user capacity limit
 remain explicit. Legal expert approval/larger independent labels and optional
 external Langfuse/alerts/CI/registry setup are outside this completed local work.
+
+### Fresh user-facing full pipeline and Postman handoff — 2026-10-16T08:47:15.571031+00:00
+
+The user asked what remains and to try the whole pipeline. Executed a NEW normal
+nginx/Docker route smoke on isolated project 900200 using pages 1–2 copied from
+the supplied PDF. Existing user projects/indexes were preserved. Initial Qalam
+processing returned zero chunks but incorrectly succeeded, followed by a false
+empty-index success. Preserved that evidence as initial-empty-success.json/.log.
+The source PDF still produces 1,149 Qalam articles locally; page copies lose table
+structure. Do not claim the sample was Qalam-processed or re-ingested all 170 pages.
+
+Fixed the API to fail jobs for failed/empty extraction and indexing with no
+processed chunks. A legitimate repeat with no new eligible files remains a no-op.
+Without reset, failed extraction preserves existing chunks/vectors. Five new
+regressions pass; full suite 249 passed/12 subtests, coverage 86.79%; focused
+processing tests 13 passed. Rebuilt the API only after finding no active jobs.
+Live empty-processing and empty-index checks now mark jobs failed. Fix commit
+858a5ec964e5a66f528c031dbbd15e745d84c692; current Docker route files match that source byte-for-byte.
+
+The complete positive pipeline then PASSED with ordinary PDF processing:
+16 chunks -> 16 PGVector vectors through the unchanged production OpenRouter
+embedding route, nonempty reranked retrieval, English answer 6.86s, Arabic 12.93s,
+SSE done 8.25s, neutral feedback HTTP 200, and an out-of-scope recipe refusal.
+English Article 2 retains all three repeal routes; Arabic wording is awkward.
+Refusal still includes retrieved legal sources; do not call sources proof of
+correctness. result.json and run.log in eval/reports/pipeline-smoke-2026-10-16/
+contain actual responses/timings plus source/image equivalence. This is a smoke
+test, not new legal grading or a repeated 50-user capacity test.
+
+Created postman/RAG_ISHMS_Full_Pipeline.postman_collection.json (13 ordered
+requests) and postman/Local.postman_environment.json with a BLANK API key.
+Official v2.1 schema and all 13 JavaScript script syntaxes validate. No Postman
+GUI execution was performed; real requests used Python requests. Users send
+manually and repeat status requests 04/06 until succeeded/nonzero before moving
+on. IDs are captured automatically. Project 900200 is already queryable now.
+Copies and RAG_ISHMS_Pipeline_Sample.pdf are in /mnt/g/Downloads/. Use api_key =
+RAG_API_KEY from ignored docker/env/.env.client; use_qalam=false for this sample,
+true for the original structured legal PDF. docs/pipeline-test.md explains it.
+
+Corrected stale README claims about unrun evaluations/202 tests and start/stop
+commands for both GPU services. The prior final archive remains immutable at
+its recorded source commit and 244-test evaluation snapshot; no saved benchmark
+answers were regenerated. Remaining reliability limits are legal expert review,
+larger independent labels and failed 50-user capacity; optional integrations
+remain external setup. No Cue query, training, push or hosted deployment.
+The guide, collection and memory are committed with this entry. No further
+automated smoke-test work is queued; the user can import the files and try the
+already indexed project or repeat upload/process/index manually.
