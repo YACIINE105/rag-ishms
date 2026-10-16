@@ -1436,3 +1436,50 @@ push. Cue/Kaggle remains closed per previously reported shutdown. Remaining huma
 legal review, independent labels and the observed 50-user capacity/model limits
 remain unchanged. Next action: user can import updated Postman files and test the
 original-PDF/Qalam route or query the already indexed full corpus.
+
+### Project 9 indexing failure diagnosed and authorized cleanup — 2026-10-16
+
+The user supplied failed index job 037a868b-6327-410d-9111-b7b14c00ac8c and asked
+for diagnosis plus deletion of the older RAG image and inactive Codex releases.
+Independently checked the API status, exact correlated provider log/request
+cee57c68-0b2e-4680-903d-68cc565c8565 and read-only database/index counts.
+
+CONFIRMED CAUSE: OpenRouter embedding HTTP 429, daily free-model quota exhausted.
+The provider headers reported limit 50, remaining 0 and reset 1792195200000:
+17 October 2026 at 00:00 UTC / 03:00 Cairo. Original call and both automatic SDK
+retries failed before any index batch succeeded. Public operation_failed is the
+job runner's sanitized exception label. This failure is not an executed model
+quality result. No new index job, provider switch, project reset or reprocessing
+was performed during diagnosis.
+
+At inspection, project 9 has PDF asset 30 (original 1576751803.pdf, 2,599,703
+bytes), 1,706 BASELINE chunks, one asset and zero indexed vectors. The user then
+asked whether to specify Qalam. Explained that W_qalam=true belongs in the
+processing request, with file_id="30" and do_reset=0 for this asset. False or
+omitted selects ordinary processing; upload/index bodies do not need this flag.
+Wait for processing success before indexing, and wait for available embedding
+quota before submitting a new index job. Do not call the existing baseline data
+Qalam output or mark the failed job fixed. After reset, a retry with do_reset=0
+can reuse processed chunks; selecting Qalam first is the user's intended article
+pipeline. This was explained, not executed.
+
+Local diagnosis evidence: eval/reports/project-9-index-failure-2026-10-16/
+(diagnosis.json and diagnosis.md). A copy of the explanation is in
+G:\WSL\maintenance\project-9-index-diagnosis.md. Maintenance checklist marks
+inspection complete, with any future index retry and WSL activation separate.
+No Cue email or new experiment was requested/sent.
+
+Authorized cleanup completed: removed only rag-ishms:runtime-validation (old
+image 8a7b8a93da462dc29bd587b4ec76014c862e55a125659be9a0ece552afb77e23),
+verified all other image IDs unchanged; no container or volume removed. Deleted
+ten inactive/not-current/unmapped Codex release directories (3.96 GiB), retaining
+standalone 0.162.1 and app-server-daemon 0.163.0 plus current links/session data.
+Receipts and refreshed inventories are in G:\WSL\maintenance\. Ubuntu free
+space is approximately 9.8 GiB; RAG API health and both GPU services passed.
+
+The user also requested global task/progress instructions and a WSL VM cap of
+4 GiB RAM plus 12 GiB SSD swap at G:\WSL\swap\wsl-swap.vhdx. These settings and
+global Windows/WSL AGENTS.md preferences were saved earlier in this maintenance
+session. The memory profile still requires a WSL restart; it has NOT been
+verified live. No WSL shutdown/restart was performed or scheduled. Preserve the
+user's resource budget when planning future local jobs.
