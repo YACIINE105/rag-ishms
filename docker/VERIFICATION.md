@@ -1,5 +1,36 @@
 # Docker verification
 
+## Langfuse content and readiness trace cleanup — 2026-10-18
+
+- Confirmed the unsolicited empty `provider` observations were emitted by the
+  three `/health` provider probes. Langfuse showed groups of three approximately
+  every 30 seconds, matching Docker's health-check interval. Readiness now keeps
+  the existing worker/client locks while bypassing inference tracing.
+- Rebuilt the CUDA image and recreated only FastAPI. Direct and nginx readiness,
+  API validation, request IDs and authentication checks passed. Deployed tracing
+  source hashes match the workspace; PyTorch remains **2.14.1+cu130**. Volumes,
+  saved job contents, both GPU model service PIDs and other container IDs stayed
+  unchanged. nginx configuration validation and reload passed.
+- Actual project-9 normal and streaming answers completed with retrieved sources.
+  Langfuse readback verified question input, generation messages and matching
+  output for both. Normal generation reported 694 input and 48 output tokens;
+  streaming reported a first-token timestamp and 7.145-second TTFT. Streaming
+  usage remains unset because the current provider iterator returns only text.
+- No new empty `provider` observations appeared during the verification window,
+  including automatic health checks and repeated manual readiness requests.
+  Existing observations were retained. Cost and Prompt Name still require actual
+  model pricing and a linked managed prompt; no values were fabricated.
+- Full suite: **286 tests plus 12 subtests, 88.06% source coverage**. Added checks
+  cover redaction, provider history mutation, streaming thread handoff, partial
+  output, exporter failures and readiness operations that never create traces.
+  These are tracing/runtime checks, not a new model-quality evaluation.
+
+Evidence is under `eval/reports/langfuse-content-2026-10-18/` (ignored). The
+rollback tag is `rag-ishms:before-langfuse-content-20261018`. The public base-image
+build used a temporary empty Docker credential config after the Windows helper
+failed; global Docker configuration and stored credentials were not modified.
+The live WSL budget is 4 GiB RAM plus 12 GiB swap; model services were not restarted.
+
 ## CUDA PyTorch and OpenRouter key fallback — 2026-10-16
 
 - Rebuilt and recreated only FastAPI, then validated/reloaded nginx. The user

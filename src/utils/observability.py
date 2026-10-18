@@ -1,10 +1,9 @@
-"""Opt-in Langfuse spans. Content is omitted by default before export."""
-
 import hashlib
 import inspect
 import logging
 import re
 from contextlib import ExitStack, contextmanager
+from datetime import datetime, timezone
 from functools import lru_cache, wraps
 
 from helpers.config import get_settings
@@ -23,6 +22,15 @@ def mask(data, **kwargs):
     if isinstance(data, list):
         return [mask(value) for value in data]
     return data
+
+
+def update_observation(observation, **kwargs):
+    if observation is None:
+        return
+    try:
+        observation.update(**mask(kwargs))
+    except Exception:
+        logger.warning("observability.update.failed")
 
 
 @lru_cache(maxsize=1)
@@ -90,6 +98,9 @@ def span(name, metadata=None, as_type="span", model=None):
         return
     try:
         yield current
+    except Exception as error:
+        update_observation(current, level="ERROR", status_message=type(error).__name__)
+        raise
     finally:
         stack.close()
 
@@ -115,17 +126,22 @@ def traced(name):
             if project is not None:
                 metadata["collection"] = self.create_collection_name(project.project_id)
             with span(name, metadata) as observation:
+                update_observation(observation, input={"question": query})
                 result = await function(self, *args, **kwargs)
                 if observation:
-                    try:
-                        observation.update(
-                            metadata={
-                                **metadata,
-                                "prompt_version": self.prompt_version(),
-                            }
-                        )
-                    except Exception:
-                        logger.warning("observability.metadata.failed")
+                    details = {
+                        "metadata": {
+                            **metadata,
+                            "prompt_version": self.prompt_version(),
+                        }
+                    }
+                    if name == "answer" and isinstance(result, dict):
+                        details["output"] = {
+                            key: result[key]
+                            for key in ("answer", "sources")
+                            if key in result
+                        }
+                    update_observation(observation, **details)
                 return result
 
         return wrapped
@@ -146,10 +162,18 @@ def traced_stream(function):
             if parent:
                 context["parent_span_id"] = parent
 
+        bound = (
+            inspect.signature(function).bind_partial(self, *args, **kwargs).arguments
+        )
+        messages = list(bound.get("history") or [])
+        messages.append({"role": "user", "content": bound.get("prompt", "")})
+
         def iterator():
             observation = None
+            metadata = {}
             if client:
                 try:
+                    metadata = {"stream": True, "index": self.get_index_metadata()}
                     observation = client.start_observation(
                         name="generate",
                         as_type="generation",
@@ -157,18 +181,55 @@ def traced_stream(function):
                         model=getattr(
                             self.generation_client, "generation_model_id", None
                         ),
-                        metadata={"stream": True, "index": self.get_index_metadata()},
+                        metadata=metadata,
                     )
                 except Exception:
                     logger.warning("observability.stream.failed")
+            update_observation(observation, input=messages)
+            pieces = []
+            completed = False
+            failed = False
+            response = None
             try:
-                yield from function(self, *args, **kwargs)
+                response = function(self, *args, **kwargs)
+                for token in response:
+                    if token:
+                        if not pieces:
+                            update_observation(
+                                observation,
+                                completion_start_time=datetime.now(timezone.utc),
+                            )
+                        pieces.append(token)
+                    yield token
+                completed = True
+            except Exception as error:
+                failed = True
+                update_observation(
+                    observation, level="ERROR", status_message=type(error).__name__
+                )
+                raise
             finally:
-                if observation:
-                    try:
-                        observation.end()
-                    except Exception:
-                        logger.warning("observability.stream.failed")
+                try:
+                    close = getattr(response, "close", None)
+                    if callable(close):
+                        close()
+                finally:
+                    update_observation(
+                        observation,
+                        output="".join(pieces),
+                        metadata={**metadata, "completed": completed},
+                    )
+                    if not completed and not failed:
+                        update_observation(
+                            observation,
+                            level="WARNING",
+                            status_message="Stream interrupted",
+                        )
+                    if observation:
+                        try:
+                            observation.end()
+                        except Exception:
+                            logger.warning("observability.stream.failed")
 
         return iterator()
 

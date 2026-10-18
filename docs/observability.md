@@ -8,11 +8,35 @@ Langfuse instance; this project does not add its multi-service hosting stack.
 
 An answer trace contains retrieve, embed, rerank and generation spans. Streaming
 uses explicit observation IDs so the SSE threadpool does not transfer a ContextVar
-token across threads. Request IDs map deterministically to trace IDs. No query,
-retrieved text, prompt or answer content is supplied to the exporter; local JSON
-prediction logs retain redacted content. The recursive SDK mask is a secondary
-limited defense for values explicitly supplied later. Keep retention/access controls
-appropriate to your environment. Auth identities should be stable internal IDs.
+token across threads. Request IDs map deterministically to trace IDs. When
+tracing is enabled, the answer observation records the question, final answer
+and source citations. Its generation observation records the system/user
+messages and generated response, with actual token usage for ordinary answers.
+Inputs are captured before the provider modifies conversation history. Content
+passes through the existing PII redaction before export and the SDK mask.
+Local JSON prediction logs also retain redacted content.
+
+Readiness checks do not create inference traces. Docker calls `/health` every
+30 seconds, and its generation, embedding and reranker probes previously created
+empty `provider` observations even without user requests. These probes still use
+the shared client locks and worker pool, but skip the tracing wrapper. Existing
+empty observations remain in Langfuse history.
+
+For streaming, open the generate observation to see the prompt, assembled answer
+and time to first nonempty token. Partial streams retain their partial output
+and completed=false; failures are marked ERROR and interrupted streams WARNING.
+Streaming token usage remains unset because the current iterator exposes only
+text. The parent answer observation records question/sources before streaming
+begins; the streamed answer is on its generate child. Export/update failures
+do not change application answers. Keep retention/access controls appropriate
+to your environment. Auth identities should be stable internal IDs.
+
+Existing traces are not backfilled: submit a new answer after rebuilding the
+API and open its answer/generate observations in Langfuse. Cost requires a
+matching model price definition or explicitly supplied measured costs. A local
+Qwen model alias has no inferred API price by default. Prompt Name requires a
+linked Langfuse prompt object; the local prompt-version metadata alone does not
+populate that field. These fields may legitimately remain empty.
 
 Set LANGFUSE_PROMPT_LABEL=production to fetch `rag-system-en` or `rag-system-ar`.
 Only the system prompt is remote-managed; document/footer templates stay local.

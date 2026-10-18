@@ -23,7 +23,11 @@ async def run_serialized(owner, function, *args, **kwargs):
 
     def call():
         with operation_lock:
-            from utils.observability import span
+            # Readiness probes share client locks without exporting inference traces.
+            if getattr(function, "__name__", None) == "health_check":
+                return function(*args, **kwargs)
+
+            from utils.observability import span, update_observation
 
             name = {
                 "embed_text": "embed",
@@ -37,6 +41,18 @@ async def run_serialized(owner, function, *args, **kwargs):
                 if name == "generate"
                 else None,
             ) as observation:
+                if observation and name == "generate":
+                    history = kwargs.get(
+                        "chat_history", args[1] if len(args) > 1 else None
+                    )
+                    messages = list(history or [])
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": kwargs.get("prompt", args[0] if args else ""),
+                        }
+                    )
+                    update_observation(observation, input=messages)
                 result = function(*args, **kwargs)
                 if observation and name == "generate":
                     usage = {
@@ -47,14 +63,11 @@ async def run_serialized(owner, function, *args, **kwargs):
                         }.items()
                         if isinstance(value, int)
                     }
-                    try:
-                        observation.update(usage_details=usage)
-                    except Exception:
-                        import logging
-
-                        logging.getLogger(__name__).warning(
-                            "observability.usage.failed"
-                        )
+                    update_observation(
+                        observation,
+                        output=str(result) if result is not None else None,
+                        usage_details=usage,
+                    )
                 return result
 
     # Wait outside the worker pool so queued inference cannot consume every slot.
