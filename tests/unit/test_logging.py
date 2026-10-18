@@ -115,6 +115,24 @@ def test_access_sampling_never_drops_prediction_events(caplog):
     assert not any(r.message == "http.done" for r in caplog.records)
 
 
+@pytest.mark.parametrize("action", ["search", "answer", "answer/stream"])
+def test_rag_total_latency_is_not_sampled(caplog, action):
+    app = FastAPI()
+    app.add_middleware(RequestContextMiddleware, access_sample_rate=0)
+    path = f"/api/v1/nlp/index/{action}/9"
+
+    @app.post(path)
+    def endpoint():
+        return {"answer": "result"}
+
+    with caplog.at_level(logging.INFO), TestClient(app) as client:
+        response = client.post(path)
+    assert response.status_code == 200
+    event = next(r for r in caplog.records if r.message == "http.done")
+    assert event.path == path and event.status_code == 200
+    assert event.latency_ms >= 0
+
+
 def test_exception_response_has_request_id(caplog):
     app = FastAPI()
     app.add_middleware(RequestContextMiddleware)

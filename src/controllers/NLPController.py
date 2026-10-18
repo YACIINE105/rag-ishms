@@ -221,6 +221,7 @@ class NLPController(BaseController):
         rerank_pool = rerank_pool or getattr(self.app_settings, "RERANK_POOL", 30)
         collection_name = self.create_collection_name(project_id=project.project_id)
         start = perf_counter()
+        stage = "embed"
         try:
             vectors = await run_serialized(
                 self.embedding_client,
@@ -231,8 +232,13 @@ class NLPController(BaseController):
             )
             if not vectors or not vectors[0]:
                 raise RuntimeError("Embedding provider returned no vector")
-            RAG_STAGE_LATENCY.labels("embed").observe(perf_counter() - start)
+            elapsed = perf_counter() - start
+            RAG_STAGE_LATENCY.labels("embed").observe(elapsed)
+            self.logger.info(
+                "embed.done", extra={"latency_ms": round(elapsed * 1000, 2)}
+            )
             start = perf_counter()
+            stage = "search"
             candidates = await self.vector_db_client.search_by_vector(
                 collection_name=collection_name,
                 vector=vectors[0],
@@ -241,7 +247,13 @@ class NLPController(BaseController):
             if candidates is None or candidates is False:
                 raise RuntimeError("Vector provider failed")
         except Exception:
-            self.logger.exception("retrieve.failed")
+            self.logger.exception(
+                "retrieve.failed",
+                extra={
+                    "stage": stage,
+                    "latency_ms": round((perf_counter() - start) * 1000, 2),
+                },
+            )
             raise
         self.logger.info(
             "retrieve.done",
@@ -268,7 +280,10 @@ class NLPController(BaseController):
                 top_n=limit,
             )
         except Exception:
-            self.logger.exception("rerank.failed")
+            self.logger.exception(
+                "rerank.failed",
+                extra={"latency_ms": round((perf_counter() - start) * 1000, 2)},
+            )
             raise
         RAG_STAGE_LATENCY.labels("rerank").observe(perf_counter() - start)
         top_score = float(reranked[0][1]) if reranked else None
@@ -394,6 +409,7 @@ class NLPController(BaseController):
             for doc in retrieved_docs
         ]
         # step 2 construct prompt
+        start = perf_counter()
         system_prompt = await run_in_threadpool(
             self.template_parser.get, "rag", "system_prompt"
         )
@@ -421,6 +437,8 @@ class NLPController(BaseController):
         chat_history = [
             self.generation_client.construct_prompt(prompt=system_prompt, role="system")
         ]
+        elapsed = perf_counter() - start
+        self.logger.info("prompt.done", extra={"latency_ms": round(elapsed * 1000, 2)})
 
         if stream:
             return {
@@ -443,7 +461,10 @@ class NLPController(BaseController):
             )
         except Exception:
             RAG_REQUESTS.labels("llm_error", language).inc()
-            self.logger.exception("generate.failed")
+            self.logger.exception(
+                "generate.failed",
+                extra={"latency_ms": round((perf_counter() - start) * 1000, 2)},
+            )
             raise
         finally:
             LLM_INFLIGHT.dec()
@@ -502,12 +523,18 @@ class NLPController(BaseController):
         LLM_INFLIGHT.inc()
         completed = False
         pieces = []
+        first_token_ms = None
         raw_iterator = self.generation_client.stream_text(prompt, history)
         iterator = redact_stream(raw_iterator) if guarded else raw_iterator
         try:
             for token in iterator:
-                if not pieces:
-                    LLM_TTFT.observe(perf_counter() - start)
+                if token and first_token_ms is None:
+                    elapsed = perf_counter() - start
+                    LLM_TTFT.observe(elapsed)
+                    first_token_ms = round(elapsed * 1000, 2)
+                    self.logger.info(
+                        "generate.first_token", extra={"latency_ms": first_token_ms}
+                    )
                 pieces.append(token)
                 yield token
             if not pieces:
@@ -525,8 +552,18 @@ class NLPController(BaseController):
             if not completed:
                 GUARDRAIL_DECISIONS.labels("stream", "interrupted").inc()
             LLM_INFLIGHT.dec()
-            LLM_STREAM_DURATION.observe(perf_counter() - start)
-            RAG_STAGE_LATENCY.labels("generate").observe(perf_counter() - start)
+            elapsed = perf_counter() - start
+            LLM_STREAM_DURATION.observe(elapsed)
+            RAG_STAGE_LATENCY.labels("generate").observe(elapsed)
+            self.logger.info(
+                "generate.done" if completed else "generate.interrupted",
+                extra={
+                    "latency_ms": round(elapsed * 1000, 2),
+                    "first_token_ms": first_token_ms,
+                    "streamed": True,
+                    "completed": completed,
+                },
+            )
             iterator.close()
 
     def get_conversation_history(project: Project, conversation_id):

@@ -1,5 +1,24 @@
 # Optional Langfuse and quality monitoring
 
+RAG latency is also available directly in the API's JSON logs, without Langfuse:
+
+```bash
+docker logs --since 5m fastapi
+```
+
+For the same `request_id`, read `latency_ms` on `embed.done` (query embedding),
+`retrieve.done` (vector search only), `rerank.done`, `prompt.done` and
+`generate.done`. The final `http.done` records the total HTTP request duration
+and is always logged for RAG search/answer requests. Other successful access
+events remain sampled. Stages that do not run have no timing entry.
+
+Streaming also logs `generate.first_token`; its `generate.done` includes
+`first_token_ms`, `streamed=true` and `completed=true`. A stream that stops early
+logs `generate.interrupted` with `completed=false`. The HTTP total includes
+stream consumption. Timings measure elapsed wall time, including provider queue
+waits, network calls and retries; they are not isolated GPU compute measurements.
+The total includes remaining request overhead, so it can exceed the stage sum.
+
 No Langfuse credentials or hosted project are required for the local API. To
 export traces later, set LANGFUSE_ENABLED=true, LANGFUSE_PUBLIC_KEY,
 LANGFUSE_SECRET_KEY, LANGFUSE_BASE_URL and APP_ENVIRONMENT in the API environment.

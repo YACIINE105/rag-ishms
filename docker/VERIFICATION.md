@@ -1,5 +1,30 @@
 # Docker verification
 
+## Simple RAG stage latency logs — 2026-10-18
+
+- Added missing `embed.done`, `prompt.done` and streaming generation timing logs.
+  Existing vector-search, reranker and normal-generation timings remain in place.
+  Every RAG search/answer request now logs `http.done` with total `latency_ms`,
+  including full SSE consumption. All timings carry the existing request/project
+  context. Readiness probes remain excluded from inference tracing.
+- Full suite: **289 tests plus 12 subtests, 87.68% source coverage**. Checks cover
+  unsampled RAG totals, stage timings and first-nonempty-token streaming timing.
+- Rebuilt and recreated only FastAPI. Direct/nginx readiness and API contract
+  checks passed, followed by real project-9 normal and streaming answers. Verified
+  each stage and total in the deployed JSON logs. The normal answer measured
+  embedding **839.67 ms**, vector search **434.87 ms**, reranking **2,221.63 ms**,
+  prompt building **1.59 ms**, generation **11,260.64 ms**, total **19,399.28 ms**.
+  The streamed answer logged **6,614.35 ms** to its first nonempty token and
+  **7,291.35 ms** total. These are individual requests, not a load benchmark.
+- Source hashes match the image; CUDA PyTorch remains **2.14.1+cu130**. Mounts,
+  saved job checksum, GPU model-service PIDs and all other container IDs are
+  unchanged. Timings include waiting/network/retries; the HTTP total also
+  includes request overhead outside the stages.
+
+Evidence: `eval/reports/rag-latency-2026-10-18/` (ignored). Rollback tag:
+`rag-ishms:before-latency-20261018`. See [the logging guide](../docs/observability.md)
+for event names and the command to read them.
+
 ## Langfuse content and readiness trace cleanup — 2026-10-18
 
 - Confirmed the unsolicited empty `provider` observations were emitted by the

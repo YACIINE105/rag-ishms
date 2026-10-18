@@ -110,7 +110,14 @@ class RequestContextMiddleware:
                 scope, receive, send_with_id
             )
         finally:
-            if status_code >= 400 or random.random() < self.access_sample_rate:
+            rag_request = scope["path"].startswith(
+                ("/api/v1/nlp/index/search/", "/api/v1/nlp/index/answer/")
+            )
+            if (
+                rag_request
+                or status_code >= 400
+                or random.random() < self.access_sample_rate
+            ):
                 self.logger.log(
                     logging.ERROR if status_code >= 500 else logging.INFO,
                     "http.done",

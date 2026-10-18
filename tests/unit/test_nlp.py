@@ -111,6 +111,8 @@ async def test_generation_usage_and_prediction_logs(controller, caplog):
     assert events[
         "prediction.done"
     ].collection_name == controller.create_collection_name(1)
+    for stage in ("embed", "retrieve", "rerank", "prompt", "generate"):
+        assert events[f"{stage}.done"].latency_ms >= 0
     assert result["sources"][0] == {"asset_name": "report.pdf", "page": 3}
 
 
@@ -265,9 +267,18 @@ async def test_configured_low_score_refuses_generation(controller, monkeypatch):
     controller.generation_client.generate_text.assert_not_called()
 
 
-def test_stream_logs_and_counts_real_chunks(controller):
-    controller.generation_client.stream_text.return_value = (x for x in ["one", "two"])
-    assert list(controller.stream_generation("prompt", [], "en", "q", False)) == [
-        "one",
-        "two",
-    ]
+def test_stream_logs_and_counts_real_chunks(controller, caplog):
+    controller.generation_client.stream_text.return_value = (
+        x for x in ["", "one", "two"]
+    )
+    with caplog.at_level(logging.INFO):
+        stream = controller.stream_generation("prompt", [], "en", "q", False)
+        assert next(stream) == ""
+        assert not any(r.message == "generate.first_token" for r in caplog.records)
+        assert list(stream) == ["one", "two"]
+    first_tokens = [r for r in caplog.records if r.message == "generate.first_token"]
+    assert len(first_tokens) == 1
+    event = next(r for r in caplog.records if r.message == "generate.done")
+    assert event.streamed and event.completed
+    assert event.latency_ms >= event.first_token_ms >= 0
+    assert event.first_token_ms == first_tokens[0].latency_ms
