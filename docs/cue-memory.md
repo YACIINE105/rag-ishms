@@ -1570,3 +1570,43 @@ No new quality, legal or capacity qualification is claimed. Build logs,
 runtime-verification.json, API smoke logs and receipt.json are in
 G:\WSL\maintenance\api-rebuild-2026-10-16\. No Cue email or WSL restart occurred;
 saved WSL 4 GiB RAM / 12 GiB swap activation remains pending.
+
+### Project-9-only SQL prepared; no production deletion — 2026-10-18
+
+The user requested a SQL query to retain project 9, its assets, chunks and
+embeddings, and clarified that it targets the rag-ishms PostgreSQL database.
+Prepared scripts/sql/keep_only_project_9.sql, ending in COMMIT, but DID NOT run
+the cleanup against the production database. A request for a query is not an
+instruction to execute its production deletions.
+
+INDEPENDENT READ-ONLY AUDIT: the database currently has seven projects. Project 9
+now has one asset, 2,297 chunks and 2,297 vectors in
+collection_nvidia_llama_nemotron_e1d11bf3cb36_2048_9. These current records
+supersede the older zero-vector/baseline snapshot. The assistant did not process
+or index project 9 during this audit. All eight current collection tables have
+vectors linked to chunks from the project in their table-name suffix, and chunk
+project IDs match their asset project IDs.
+
+The transaction guards the database name and existence of project 9, locks the
+base tables with a five-second lock timeout, handles vector foreign keys first,
+retains every collection version ending exactly in _9, then deletes other
+chunks/assets/projects in dependency order. No CASCADE, sequence reset, uploaded
+file deletion, job-log cleanup, Qdrant deletion or database drop is included.
+Run while project mutations are idle. It reports remaining rows/collections.
+
+VALIDATION: tested on two isolated scratch databases using synthetic rows, with
+only the database-name guard adapted for those scratch names. Wrong-database
+and missing-project guards, dependency order, legacy/fingerprinted project-9
+collections, removal of other projects' tables (including IDs 19 and 900009),
+removal of mismatched vector rows, metadata retention and repeat execution all
+passed. Scratch databases were removed. The real database still contains all
+seven projects and the same project-9 counts after testing. Evidence:
+G:\WSL\maintenance\project-9-sql-2026-10-18\validation.json.
+
+Before this request, the user interrupted startup diagnosis. Observed live WSL
+memory is now approximately 3.8 GiB RAM plus 12 GiB swap, with the swap VHD at
+G:\WSL\swap\wsl-swap.vhdx; this confirms the saved memory profile is active.
+The interrupted diagnosis observed substantial swap use, a ready reranker and
+Qwen's checkpoint loading/warmup. No startup repair, service restart or memory
+increase was performed, and final application readiness was not verified in that
+interrupted task. Do not resume that work merely because it is recorded here.
