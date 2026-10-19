@@ -18,4 +18,6 @@ hf_cache/
 eval/
 scripts/
 .github/
+reports/
+rag-ishms-current.md
 .ruff_cache/

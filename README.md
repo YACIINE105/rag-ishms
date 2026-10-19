@@ -24,6 +24,12 @@ provisional because inspection found judge errors as well as generator errors.
 
 ## Start the already configured project
 
+For a portable deployment with generation and reranking also inside Docker, use
+the [Docker release bundle](docker/release/README.md). It pulls the published API
+and vLLM images, downloads pinned public Hugging Face weights into a persistent
+volume, and generates private credentials locally. The existing host-service
+setup below remains supported.
+
 Run these commands in Bash from the repository root:
 
 ```bash
@@ -459,7 +465,7 @@ uv run pytest
 uv run pre-commit run --all-files
 ```
 
-The verified suite has 289 tests plus 12 subtests, with 87.68% source coverage; tests
+The verified suite has 291 tests plus 12 subtests, with 88.12% source coverage; tests
 use mocks and do not download native model weights or make paid inference calls.
 
 For the reproducible legal corpus and optional evaluation tools:

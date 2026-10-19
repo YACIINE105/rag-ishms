@@ -35,6 +35,7 @@ COPY --from=builder /opt/venv /opt/venv
 # COPY --chown=appuser:appuser hf_cache/ /app/.hf_cache/
 
 COPY --chown=appuser:appuser src/ /app/
+COPY --chown=appuser:appuser docker/release/models.json /app/model-sources.json
 COPY --chown=appuser:appuser docker/rag_ishms/alembic.example.ini /app/models/db_schems/rag_ishms/alembic.ini
 COPY --chmod=755 docker/rag_ishms/entrypoint.sh /entrypoint.sh
 
@@ -42,6 +43,8 @@ RUN mkdir -p /app/assets /app/ai-models /app/.hf_cache /home/appuser \
     && chown appuser:appuser /app/assets /app/ai-models /app/.hf_cache /home/appuser
 
 USER appuser
+LABEL org.opencontainers.image.source="https://github.com/YACIINE105/rag-ishms" \
+    io.rag-ishms.generator.url="https://huggingface.co/Qwen/Qwen3-4B-Instruct-2507/tree/cdbee75f17c01a7cc42f958dc650907174af0554"
 HEALTHCHECK --interval=30s --timeout=10s --start-period=180s --retries=3 \
     CMD curl --fail --silent http://localhost:8000/health || exit 1
 ENTRYPOINT ["/entrypoint.sh"]

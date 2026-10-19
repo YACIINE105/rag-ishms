@@ -1,0 +1,109 @@
+name: rag-ishms-release
+
+services:
+  fastapi:
+    image: ${IMAGE_REGISTRY:-ghcr.io/yaciine105}/rag-ishms:${RELEASE_VERSION:-2.0.0}
+    gpus: all
+    env_file: .env.fastapi
+    environment:
+      APP_VERSION: ${RELEASE_VERSION:-2.0.0}
+      POSTGRES_HOST: pgvector
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run python3 configure.py first}
+      API_AUTH_ENABLED: "true"
+      API_CLIENTS: ${API_CLIENTS:?Run python3 configure.py first}
+      GENERATION_PROVIDER: OPENAI
+      GENERATION_BASE_URL: http://generator:8001/v1
+      GENERATION_API_KEY: ${GENERATOR_API_KEY:?Run python3 configure.py first}
+      GENERATION_MODEL_ID: qwen3-legal-final
+      GENERATION_MODEL_TEMPERATURE: "0"
+      MAX_OUTPUT_TOKENS: "256"
+      RERANKER_BASE_URL: http://reranker:8002/v1
+      RERANKER_API_KEY: ${RERANKER_API_KEY:?Run python3 configure.py first}
+      RERANKER_MODEL_ID: BAAI/bge-reranker-v2-m3
+    volumes:
+      - assets:/app/assets
+      - api_cache:/app/.hf_cache
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    depends_on:
+      pgvector:
+        condition: service_healthy
+      generator:
+        condition: service_healthy
+      reranker:
+        condition: service_healthy
+    restart: unless-stopped
+
+  generator:
+    image: ${IMAGE_REGISTRY:-ghcr.io/yaciine105}/rag-ishms-vllm:${RELEASE_VERSION:-2.0.0}
+    command: [generator]
+    gpus: all
+    shm_size: 512m
+    environment:
+      VLLM_API_KEY: ${GENERATOR_API_KEY:?Run python3 configure.py first}
+      GPU_MEMORY_UTILIZATION: ${GENERATOR_GPU_MEMORY_UTILIZATION:-0.70}
+      MAX_MODEL_LEN: ${GENERATOR_MAX_MODEL_LEN:-2048}
+    volumes:
+      - model_cache:/models
+    depends_on:
+      reranker:
+        condition: service_healthy
+    healthcheck:
+      test: [CMD, python3, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8001/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30m
+    restart: unless-stopped
+
+  reranker:
+    image: ${IMAGE_REGISTRY:-ghcr.io/yaciine105}/rag-ishms-vllm:${RELEASE_VERSION:-2.0.0}
+    command: [reranker]
+    gpus: all
+    shm_size: 512m
+    environment:
+      VLLM_API_KEY: ${RERANKER_API_KEY:?Run python3 configure.py first}
+      GPU_MEMORY_UTILIZATION: ${RERANKER_GPU_MEMORY_UTILIZATION:-0.45}
+      MAX_MODEL_LEN: "512"
+    volumes:
+      - model_cache:/models
+    healthcheck:
+      test: [CMD, python3, -c, "import urllib.request; urllib.request.urlopen('http://localhost:8002/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 30m
+    restart: unless-stopped
+
+  pgvector:
+    image: pgvector/pgvector:0.8.6-pg18-trixie
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run python3 configure.py first}
+      POSTGRES_DB: rag-ishms
+    volumes:
+      - database:/var/lib/postgresql
+    healthcheck:
+      test: [CMD-SHELL, "pg_isready -U postgres -d rag-ishms"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    restart: unless-stopped
+
+  nginx:
+    image: nginx:stable-alpine3.24-perl
+    ports:
+      - "${HTTP_PORT:-80}:80"
+    volumes:
+      - ../nginx/default.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      fastapi:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  assets:
+  api_cache:
+  model_cache:
+  database:
