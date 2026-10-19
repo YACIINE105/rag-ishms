@@ -1,0 +1,11 @@
+[Unit]
+Description=Check Cue replies and notify the Codex project task
+After=network.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=%h/rag-ishms
+ExecStart=%h/rag-ishms/.venv/bin/python %h/rag-ishms/scripts/watch_cue_mail.py check
+Environment=PATH=%h/.local/bin:/usr/local/bin:/usr/bin:/bin
+UMask=0077
+TimeoutStartSec=120

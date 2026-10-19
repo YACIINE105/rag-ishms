@@ -1,12 +1,24 @@
-from pydantic import BaseModel
-from typing import Optional
+from pydantic import BaseModel, Field, model_validator
+
+
 class ProcessRequest(BaseModel):
-    #file_id is now optional if got it process it else procedss all file in the folder
-    file_id : str = None
-    chunk_size : Optional[int]=100
-    overlap_size:Optional[int]=20
-    breakpoint_threshold_type : Optional[str] = "percentile"
-    breakpoint_threshold_amount:Optional[float]= 95
-    do_emantic_chunk:Optional[int]=1
-    do_reset:Optional[int]=0
-    
+    file_id: str | None = Field(
+        default=None,
+        description="Asset ID returned by upload, or the unique stored filename.",
+    )
+    W_qalam: bool = Field(
+        default=False,
+        description="Use Qalam to create separate Arabic and English article chunks.",
+    )
+    chunk_size: int = Field(default=100, ge=1)
+    overlap_size: int = Field(default=20, ge=0)
+    breakpoint_threshold_type: str = "percentile"
+    breakpoint_threshold_amount: float = 95
+    do_emantic_chunk: int = 1
+    do_reset: int = 0
+
+    @model_validator(mode="after")
+    def check_overlap(self):
+        if not self.W_qalam and self.overlap_size >= self.chunk_size:
+            raise ValueError("overlap_size must be less than chunk_size")
+        return self

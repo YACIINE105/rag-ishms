@@ -1,16 +1,26 @@
-from sentence_transformers import CrossEncoder
-import torch
 import logging
 
+import torch
+from sentence_transformers import CrossEncoder
+
+
 class CrossEncoderReranker:
-    def __init__(self, model_name: str = "BAAI/bge-reranker-v2-m3", device: str = None):
+    def __init__(
+        self,
+        model_name: str = "BAAI/bge-reranker-v2-m3",
+        device: str = None,
+        batch_size: int = 16,
+    ):
         device = device or ("cuda" if torch.cuda.is_available() else "cpu")
+        self.batch_size = batch_size
         self.model = CrossEncoder(model_name, device=device)
         self.logger = logging.getLogger(__name__)
         self.logger.info(f"CrossEncoderReranker loaded on: {device}")
 
     def rerank(self, query: str, documents: list[str], top_n: int = 5):
         pairs = [(query, doc) for doc in documents]
-        scores = self.model.predict(pairs)
+        scores = self.model.predict(
+            pairs, show_progress_bar=False, batch_size=self.batch_size
+        )
         ranked = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)
         return ranked[:top_n]

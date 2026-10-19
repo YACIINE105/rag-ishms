@@ -1,0 +1,343 @@
+[
+  {
+    "id": "civil-code-article-1",
+    "project_id": 1,
+    "question": "ما ترتيب المصادر التي يرجع إليها القاضي إذا لم يوجد نص تشريعي قابل للتطبيق؟",
+    "expected_answer": "يرجع القاضي إلى العرف، ثم مبادئ الشريعة الإسلامية عند عدم وجود عرف، ثم مبادئ القانون الطبيعي وقواعد العدالة عند عدم وجود تلك المبادئ.",
+    "reference_documents": [
+      "egyptian-civil-code.pdf"
+    ],
+    "article_number": 1,
+    "source_pages": [
+      1
+    ],
+    "reference_context": "Provisions of laws govern all matters to which these provisions apply in letter or spirit. In the absence of a provision of a law that is applicable, the Judge will decide according to custom and in the absence of custom in accordance with the principles of Moslem Law. In the absence of such principles, the Judge will apply the principles of natural justice and the rules of equity.",
+    "source_url": "https://sadanykhalifa.com/uploads/Laws/1576751803.pdf",
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "language": "ar"
+  },
+  {
+    "id": "civil-code-article-2",
+    "project_id": 1,
+    "question": "كيف يمكن إلغاء نص تشريعي وفقا للمادة الثانية؟",
+    "expected_answer": "بتشريع لاحق ينص صراحة على الإلغاء، أو يتضمن نصا يتعارض مع التشريع السابق، أو ينظم من جديد الموضوع الذي نظمه التشريع السابق.",
+    "reference_documents": [
+      "egyptian-civil-code.pdf"
+    ],
+    "article_number": 2,
+    "source_pages": [
+      1
+    ],
+    "reference_context": "A provision of a law can only be repealed by a subsequent law expressly providing for such repeal, or containing a provision inconsistent with a provision of the former law or regulating anew a matter previously regulated by a former law.",
+    "source_url": "https://sadanykhalifa.com/uploads/Laws/1576751803.pdf",
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "language": "ar"
+  },
+  {
+    "id": "civil-code-article-3",
+    "project_id": 1,
+    "question": "بأي تقويم تحسب المواعيد إذا لم ينص القانون على غير ذلك؟",
+    "expected_answer": "تحسب المواعيد بالتقويم الميلادي ما لم ينص القانون على غير ذلك.",
+    "reference_documents": [
+      "egyptian-civil-code.pdf"
+    ],
+    "article_number": 3,
+    "source_pages": [
+      1
+    ],
+    "reference_context": "Periods of limitation will be calculated according to the Gregorian calendar, unless expressly provided otherwise by a law.",
+    "source_url": "https://sadanykhalifa.com/uploads/Laws/1576751803.pdf",
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "language": "ar"
+  },
+  {
+    "id": "civil-code-article-4",
+    "project_id": 1,
+    "question": "هل يسأل من استعمل حقه استعمالا مشروعا عن الضرر الناشئ عنه؟",
+    "expected_answer": "لا يكون مسؤولا عما ينشأ عن الاستعمال المشروع لحقه من ضرر.",
+    "reference_documents": [
+      "egyptian-civil-code.pdf"
+    ],
+    "article_number": 4,
+    "source_pages": [
+      1
+    ],
+    "reference_context": "A person legitimately exercises his rights is not responsible for prejudice resulting thereby.",
+    "source_url": "https://sadanykhalifa.com/uploads/Laws/1576751803.pdf",
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "language": "ar"
+  },
+  {
+    "id": "civil-code-article-5",
+    "project_id": 1,
+    "question": "متى يعد استعمال الحق غير مشروع؟",
+    "expected_answer": "إذا كان القصد الوحيد الإضرار بالغير، أو كانت المصالح قليلة الأهمية وغير متناسبة البتة مع الضرر، أو كانت المصالح المراد تحقيقها غير مشروعة.",
+    "reference_documents": [
+      "egyptian-civil-code.pdf"
+    ],
+    "article_number": 5,
+    "source_pages": [
+      1
+    ],
+    "reference_context": "The exercise of a right is considered unlawful in the following cases: a) if the sole aim thereof is to harm another person; b) if the benefit it is desired to realize is out of proportion to the harm caused thereby to another person; c) if the benefit it is desired to realize is unlawful.",
+    "source_url": "https://sadanykhalifa.com/uploads/Laws/1576751803.pdf",
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "language": "ar"
+  },
+  {
+    "id": "civil-code-article-40",
+    "project_id": 1,
+    "question": "What is a domicile, and can a person have more than one?",
+    "expected_answer": "A domicile is where a person habitually resides. A person may have several domiciles at once, or none.",
+    "reference_documents": [
+      "egyptian-civil-code.pdf"
+    ],
+    "article_number": 40,
+    "source_pages": [
+      5
+    ],
+    "reference_context": "A domicile is the place where a person habitually resides. A person may have more than one domicile at the same time, as he may have none.",
+    "source_url": "https://sadanykhalifa.com/uploads/Laws/1576751803.pdf",
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "language": "en"
+  },
+  {
+    "id": "civil-code-article-43",
+    "project_id": 1,
+    "question": "How must an elected special domicile be evidenced?",
+    "expected_answer": "The election of a special domicile must be evidenced in writing.",
+    "reference_documents": [
+      "egyptian-civil-code.pdf"
+    ],
+    "article_number": 43,
+    "source_pages": [
+      6
+    ],
+    "reference_context": "A special domicile may be elected for the performance of a specific legal act. The election of domicile must be evidenced by writing. A domicile elected for the performance of a legal act shall be deemed to be the domicile in so far as all matters relating to such act are concerned, including the procedure for enforcement by legal means unless the election of domicile is expressly limited to certain special acts, excluding others.",
+    "source_url": "https://sadanykhalifa.com/uploads/Laws/1576751803.pdf",
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "language": "en"
+  },
+  {
+    "id": "civil-code-article-44",
+    "project_id": 1,
+    "question": "ما سن الرشد وما شروط الأهلية الكاملة لمباشرة الحقوق المدنية؟",
+    "expected_answer": "سن الرشد إحدى وعشرون سنة ميلادية كاملة. ويكون الشخص كامل الأهلية إذا بلغها متمتعا بقواه العقلية ولم يحجر عليه.",
+    "reference_documents": [
+      "egyptian-civil-code.pdf"
+    ],
+    "article_number": 44,
+    "source_pages": [
+      6
+    ],
+    "reference_context": "All persons attaining majority in possession of their mental faculties and not under legal disability, have full legal capacity to exercise their civil rights. The majority of a person is fixed at twenty one years completed in accordance with the Gregorian calendar.",
+    "source_url": "https://sadanykhalifa.com/uploads/Laws/1576751803.pdf",
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "language": "ar"
+  },
+  {
+    "id": "civil-code-article-45",
+    "project_id": 1,
+    "question": "متى يعتبر الطفل فاقدا للتمييز بسبب سنه؟",
+    "expected_answer": "من لم يبلغ السابعة يعتبر فاقدا للتمييز.",
+    "reference_documents": [
+      "egyptian-civil-code.pdf"
+    ],
+    "article_number": 45,
+    "source_pages": [
+      6
+    ],
+    "reference_context": "A person devoid of discretion, owing to youth, feeble mindedness or insanity is incapable of exercising his civil rights. A person who has not attained the age of seven is considered devoid of discretion.",
+    "source_url": "https://sadanykhalifa.com/uploads/Laws/1576751803.pdf",
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "language": "ar"
+  },
+  {
+    "id": "civil-code-article-48",
+    "project_id": 1,
+    "question": "هل يجوز للشخص التنازل عن أهليته أو تعديل أحكامها؟",
+    "expected_answer": "لا يجوز للشخص التنازل عن أهليته أو تعديل أحكامها.",
+    "reference_documents": [
+      "egyptian-civil-code.pdf"
+    ],
+    "article_number": 48,
+    "source_pages": [
+      6
+    ],
+    "reference_context": "No person can renounce his legal capacity or modify the rules relating thereto.",
+    "source_url": "https://sadanykhalifa.com/uploads/Laws/1576751803.pdf",
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "language": "ar"
+  },
+  {
+    "id": "civil-code-article-49",
+    "project_id": 1,
+    "question": "Can a person renounce personal liberty under Article 49?",
+    "expected_answer": "No person can renounce personal liberty.",
+    "reference_documents": [
+      "egyptian-civil-code.pdf"
+    ],
+    "article_number": 49,
+    "source_pages": [
+      6
+    ],
+    "reference_context": "No person can renounce his personal liberty.",
+    "source_url": "https://sadanykhalifa.com/uploads/Laws/1576751803.pdf",
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "language": "en"
+  },
+  {
+    "id": "civil-code-article-50",
+    "project_id": 1,
+    "question": "ما الذي يجوز طلبه عند الاعتداء غير المشروع على حق ملازم للشخصية؟",
+    "expected_answer": "يجوز طلب وقف الاعتداء والتعويض عن الضرر الذي لحق بالشخص.",
+    "reference_documents": [
+      "egyptian-civil-code.pdf"
+    ],
+    "article_number": 50,
+    "source_pages": [
+      6
+    ],
+    "reference_context": "A person whose rights inherent in his personality have been unlawfully infringed, shall have the right to demand the cessation of the infringement and compensation for any damage sustained thereby.",
+    "source_url": "https://sadanykhalifa.com/uploads/Laws/1576751803.pdf",
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "language": "ar"
+  },
+  {
+    "id": "civil-code-article-89",
+    "project_id": 1,
+    "question": "متى ينعقد العقد مع مراعاة الأوضاع الخاصة التي قد يفرضها القانون؟",
+    "expected_answer": "ينعقد العقد عند تبادل طرفين التعبير عن إرادتين متطابقتين، مع مراعاة الأوضاع الخاصة التي يقررها القانون لانعقاده.",
+    "reference_documents": [
+      "egyptian-civil-code.pdf"
+    ],
+    "article_number": 89,
+    "source_pages": [
+      8
+    ],
+    "reference_context": "A contract is created, subject to any special formalities that may be required by law for its conclusion, from the moment that two persons have exchanged two concordant intentions.",
+    "source_url": "https://sadanykhalifa.com/uploads/Laws/1576751803.pdf",
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "language": "ar"
+  },
+  {
+    "id": "civil-code-article-90",
+    "project_id": 1,
+    "question": "What forms can a declaration of intention take, and when can it be implied?",
+    "expected_answer": "Intention may be declared verbally, in writing, through customary signs, or through unambiguous conduct. It may be implied unless the law or the parties require an express declaration.",
+    "reference_documents": [
+      "egyptian-civil-code.pdf"
+    ],
+    "article_number": 90,
+    "source_pages": [
+      8
+    ],
+    "reference_context": "An intention may be declared verbally, in writing, by signs in general use, and also by such conduct as, in the circumstances of the case, leaves no doubt as to its true meaning. A declaration of intention may be implied when neither the law nor the parties require it to be expressed.",
+    "source_url": "https://sadanykhalifa.com/uploads/Laws/1576751803.pdf",
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "language": "en"
+  },
+  {
+    "id": "civil-code-article-93",
+    "project_id": 1,
+    "question": "إذا حدد ميعاد للقبول، فإلى متى يلتزم الموجب بالبقاء على إيجابه؟",
+    "expected_answer": "يلتزم الموجب بالبقاء على إيجابه إلى انقضاء ميعاد القبول، وقد يستخلص الميعاد من الظروف أو طبيعة المعاملة.",
+    "reference_documents": [
+      "egyptian-civil-code.pdf"
+    ],
+    "article_number": 93,
+    "source_pages": [
+      9
+    ],
+    "reference_context": "When a time limit is fixed for acceptance, the person who makes the offer is bound to maintain his offer until the expiration of the time limit. The time limit may result from the circumstances or from the nature of the transaction.",
+    "source_url": "https://sadanykhalifa.com/uploads/Laws/1576751803.pdf",
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "language": "ar"
+  },
+  {
+    "id": "civil-code-article-94",
+    "project_id": 1,
+    "question": "هل يمكن انعقاد العقد رغم عدم صدور قبول فوري في مجلس العقد؟",
+    "expected_answer": "نعم، إذا لم يدل ما حدث بين الإيجاب والقبول على عدول الموجب، وصدر القبول قبل انفضاض مجلس العقد. والأصل أن الموجب يتحلل من إيجابه إذا لم يصدر قبول فوري دون تحديد ميعاد.",
+    "reference_documents": [
+      "egyptian-civil-code.pdf"
+    ],
+    "article_number": 94,
+    "source_pages": [
+      9
+    ],
+    "reference_context": "If at the time a contract is being framed, an offer is made without a time limit being fixed for acceptance, the offeror is released from his offer if it is not accepted forthwith. This also applies, if the offer is made by one person to another person by telephone or by any other similar means. A contract is concluded, however, even if acceptance is not immediate, when, during the interval between offer and acceptance, there is nothing to indicate that the offeror has withdrawn his offer and the declaration of acceptance is made before the end of the meeting at which the contract was being framed.",
+    "source_url": "https://sadanykhalifa.com/uploads/Laws/1576751803.pdf",
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "language": "ar"
+  },
+  {
+    "id": "civil-code-article-95",
+    "project_id": 1,
+    "question": "ما أثر الاتفاق على المسائل الجوهرية وترك تفاصيل لاحقة دون اشتراط عدم انعقاد العقد عند الخلاف عليها؟",
+    "expected_answer": "يعد العقد منعقدا، وتفصل المحكمة في التفاصيل المختلف عليها وفقا لطبيعة المعاملة وأحكام القانون والعرف والعدالة.",
+    "reference_documents": [
+      "egyptian-civil-code.pdf"
+    ],
+    "article_number": 95,
+    "source_pages": [
+      9
+    ],
+    "reference_context": "When the parties have agreed on all the essential points of a contract and have left certain details to be agreed at a later date without stipulating that failing agreement on these details, the contract shall not be concluded, the contract is deemed to have been concluded, and the points of detail will, in the event of dispute, be decided by the court according to the nature of the transaction, to the provisions of the law and to custom and equity.",
+    "source_url": "https://sadanykhalifa.com/uploads/Laws/1576751803.pdf",
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "language": "ar"
+  },
+  {
+    "id": "civil-code-article-147",
+    "project_id": 1,
+    "question": "What may a judge do when exceptional unpredictable general events make contractual performance excessively onerous but not impossible?",
+    "expected_answer": "The judge may balance the interests of both parties and reduce the excessively onerous obligation to reasonable limits. An agreement excluding this rule is void.",
+    "reference_documents": [
+      "egyptian-civil-code.pdf"
+    ],
+    "article_number": 147,
+    "source_pages": [
+      16
+    ],
+    "reference_context": "The contract makes the law of the parties. It can be revoked or altered only by mutual consent of the parties or for reasons provided for by law. When, however, as a result of exceptional and unpredictable events of a general character, the performance of the contractual obligation, without becoming impossible, becomes excessively onerous in such way as to threaten the debtor with exorbitant loss, the judge may according to the circumstances, and after taking into consideration the interests of both parties, reduce to reasonable limits, the obligation that has become excessive. Any agreement to the contrary is void.",
+    "source_url": "https://sadanykhalifa.com/uploads/Laws/1576751803.pdf",
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "language": "en"
+  },
+  {
+    "id": "civil-code-article-148",
+    "project_id": 1,
+    "question": "كيف يجب تنفيذ العقد، وهل تقتصر الالتزامات على الشروط الصريحة فقط؟",
+    "expected_answer": "يجب تنفيذ العقد وفقا لمضمونه وبحسن نية. ولا يقتصر على شروطه الصريحة، بل يشمل مستلزماته وفقا للقانون والعرف والعدالة وطبيعة الالتزام.",
+    "reference_documents": [
+      "egyptian-civil-code.pdf"
+    ],
+    "article_number": 148,
+    "source_pages": [
+      16,
+      17
+    ],
+    "reference_context": "A contract must be performed in accordance with its contents and in compliance with the requirements of good faith. A contract binds the contracting party not only as regards its expressed conditions, but also as regards everything which, according to law, usage and equity, is deemed, in view of the nature of the obligation, to be a necessary sequel to the contract.",
+    "source_url": "https://sadanykhalifa.com/uploads/Laws/1576751803.pdf",
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "language": "ar"
+  },
+  {
+    "id": "civil-code-article-163",
+    "project_id": 1,
+    "question": "ما أثر الخطأ الذي يسبب ضررا للغير وفقا للمادة 163؟",
+    "expected_answer": "يلتزم من ارتكب الخطأ بتعويض الضرر الذي سببه للغير.",
+    "reference_documents": [
+      "egyptian-civil-code.pdf"
+    ],
+    "article_number": 163,
+    "source_pages": [
+      19
+    ],
+    "reference_context": "Every fault which cause injury to another, imposes an obligation to make reparation upon the person by whom it is committed.",
+    "source_url": "https://sadanykhalifa.com/uploads/Laws/1576751803.pdf",
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "language": "ar"
+  }
+]

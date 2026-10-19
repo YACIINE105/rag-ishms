@@ -5,11 +5,16 @@ services:
       context: ..
       dockerfile: docker/rag_ishms/Dockerfile
     container_name: fastapi
+    gpus: all
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8000:8000"
-    
+
     volumes:
       - fast_api_data:/app/assets
+      - hf_cache:/app/.hf_cache
+      - ${MODEL_DIR:-../ai-models}:/app/ai-models:ro
 
     networks:
       - backend
@@ -27,7 +32,8 @@ services:
     ports:
       - "80:80"
     depends_on:
-      - fastapi
+      fastapi:
+        condition: service_healthy
     volumes:
       - ./nginx/default.conf:/etc/nginx/conf.d/default.conf
     networks:
@@ -56,8 +62,19 @@ services:
 
   # Qdrant (VectorDB)
   qdrant:
+    profiles: ["qdrant"]
     image: qdrant/qdrant:v1.19
     container_name: qdrant
+    healthcheck:
+      test:
+        - CMD
+        - bash
+        - -ec
+        - 'exec 3<>/dev/tcp/127.0.0.1/6333; printf "GET /readyz HTTP/1.0\r\nHost: localhost\r\n\r\n" >&3; IFS= read -r line <&3; [[ "$$line" == *" 200 "* ]]'
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
     ports:
       - "6333:6333"
       # for the grpc service
@@ -78,7 +95,8 @@ services:
       - "9090:9090"
     volumes:
       - prometheus_data:/prometheus
-      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - ./prometheus/alerts.yml:/etc/prometheus/alerts.yml:ro
     networks:
       - backend
     restart: always
@@ -89,7 +107,7 @@ services:
       - '--web.console.templates=/etc/prometheus/consoles'
       - '--web.enable-lifecycle'
 
-  # Grafana Dashboard
+  # Grafana Dashboard for gathering
   grafana:
     image: grafana/grafana:13.0.8
     container_name: grafana
@@ -99,6 +117,8 @@ services:
       - ./env/.env.grafana
     volumes:
       - grafana_data:/var/lib/grafana
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
     networks:
       - backend
     restart: always
@@ -115,7 +135,9 @@ services:
       - /proc:/host/proc:ro
       - /sys:/host/sys:ro
       - /:/rootfs:ro
+      - ../reports/metrics:/textfile:ro
     command:
+      - '--collector.textfile.directory=/textfile'
       - '--path.procfs=/host/proc'
       - '--path.rootfs=/rootfs'
       - '--path.sysfs=/host/sys'
@@ -148,4 +170,4 @@ volumes:
   prometheus_data:
   grafana_data:
   fast_api_data:
-  
+  hf_cache:

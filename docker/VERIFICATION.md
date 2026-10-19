@@ -1,0 +1,272 @@
+# Docker verification
+
+## Simple RAG stage latency logs — 2026-10-18
+
+- Added missing `embed.done`, `prompt.done` and streaming generation timing logs.
+  Existing vector-search, reranker and normal-generation timings remain in place.
+  Every RAG search/answer request now logs `http.done` with total `latency_ms`,
+  including full SSE consumption. All timings carry the existing request/project
+  context. Readiness probes remain excluded from inference tracing.
+- Full suite: **289 tests plus 12 subtests, 87.68% source coverage**. Checks cover
+  unsampled RAG totals, stage timings and first-nonempty-token streaming timing.
+- Rebuilt and recreated only FastAPI. Direct/nginx readiness and API contract
+  checks passed, followed by real project-9 normal and streaming answers. Verified
+  each stage and total in the deployed JSON logs. The normal answer measured
+  embedding **839.67 ms**, vector search **434.87 ms**, reranking **2,221.63 ms**,
+  prompt building **1.59 ms**, generation **11,260.64 ms**, total **19,399.28 ms**.
+  The streamed answer logged **6,614.35 ms** to its first nonempty token and
+  **7,291.35 ms** total. These are individual requests, not a load benchmark.
+- Source hashes match the image; CUDA PyTorch remains **2.14.1+cu130**. Mounts,
+  saved job checksum, GPU model-service PIDs and all other container IDs are
+  unchanged. Timings include waiting/network/retries; the HTTP total also
+  includes request overhead outside the stages.
+
+Evidence: `eval/reports/rag-latency-2026-10-18/` (ignored). Rollback tag:
+`rag-ishms:before-latency-20261018`. See [the logging guide](../docs/observability.md)
+for event names and the command to read them.
+
+## Langfuse content and readiness trace cleanup — 2026-10-18
+
+- Confirmed the unsolicited empty `provider` observations were emitted by the
+  three `/health` provider probes. Langfuse showed groups of three approximately
+  every 30 seconds, matching Docker's health-check interval. Readiness now keeps
+  the existing worker/client locks while bypassing inference tracing.
+- Rebuilt the CUDA image and recreated only FastAPI. Direct and nginx readiness,
+  API validation, request IDs and authentication checks passed. Deployed tracing
+  source hashes match the workspace; PyTorch remains **2.14.1+cu130**. Volumes,
+  saved job contents, both GPU model service PIDs and other container IDs stayed
+  unchanged. nginx configuration validation and reload passed.
+- Actual project-9 normal and streaming answers completed with retrieved sources.
+  Langfuse readback verified question input, generation messages and matching
+  output for both. Normal generation reported 694 input and 48 output tokens;
+  streaming reported a first-token timestamp and 7.145-second TTFT. Streaming
+  usage remains unset because the current provider iterator returns only text.
+- No new empty `provider` observations appeared during the verification window,
+  including automatic health checks and repeated manual readiness requests.
+  Existing observations were retained. Cost and Prompt Name still require actual
+  model pricing and a linked managed prompt; no values were fabricated.
+- Full suite: **286 tests plus 12 subtests, 88.06% source coverage**. Added checks
+  cover redaction, provider history mutation, streaming thread handoff, partial
+  output, exporter failures and readiness operations that never create traces.
+  These are tracing/runtime checks, not a new model-quality evaluation.
+
+Evidence is under `eval/reports/langfuse-content-2026-10-18/` (ignored). The
+rollback tag is `rag-ishms:before-langfuse-content-20261018`. The public base-image
+build used a temporary empty Docker credential config after the Windows helper
+failed; global Docker configuration and stored credentials were not modified.
+The live WSL budget is 4 GiB RAM plus 12 GiB swap; model services were not restarted.
+
+## CUDA PyTorch and OpenRouter key fallback — 2026-10-16
+
+- Rebuilt and recreated only FastAPI, then validated/reloaded nginx. The user
+  explicitly requested CUDA PyTorch; the earlier CPU build was cancelled.
+  Default builds now use the official CUDA 13.0 wheel index, check that PyTorch
+  includes CUDA support, and receive GPU access through Compose `gpus: all`.
+- The running image reports **PyTorch 2.14.1+cu130**, CUDA **13.0** and the
+  **RTX 3060 Laptop GPU**. An actual CUDA tensor calculation passed inside the
+  container. The completed image is approximately 9.59 GiB.
+- Direct and nginx readiness/API contract smoke checks passed, including POST
+  routes, answer schema, invalid-input 422 responses and request IDs. A separate
+  missing-key request returned 401. In-container `pip check` passed.
+- Running copies of config.py, LLMProviderFactory.py and OpenAIProvider.py match
+  the source hashes. The live key list has one entry, starting index 0; local
+  Qwen credentials remain separate. HTTP-mock checks inside the image verified
+  quota fallback, retaining a successful key and trying each key at most once.
+  No real embedding or generation request was submitted for these checks.
+- Embedding fingerprint **e1d11bf3cb36**, model settings, all 19 saved job records
+  and all 14 volumes are unchanged. Both GPU model service PIDs and every other
+  container ID are unchanged. All 13 unrelated images remain; the superseded API
+  image is absent after replacement, so no additional image prune was needed.
+- Application source remains covered by the verified **272 tests plus 12
+  subtests, 87.23% coverage**. Compose validation and changed-file pre-commit checks
+  passed. These are packaging/runtime checks, not a new quality or capacity test.
+
+The failed project-9 job was not retried. This rebuild does not establish that
+OpenRouter's daily quota is available; add usable credentials or wait for the
+provider reset before indexing. Evidence and the before/after receipt are in
+`G:\WSL\maintenance\api-rebuild-2026-10-16\`. The saved WSL memory profile still
+requires a user restart and live verification.
+
+## Original full-PDF Qalam pipeline — 2026-10-16
+
+- Uploaded the unchanged 170-page `1576751803.pdf` through nginx into isolated
+  project 900201 and processed it with `W_qalam=true`, `do_reset=0`. Qalam
+  produced 2,297 chunks: 1,148 Arabic and 1,149 English, covering 1,149 articles.
+  The uploaded file hash matches the original supplied source.
+- The full PDF exposed nginx's implicit 1 MiB body limit (HTTP 413). Set
+  `client_max_body_size 100m`, passed `nginx -t`, reloaded nginx, then the actual
+  2,599,703-byte PDF uploaded successfully. No parser replacement was needed.
+- Local `INDEX_BATCH_SIZE=64`, delay 3.5 seconds, preserves the current production
+  embedding model/provider and reduces 2,297 chunks to 36 embedding requests.
+  All 36 production OpenRouter calls returned 200; batch counts/order and
+  final collection size were audited against the job and database. Indexing
+  completed in 196 seconds. The API already supports this setting.
+- Completed reranked retrieval, English answer (7.34s), Arabic answer (9.09s),
+  SSE `done` (6.46s), neutral feedback and an out-of-scope refusal. Both Article 2
+  answers retained all three repeal routes and cited the source article/page.
+  Sources on the refusal do not establish correctness. These are single-user
+  checks, not a repeated capacity test or new legal qualification.
+- Evidence: `eval/reports/qalam-pipeline-2026-10-16/`, including actual responses,
+  source hash, chunk/language counts, 36-batch audit and the before/after upload
+  limit failure/success. Existing projects and model services were preserved.
+- Postman now defaults to the original PDF, project 900201 and Qalam enabled.
+  Exported keys are blank; official v2.1 schema and all 13 script syntaxes pass.
+  Actual calls use Python requests; no Postman GUI execution is claimed.
+
+## Earlier sample pipeline — 2026-10-16
+
+- Normal nginx/Docker route on project 900200: uploaded a two-page source-PDF
+  excerpt, processed 16 baseline chunks, indexed 16 vectors through the configured
+  OpenRouter embedding route, retrieved passages and completed cited English and
+  Arabic Qwen answers, SSE `done`, neutral feedback and an out-of-scope refusal.
+- Found and fixed empty extraction/indexing being reported as success. Focused
+  regression tests and live job checks pass; without reset, failed extraction preserves existing
+  chunks/vectors. Rebuilt the existing API after checking there were no active
+  jobs. Model services and existing user data were preserved.
+- Latest full suite: **249 passed**, 12 subtests, **86.79% source coverage**.
+  The preceding evaluation section records the earlier frozen 244-test snapshot.
+- The two-page copy loses Qalam table structure; the smoke test uses ordinary PDF
+  processing. The unchanged original still extracts 1,149 Qalam articles. See
+  [the Postman walkthrough](../docs/pipeline-test.md) and local evidence under
+  `eval/reports/pipeline-smoke-2026-10-16/`. This is a sequential smoke test,
+  not a new capacity or legal-quality qualification.
+
+## Civil Code evaluation follow-up — 2026-10-16
+
+- Rebuilt the existing FastAPI image with the tested asset-ID processing lookup,
+  Qalam citation headers, async model wait gate, 30-second bulk SQL budget and
+  idempotent PGVector batch replacement. No active production job existed before
+  recreation; existing settings, documents and vector volumes were preserved.
+- Live nginx readiness returned 200 with all dependencies ready. Missing-key
+  and authenticated blank-query checks returned 401 and 422 with request IDs.
+  The async wait gate is present in the running image. Existing chunks were not
+  rewritten to acquire the new Qalam headers.
+- Full suite: **244 passed, 86.55% source coverage**. Actual evaluation-project
+  SQL verified that two identical chunk reinsertions retain exactly 2,297 rows.
+- The real isolated PGVector load run observed 50 users, 58 answer requests and
+  50 failures, with p95 at the 180-second timeout. Six guarded SSE probes finished.
+  This is a failed capacity target, not a successful 50-user qualification.
+- Grafana returns the provisioned dashboard with 13 panels; all five Prometheus
+  targets are up. The port-8003 load API used saved metric snapshots and was not
+  a production scrape target. See the final-project report for quality-scoring
+  status, endpoint differences and retained failures.
+- After the laptop restart, both managed GPU servers returned health 200 and
+  the existing Docker containers recovered. API/nginx readiness again returned
+  200; missing-key and blank-query checks returned 401/422 with request IDs.
+  The image ID matches the tested rebuild. This is a restart check, not a new
+  50-user capacity result.
+
+## GPU reranker follow-up — 2026-10-12
+
+- Host RTX 3060 Laptop GPU (6 GiB) and existing vLLM 0.30.0 / CUDA environment
+  verified. The cached BGE reranker now runs as an authenticated managed user
+  service on port 8002, using FP16 and 512-token pairs; approximately 1.3 GiB
+  of VRAM was observed.
+- Docker-to-host authentication, model readiness, remote result validation and
+  HTTP client shutdown passed. The Docker API no longer loads the embedded
+  CrossEncoder while remote serving is configured. Existing indexes remain intact.
+- Same project-8 search, 30 candidates and limit 5: total 3.214 seconds first run,
+  then 0.508/0.413 seconds; rerank stages 2.191/0.244/0.190 seconds. Prior CPU
+  reranking was 82.034 seconds. These are three latency trials, not a load test.
+- Full suite: **202 tests**, 12 subtests, **86.21% source coverage**. Docker image
+  rebuild and live health passed. Service unit/shell syntax were verified.
+- Long-pair truncation and FP16 can affect scores; no quality-equivalence claim
+  is made. Generation/embedding settings and the existing vLLM installation were
+  not changed. Keys and detailed local reports remain ignored.
+
+## Live API follow-up — 2026-10-12
+
+- OpenRouter generation `minimax/minimax-m3:free` returned 404; a free Gemma
+  candidate returned 429. `nvidia/nemotron-3-ultra-550b-a55b:free` completed a
+  bilingual probe and is now the local Docker generation model.
+- The unchanged free embedding endpoint returned 2,048-dimensional vectors.
+- FastAPI and nginx started healthy. Readiness and authenticated API contract
+  smoke tests passed directly on port 8000 and through nginx on port 80.
+- Public-corpus project 900001 passed upload, background processing/indexing,
+  cited answers to English/Arabic questions, streaming completion and feedback.
+  Its ignored local report is eval/reports/api-verification.json.
+- The existing assets volume was root-owned; its ownership was corrected to
+  UID/GID 10001. Cached reranker files were copied into the named HF cache.
+- PGVector collection discovery/counting now includes both legacy numeric and
+  current fingerprinted names. A regression test covers both formats.
+- After the counting and batch-pacing fixes, the full suite passed **192 tests**
+  and 12 subtests with **86.00% source coverage**. The updated image was rebuilt.
+- Existing project 6 and its index/documents were preserved. No full RAGAS
+  evaluation, concurrency benchmark or fine-tuned/vLLM deployment is claimed.
+- Project 6 now has a complete current fingerprinted index of 1,242 chunks.
+  Its initial background run failed at the free upstream's per-minute limit after
+  1,050 chunks; the remaining 192 were resumed through the existing controller
+  after the window reset. The failed job record was retained. Local indexing is
+  now paced at 3.5 seconds between batches; unrestricted deployments default to 0.
+
+## Model-independent checks — 2026-10-12
+
+The final-project changes preserve the existing architecture and defer model
+setup and inference measurements at the user's request.
+
+- Final production Docker image built successfully, including native
+  llama-cpp-python, psycopg2, Qalam and the optional Langfuse SDK.
+- In-image imports and `pip check` passed. Runtime UID is 10001 and gcc/g++/cc
+  are absent.
+- In-image HTTP contract checks passed without running application lifespan:
+  missing API key returns 401; authenticated blank search returns 422 with a
+  request ID; metrics and OpenAPI expose the expected job, stream, feedback and
+  article citation contracts. No inference or model download was invoked.
+- Full pytest suite: **190 passed**, 12 subtests passed, **85.97% source coverage**.
+- Ruff/pre-commit, Compose configuration and `git diff --check` passed.
+- Editable installation/import checks and DVC reproduction passed; DVC status
+  reports all corpus stages up to date.
+- Live Grafana provisioning exposes 13 panels. Prometheus loaded all six alert
+  rules; its configuration passed promtool. PostgreSQL, Qdrant, node-exporter and
+  Prometheus scrape targets are up.
+- The API is not running, so its scrape target is down. Full readiness, real
+  answers, evaluation grades and 50-user load results remain deferred until the
+  generation model is supplied. Earlier readiness results below are historical.
+- Docker API authentication is enabled locally. The client secret is stored in
+  ignored `docker/env/.env.client`; no secret was printed or committed. Temporary
+  verification containers were removed. Existing database/vector volumes were
+  not reset and the separate vLLM environment was not modified.
+
+## Historical checks — 2026-10-06
+
+Verified locally with Docker Desktop 29.8.1 and the native Ubuntu-24.04 WSL client.
+The production Dockerfile built successfully with Python 3.12 and CPU PyTorch
+2.14.1. No ONNX conversion or dependency was introduced.
+
+## Results
+
+- Image build succeeded, including native llama-cpp-python and psycopg2 wheels.
+- Runtime UID is 10001; gcc, g++, and cc are absent.
+- Assets and Hugging Face cache are writable; the model bind mount is read-only.
+- Native imports succeeded and `pip check` found no broken requirements.
+- The real cached BAAI reranker loaded offline on CPU.
+- Both Alembic migrations ran successfully against a temporary PostgreSQL database.
+- `/health` returned 200 with every dependency reporting `ok`, using PGVector
+  and then a separate Qdrant server. Model readiness probes reached the configured
+  OpenAI-compatible service without text generation.
+- Nginx started after the application became healthy. API smoke checks passed
+  directly and through nginx for both vector backends.
+- POST routes, exact answer schema fields, blank/invalid input returning 422,
+  and returned `X-Request-ID` headers passed live checks.
+- Pausing the temporary PostgreSQL container exposed a cancellation-timeout bug.
+  After the fix, readiness returned 503 during the outage and recovered after
+  database connections finished recovering. Unit coverage includes delayed driver
+  cancellation so the response deadline is independent of cleanup completion.
+- Application/migration logs parsed as JSON with the six required fields and
+  correlated request/project IDs.
+- Full pytest suite: **114 passed**, 12 subtests passed, **83.15% source coverage**.
+- Default and Qdrant Compose configurations and `git diff --check` passed.
+
+## Scope
+
+Verification used the final image with isolated temporary PostgreSQL/Qdrant
+containers and a separate assets volume. Existing application database volumes
+were not migrated or modified. Tests did not upload documents or generate answers;
+answer quality and every remote model's inference capability are outside these
+Docker checks. Temporary verification resources were removed afterward.
+
+The local, untracked Docker environment file also needed its database hostname,
+HF cache path, and a missing newline corrected. No credentials were committed.
+
+Run `python docker/smoke_test.py --base-url http://localhost:8000` to repeat HTTP
+readiness and API contract checks against a running deployment.

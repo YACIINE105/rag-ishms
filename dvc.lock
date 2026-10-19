@@ -1,0 +1,43 @@
+schema: '2.0'
+stages:
+  snapshot_corpus:
+    cmd: .venv/bin/python scripts/snapshot_corpus.py
+    deps:
+    - path: eval/corpus/egyptian-civil-code.pdf
+      hash: md5
+      md5: 5086ef5f16f15d856278db943e58e948
+      size: 2599703
+    - path: scripts/snapshot_corpus.py
+      hash: md5
+      md5: 987792b4981cee18ea6aa3c769e649da
+      size: 307
+    outs:
+    - path: data/corpus/egyptian-civil-code.pdf
+      hash: md5
+      md5: 5086ef5f16f15d856278db943e58e948
+      size: 2599703
+  extract_corpus:
+    cmd: .venv/bin/python scripts/build_legal_corpus.py --source
+      data/corpus/egyptian-civil-code.pdf --output data/corpus/articles.json
+    deps:
+    - path: data/corpus/egyptian-civil-code.pdf
+      hash: md5
+      md5: 5086ef5f16f15d856278db943e58e948
+      size: 2599703
+    - path: eval/corpus/source-issues.json
+      hash: md5
+      md5: b72b2b22440fb38bc216e6773e41599f
+      size: 764
+    - path: scripts/build_legal_corpus.py
+      hash: md5
+      md5: 97c0ae6bcead532b639c8e0a7a3b8801
+      size: 2686
+    - path: src/helpers/extract_to_json.py
+      hash: md5
+      md5: 9042ea97410959e7ec8a52a7ccdc1ffd
+      size: 7821
+    outs:
+    - path: data/corpus/articles.json
+      hash: md5
+      md5: fcd475302b0a37d3efc6df0e58c9b9d7
+      size: 1513738

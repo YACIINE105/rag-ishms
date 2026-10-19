@@ -1,91 +1,170 @@
-from ..LLMinterface import LLM_Interface
-from openai import OpenAI
 import logging
-from ..LLMEnums import OpenAI_Enums
 from typing import List, Union
+
+from openai import APIStatusError, OpenAI
+
+from utils.generation import GenerationText, truncate_text
+
+from ..LLMEnums import OpenAI_Enums
+from ..LLMinterface import LLM_Interface
 
 
 class OpenAIProvider(LLM_Interface):
-    def __init__(self , api_key:str, api_url:str=None, 
-                        default_generation_max_output_characters:int=1000,
-                        default_generation_max_output_token:int=1000, 
-                        default_generation_temperature:float=0.2):
-        
+    def __init__(
+        self,
+        api_key: str,
+        api_url: str = None,
+        default_generation_max_output_characters: int = 1000,
+        default_generation_max_output_token: int = 1000,
+        default_generation_temperature: float = 0.2,
+        api_keys: List[str] | None = None,
+    ):
+
         self.api_key = api_key
+        self._api_keys = list(dict.fromkeys(api_keys or []))
+        self._active_key_index = 0
         self.api_url = api_url
-        self.default_generation_max_output_characters = default_generation_max_output_characters
+        self.default_generation_max_output_characters = (
+            default_generation_max_output_characters
+        )
         self.default_generation_max_output_token = default_generation_max_output_token
         self.default_generation_temperature = default_generation_temperature
 
         self.generation_model_id = None
-        
+
         self.embedding_model_id = None
         self.embedding_size = None
         self.enums = OpenAI_Enums
-        # this way of client nitializing is deprecated  
+        # this way of client nitializing is deprecated
         # self.client = OpenAI(
         #     api_key=self.api_key, api_url = self.api_url
         #     )
-        
-        client_kwargs = {"api_key": self.api_key}
+
+        client_kwargs = {"api_key": self.api_key, "timeout": 120.0, "max_retries": 2}
         if self.api_url:
-            client_kwargs["base_url"] = self.api_url if self.api_url and len(self.api_url)!=0 else None
-        
-        self.client =OpenAI(**client_kwargs)
+            client_kwargs["base_url"] = (
+                self.api_url if self.api_url and len(self.api_url) != 0 else None
+            )
+
+        self.client = OpenAI(**client_kwargs)
 
         self.logger = logging.getLogger(__name__)
-     
-        
-    def set_generation_model(self, model_id:str):
+
+    def _request_with_key_fallback(self, operation):
+        if not self._api_keys:
+            return operation(self.client)
+
+        starting_index = self._active_key_index
+        for attempt in range(len(self._api_keys)):
+            key_index = (starting_index + attempt) % len(self._api_keys)
+            client = self.client.with_options(
+                api_key=self._api_keys[key_index], max_retries=0
+            )
+            try:
+                response = operation(client)
+            except APIStatusError as error:
+                details = error.body if isinstance(error.body, dict) else {}
+                details = details.get("error", details)
+                metadata = (
+                    details.get("metadata", {}) if isinstance(details, dict) else {}
+                )
+                limit_source = (
+                    metadata.get("limit_source") if isinstance(metadata, dict) else None
+                )
+                budget_limit = error.status_code == 403 and limit_source in {
+                    "openrouter_key_limit",
+                    "openrouter_guardrail_budget",
+                    "openrouter_workspace_budget",
+                }
+                if (
+                    error.status_code not in {402, 429} and not budget_limit
+                ) or attempt == len(self._api_keys) - 1:
+                    raise
+                self.logger.warning(
+                    "API key limit reached (HTTP %s); trying the next configured key",
+                    error.status_code,
+                )
+            else:
+                self._active_key_index = key_index
+                return response
+
+    def set_generation_model(self, model_id: str):
         self.generation_model_id = model_id
-    
-    
-    
-    def set_embedding_model(self, model_id:str, embedding_size:int):
+
+    def set_embedding_model(self, model_id: str, embedding_size: int):
         self.embedding_model_id = model_id
         self.embedding_size = embedding_size
-    
-    
-    
-    def generate_text(self, prompt:str, chat_history:list=None, 
-                      max_output_token:int=None, temperature:float=None):
+
+    def generate_text(
+        self,
+        prompt: str,
+        chat_history: list = None,
+        max_output_token: int = None,
+        temperature: float = None,
+    ):
         if not self.client:
             self.logger.error("OpenAI client wasn't set ")
             return None
-        
+
         if not self.generation_model_id:
             self.logger.error("Generation model for OpenAI client wasn't set ")
             return None
-        
-        max_output_token = max_output_token if max_output_token else self.default_generation_max_output_token     
-        temperature = temperature if temperature else self.default_generation_temperature
-        
+
+        max_output_token = (
+            max_output_token
+            if max_output_token
+            else self.default_generation_max_output_token
+        )
+        temperature = (
+            temperature
+            if temperature is not None
+            else self.default_generation_temperature
+        )
+
         chat_history = chat_history or []
-        chat_history.append(self.construct_prompt(prompt=prompt, role=OpenAI_Enums.USER.value))
-        
+        chat_history.append(
+            self.construct_prompt(prompt=prompt, role=OpenAI_Enums.USER.value)
+        )
+
         try:
-            response = self.client.chat.completions.create(
-                model=self.generation_model_id,
-                messages=chat_history,
-                max_tokens=max_output_token,
-                temperature=temperature
+            response = self._request_with_key_fallback(
+                lambda client: client.chat.completions.create(
+                    model=self.generation_model_id,
+                    messages=chat_history,
+                    max_tokens=max_output_token,
+                    temperature=temperature,
+                )
             )
-            if not response or not response.choices or not response.choices[0].message.content.strip():
-                self.logger.error("OpenAI returned a successful response, but the text is empty.")
+            if (
+                not response
+                or not response.choices
+                or not response.choices[0].message.content.strip()
+            ):
+                self.logger.error(
+                    "OpenAI returned a successful response, but the text is empty."
+                )
                 return None
 
             chat_history.append(self.construct_response(response=response))
 
-            return response.choices[0].message.content
-        
+            usage = response.usage
+            return GenerationText(
+                response.choices[0].message.content,
+                tokens_in=getattr(usage, "prompt_tokens", None),
+                tokens_out=getattr(usage, "completion_tokens", None),
+            )
+
         except Exception as e:
-            self.logger.error(f"Error during text generation: {e}")
+            self.logger.error("Error during text generation (%s)", type(e).__name__)
             return None
-        
-        
-        
-    def embed_text(self, text:Union[str, List[str]], input_type:str=None, document_type:str=None):
-        
+
+    def embed_text(
+        self,
+        text: Union[str, List[str]],
+        input_type: str = None,
+        document_type: str = None,
+    ):
+
         if not self.client:
             self.logger.error("OpenAI client wasn't set ")
             return None
@@ -93,40 +172,75 @@ class OpenAIProvider(LLM_Interface):
         if not self.embedding_model_id:
             self.logger.error("Embedding model for OpenAI client wasn't set ")
             return None
-        
+
         if isinstance(text, str):
             text = [text]
-        
-        response = self.client.embeddings.create(
-        model=self.embedding_model_id,
-        input=text,
-        encoding_format="float",
-        extra_body={"input_type": input_type}
-    ) 
-        
-        if not response or not response.data or len(response.data) == 0 or not response.data[0].embedding:
+
+        response = self._request_with_key_fallback(
+            lambda client: client.embeddings.create(
+                model=self.embedding_model_id,
+                input=text,
+                encoding_format="float",
+                extra_body={"input_type": input_type},
+            )
+        )
+
+        if (
+            not response
+            or not response.data
+            or len(response.data) == 0
+            or not response.data[0].embedding
+        ):
             self.logger.error("Error while embedding text with OpenAI")
             return None
-        
-        return [ r.embedding for r in response.data]
-    
-    
-    
-    def construct_prompt(self, prompt:str, role:str):
-        return {"role":role, 
-                "content":prompt
-                }
-        
-        
-        
-    def process_text(self, text:str):
-        return text[:self.default_generation_max_output_characters].strip()
-        
-        
+
+        return [r.embedding for r in response.data]
+
+    def construct_prompt(self, prompt: str, role: str):
+        return {"role": role, "content": prompt}
+
+    def process_text(self, text: str):
+        return truncate_text(
+            text, self.default_generation_max_output_characters, self.logger
+        )
+
     def construct_response(self, response):
         return {
-            "role" : OpenAI_Enums.ASSISTANT.value,
-            "content" : response.choices[0].message.content      
+            "role": OpenAI_Enums.ASSISTANT.value,
+            "content": response.choices[0].message.content,
         }
-        
-              
+
+    def health_check(self, role="generation"):
+        model_id = (
+            self.generation_model_id
+            if role == "generation"
+            else self.embedding_model_id
+        )
+        if not model_id or self.client is None:
+            return False
+        # Probe authentication and service reachability without generating tokens.
+        self._request_with_key_fallback(
+            lambda client: client.with_options(timeout=3.0, max_retries=0).models.list()
+        )
+        return True
+
+    def stream_text(self, prompt, chat_history=None):
+        """Iterator consumed by StreamingResponse's threadpool."""
+        messages = list(chat_history or []) + [self.construct_prompt(prompt, "user")]
+        response = self._request_with_key_fallback(
+            lambda client: client.chat.completions.create(
+                model=self.generation_model_id,
+                messages=messages,
+                max_tokens=self.default_generation_max_output_token,
+                temperature=self.default_generation_temperature,
+                stream=True,
+            )
+        )
+        try:
+            for chunk in response:
+                if chunk.choices:
+                    text = chunk.choices[0].delta.content
+                    if text:
+                        yield text
+        finally:
+            response.close()

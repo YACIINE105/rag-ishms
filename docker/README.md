@@ -1,183 +1,157 @@
-# Docker Setup for MiniRAG Application
+# Docker setup for RAG ISHMS
 
-This directory contains the Docker setup for the MiniRAG application, including all necessary services for development and monitoring.
+Run the following commands from the repository root. The default setup uses
+PostgreSQL/pgvector. FastAPI runs as UID/GID 10001 and nginx waits for `/health`.
 
-## Services
-
-- **FastAPI Application**: Main application running on Uvicorn
-- **Nginx**: Web server for serving the FastAPI application
-- **PostgreSQL (pgvector)**: Vector-enabled database for storing embeddings
-- **Postgres-Exporter**: Exports PostgreSQL metrics for Prometheus
-- **Qdrant**: Vector database for similarity search
-- **Prometheus**: Metrics collection
-- **Grafana**: Visualization dashboard for metrics
-- **Node-Exporter**: System metrics collection
-
-## Setup Instructions
-
-### 1. Set up environment files
-
-Create your environment files from the examples:
+## Configuration
 
 ```bash
-# Create all required .env files from examples
-cd docker/env
-cp .env.example.app .env.app
-cp .env.example.postgres .env.postgres
-cp .env.example.grafana .env.grafana
-cp .env.example.postgres-exporter .env.postgres-exporter
-
-# Setup the Alembic configuration for the FastAPI application
-cd ..
-cd docker/minirag
-cp alembic.example.ini alembic.ini
-
-### 2. Start the services
-
-```bash
-cd docker
-docker compose up --build -d
+cp docker/env/.env.example.fastapi docker/env/.env.fastapi
+cp docker/env/.env.example.postgres docker/env/.env.postgres
+cp docker/env/.env.example.grafana docker/env/.env.grafana
+cp docker/env/.env.example.postgres-exporter docker/env/.env.postgres-exporter
 ```
 
-To start only specific services:
+Edit those files for your configuration. Never commit credentials. Set
+`POSTGRES_HOST=pgvector` inside the application container and use matching
+PostgreSQL credentials. The image installs `alembic.example.ini`; migrations
+read the database connection from the application environment variables.
+
+The reranker downloads its Hugging Face model on first startup. The cache is
+kept in the `hf_cache` named volume mounted at `/app/.hf_cache`. The first
+startup requires internet access and may take several minutes; later starts
+reuse the cache. Local Hugging Face weights are excluded from the build context.
+GGUF weights are excluded from the image: place them in `ai-models/` (or set
+`MODEL_DIR` to another host directory) and configure model IDs with container
+paths such as `/app/ai-models/model.gguf`. This directory is mounted read-only;
+the host files must be readable by UID 10001. The application assets and the
+HF cache directory are owned by appuser and remain writable.
 
 ```bash
-docker compose up -d fastapi nginx pgvector qdrant
+docker compose -f docker/docker-compose.yml config --quiet
+docker compose -f docker/docker-compose.yml up --build -d
 ```
 
-If you encounter connection issues, you may want to start the database services first and let them initialize before starting the application:
+Existing asset volumes created by the previous root image may need an ownership
+migration. Back up the volume, then use this one-off command only for that case:
 
 ```bash
-# Start databases first
-docker compose up -d pgvector qdrant postgres-exporter
-# Wait for databases to be healthy
-sleep 30
-# Start the application services
-docker compose up fastapi nginx prometheus grafana node-exporter --build -d
+docker compose -f docker/docker-compose.yml run --rm --no-deps --user root --entrypoint chown fastapi -R 10001:10001 /app/assets
 ```
 
-In case deleting all containers and volumes is necessary, you can run:
+## Qdrant server mode
+
+Embedded Qdrant remains available when `VECTOR_DB_BACKEND=QDRANT` and
+`QDRANT_URL` is unset. It uses `/app/assets` and requires one application worker.
+To connect to the separate Qdrant service, use the profile and override together:
 
 ```bash
-docker compose down -v --remove-orphans
+cp docker/env/.env.example.qdrant docker/env/.env.qdrant
+docker compose -f docker/docker-compose.yml -f docker/compose.qdrant.yml --profile qdrant up --build -d
 ```
 
-### 3. Access the services
+The override sets the backend and URL and adds a `service_healthy` dependency
+on Qdrant. If authentication is enabled, set the same key in the server's
+configuration and the application's `QDRANT_API_KEY` environment variable.
+Switching from embedded storage to server mode requires indexing documents
+into the server; it does not migrate existing local points automatically.
 
-- FastAPI Application: http://localhost:8000
-- FastAPI Documentation: http://localhost:8000/docs
-- Nginx (serving FastAPI): http://localhost
+## Readiness and logs
+
+- API docs: http://localhost:8000/docs
+- Application through nginx: http://localhost/
+- Readiness: http://localhost/health
+- Metrics: http://localhost:8000/rag_ishms_metrics_v__0
 - Prometheus: http://localhost:9090
-- Grafana: http://localhost:3000
-- Qdrant UI: http://localhost:6333/dashboard
+- Grafana: http://localhost:3000 (credentials come from its environment file)
+- Qdrant dashboard in server mode: http://localhost:6333/dashboard
 
-## Volume Management
+`/health` returns 503 when a required dependency fails. Docker probes every
+30 seconds with a 180-second model startup allowance. Nginx waits for initial
+readiness; Compose does not continuously remove an unhealthy upstream.
 
-### Managing Docker Volumes
+Nginx permits request bodies up to 100 MiB (`client_max_body_size 100m`); the
+application separately enforces `FILE_MAX_SIZE` in MiB. For larger uploads, adjust
+both limits as needed and reload nginx after editing its mounted configuration.
 
-Docker volumes are used to persist data generated by and used by Docker containers. Here are some commands to manage your volumes:
+Application logs are JSON. Set `LOG_LEVEL=DEBUG` to include prompt text.
+`HTTP_ACCESS_LOG_SAMPLE_RATE` controls successful access logs (default 0.1);
+prediction events containing the query, retrieved IDs, and answer are never
+sampled. Keep these logs access-controlled because they contain application data.
+Every response has an `X-Request-ID`, also present in its correlated log events.
 
-1. **List all volumes**:
-   ```bash
-   docker volume ls
-   ```
-2. **Inspect a volume**:
-   ```bash
-   docker volume inspect <volume_name>
-   ```
+```bash
+docker compose -f docker/docker-compose.yml ps
+docker compose -f docker/docker-compose.yml logs --tail=100 fastapi
+```
 
-   - list files in a volume:
-   ```bash
-   docker run --rm -v <volume_name>:/data busybox ls -l /data
-   ```
-
-3. **Remove a volume**:
-   ```bash
-   docker volume rm <volume_name>
-   ```
-4. **Prune unused volumes**:
-   ```bash
-    docker volume prune
-    ```
-
-5. **Backup volume for migration**:
-   ```bash
-    docker run --rm -v <volume_name>:/volume -v $(pwd):/backup alpine tar cvf /backup/backup.tar /volume
-    ```
-
-6. **Restore volume from backup**:
-   ```bash
-    docker run --rm -v <volume_name>:/volume -v $(pwd):/backup alpine sh -c "cd /volume && tar xvf /backup/backup.tar --strip 1"
-    ```
-
-7. **Remove all volumes**:
-    ```bash
-    docker volume rm $(docker volume ls -q)
-    ```
-
-**NOTE**: For PostgreSQL specifically, you might want to consider using PostgreSQL's built-in tools like `pg_dump` and `pg_restore` for more reliable backups, especially for live databases.
-
-## Monitoring
-
-### FastAPI Metrics
-
-FastAPI is configured to expose Prometheus metrics at the `/metrics` endpoint. These metrics include:
-
-- Request counts
-- Request latencies
-- Status codes
-
-Prometheus is configured to scrape these metrics automatically.
-
-### Visualizing Metrics in Grafana
-
-1. Log into Grafana at http://localhost:3000 (default credentials: admin/admin_password)
-2. Add Prometheus as a data source (URL: http://prometheus:9090)
-3. Import dashboards for FastAPI, PostgreSQL, and Qdrant
-
-#### Dashboards URLs
-
-https://grafana.com/grafana/dashboards/18739-fastapi-observability/
-
-https://grafana.com/grafana/dashboards/1860-node-exporter-full/
-
-https://grafana.com/grafana/dashboards/23033-qdrant/
-
-https://grafana.com/grafana/dashboards/12485-postgresql-exporter/
+The production image does not enable reload. Rebuild after code changes.
+The entrypoint runs migrations and then executes the supplied command, so CMD
+or Compose `command` controls server flags. The runtime image contains the
+virtual environment and runtime libraries, without builder compilers.
 
 
-## Development Workflow
+## Building from WSL
 
-The FastAPI application is configured with hot-reloading. Any changes to the code in the `src/` directory will automatically reload the application.
+Run Docker commands inside the WSL distribution containing the repository.
+Building from a Windows `\\wsl.localhost` path can fail when Docker transfers
+Hugging Face snapshot symlinks. The native Linux client preserves those links.
 
-## Troubleshooting
+The default image installs CUDA-enabled PyTorch 2.14.1 from the CUDA 13.0 wheel
+index, and Compose grants FastAPI GPU access with `gpus: all`. The host needs
+an NVIDIA driver compatible with CUDA 13.0 and Docker GPU support. Verify access
+with `nvidia-smi` inside the container. `TORCH_VERSION` and `TORCH_INDEX_URL` are
+Docker build arguments; the build checks that the installed PyTorch has CUDA
+support. Native llama builds are limited to two compiler jobs to reduce peak
+build memory. The separate vLLM generator/reranker environment remains in use.
 
-### Connection Errors
+```bash
+docker compose -f docker/docker-compose.yml exec fastapi nvidia-smi
+docker compose -f docker/docker-compose.yml exec fastapi python -c \
+  'import torch; print(torch.__version__, torch.version.cuda); assert torch.cuda.is_available(); print(torch.cuda.get_device_name(0))'
+```
 
-If you see connection errors when starting the services:
+For container settings, use `POSTGRES_HOST=pgvector` and `HF_HOME=/app/.hf_cache`.
+Each environment assignment must occupy its own line; do not copy host cache
+paths into the application container configuration.
 
-1. **Database Connection Refused**: This often happens when the FastAPI app tries to connect to databases before they're ready.
-   ```
-   Connection refused: [Errno 111] Connection refused
-   ```
-   
-   Solutions:
-   - Start database services first, wait, then start the application
-   - Check database logs: `docker compose logs pgvector`
-   - Ensure your database credentials in `.env.app` match those in `.env.postgres`
 
-2. **Restart the FastAPI service** after databases are running:
-   ```bash
-   docker compose restart fastapi
-   ```
+## Runtime smoke checks
 
-3. **Check service status**:
-   ```bash
-   docker compose ps
-   ```
+After the stack becomes healthy, run these checks from the repository root:
 
-4. **View logs** for more details:
-   ```bash
-   docker compose logs --tail=100 fastapi
-   docker compose logs --tail=100 pgvector
-   ```
+```bash
+python docker/smoke_test.py --base-url http://localhost:8000
+python docker/smoke_test.py --base-url http://localhost
+```
+
+They verify real readiness signals, request ID headers, POST routes, answer
+schema and 422 validation through both FastAPI and nginx. They do not upload
+documents or invoke text generation. Real readiness probes still contact the
+configured model services. Use `--expect-unhealthy` to verify HTTP 503 only when
+deliberately testing a dependency outage in an isolated environment.
+
+See [recorded verification](VERIFICATION.md) for the tested image behavior and remaining scope.
+
+For the first model download, leave `HF_HUB_OFFLINE` and `TRANSFORMERS_OFFLINE`
+unset in the application environment. A new cache volume inherits the writable
+image directory owned by UID 10001. Existing volumes with other owners need a
+separate ownership migration. Do not use `docker compose down -v` when retaining
+the model cache. If a cold download exceeds the 180-second healthcheck startup
+allowance, increase the allowance based on the observed download time.
+
+## Session 3–4 runtime additions
+
+The single API worker now owns bounded background processing/indexing jobs. Status
+snapshots and redacted feedback live in the existing /app/assets volume. The setup
+script enables API-key authentication and stores a generated client key in the
+ignored docker/env/.env.client file without changing database/model settings.
+
+Qalam is installed in its own pinned builder layer after the native requirements.
+Its application dependency is also declared in pyproject.toml. Rebuild the API
+after source changes. Model readiness is not claimed when generation is deferred.
+
+Grafana provisioning and Prometheus rules are mounted read-only. Node exporter's
+textfile collector reads reports/metrics for actual evaluation scores. Empty quality
+panels are expected until a real report is published; no sample scores are installed.
+See ../docs/observability.md and ../docs/runbook.md for operation and limitations.

@@ -1,0 +1,15 @@
+[Unit]
+Description=RAG-ISHMS Qwen generator (vLLM)
+Wants=rag-ishms-reranker.service
+After=network.target rag-ishms-reranker.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/rag-ishms
+ExecStart=%h/rag-ishms/scripts/run_vllm_generator.sh
+Restart=on-failure
+RestartSec=30
+TimeoutStopSec=30
+
+[Install]
+WantedBy=default.target

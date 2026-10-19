@@ -1,0 +1,124 @@
+name: Docker release
+
+on:
+  push:
+    tags: ["rag-ishms-v2.*"]
+
+permissions:
+  contents: read
+
+jobs:
+  images:
+    name: Build and publish ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: api
+            image: rag-ishms
+            dockerfile: docker/rag_ishms/Dockerfile
+          - name: vllm
+            image: rag-ishms-vllm
+            dockerfile: docker/vllm/Dockerfile
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Free hosted runner space for CUDA images
+        run: |
+          sudo rm -rf /usr/share/dotnet /usr/local/lib/android /opt/ghc
+          df -h /
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Set image identity
+        env:
+          IMAGE_NAME: ${{ matrix.image }}
+        run: |
+          version="${GITHUB_REF_NAME#rag-ishms-v}"
+          owner="${GITHUB_REPOSITORY_OWNER,,}"
+          echo "RELEASE_VERSION=$version" >> "$GITHUB_ENV"
+          echo "IMAGE_TAG=ghcr.io/$owner/$IMAGE_NAME:$version" >> "$GITHUB_ENV"
+
+      - name: Build image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          load: true
+          tags: ${{ env.IMAGE_TAG }}
+          labels: |
+            org.opencontainers.image.version=${{ env.RELEASE_VERSION }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=release-${{ matrix.name }}
+          cache-to: type=gha,scope=release-${{ matrix.name }},mode=max
+
+      - name: Verify API image with unit and API tests
+        if: matrix.name == 'api'
+        run: |
+          docker run --rm --entrypoint /bin/sh \
+            -v "$GITHUB_WORKSPACE:/workspace:ro" "$IMAGE_TAG" -c '
+            python -m pip install --quiet --no-cache-dir --target /tmp/test-deps \
+              pytest==9.1.1 pytest-asyncio==1.4.0 pytest-cov==7.1.0 httpx &&
+            cd /tmp && PYTHONPATH=/tmp/test-deps:/workspace/src python -m pytest \
+              -c /workspace/pyproject.toml /workspace/tests -q --no-cov \
+              -p no:cacheprovider -o addopts="--strict-markers"'
+
+      - name: Verify vLLM image dependencies
+        if: matrix.name == 'vllm'
+        run: |
+          docker run --rm --entrypoint python3 "$IMAGE_TAG" -c \
+            'import torch; from importlib.metadata import version; assert torch.version.cuda; assert version("vllm")=="0.30.0"; assert version("vllm-bnb-plugin")=="0.0.3"; assert version("bitsandbytes")=="0.50.2"'
+
+      - name: Push verified image and record digest
+        run: |
+          docker push "$IMAGE_TAG"
+          mkdir -p image-metadata
+          docker image inspect "$IMAGE_TAG" --format '{{json .RepoDigests}}' > image-metadata/digests.json
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          folder = Path("image-metadata")
+          digest = json.loads((folder / "digests.json").read_text())[0]
+          (folder / "image.json").write_text(json.dumps({"image": os.environ["IMAGE_TAG"], "digest": digest, "commit": os.environ["GITHUB_SHA"]}, indent=2))
+          PY
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-image-${{ matrix.name }}
+          path: image-metadata/image.json
+
+  release:
+    name: Publish deployment bundle
+    needs: images
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: release-image-*
+          path: image-metadata
+
+      - name: Package and publish
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          version="${GITHUB_REF_NAME#rag-ishms-v}"
+          python3 scripts/build_release_bundle.py --version "$version" --image-manifests image-metadata
+          gh release create "$GITHUB_REF_NAME" --verify-tag --draft \
+            --title "RAG-ISHMS $version — Docker deployment" \
+            --notes-file docker/release/release-notes.md \
+            dist/rag-ishms-*-docker.zip dist/SHA256SUMS

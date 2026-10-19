@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
-import requests
-import time
 import json
+import time
 
+import requests
 
 SERVER_URL = "http://localhost:8080/completion"
 
@@ -13,7 +13,7 @@ def query_medgemma(prompt, max_tokens=120, temp=0.1):
         "n_predict": max_tokens,
         "temperature": temp,
         "n_gpu_layers": 99,
-        "stop": ["<end_of_turn>"]
+        "stop": ["<end_of_turn>"],
     }
     try:
         resp = requests.post(SERVER_URL, json=payload, timeout=15)
@@ -40,7 +40,7 @@ Use exactly this format:
 }}
 <end_of_turn>
 <start_of_turn>model"""
-    
+
     return query_medgemma(prompt)
 
 
@@ -54,7 +54,7 @@ class Interaction:
 
         for med in current_meds:
             interaction_text = check_drug_pair(med.strip(), new_med)
-            
+
             level = ""
             risk = ""
 
@@ -65,24 +65,24 @@ class Interaction:
                 clean_text = clean_text[3:]
             if clean_text.endswith("```"):
                 clean_text = clean_text[:-3]
-            
+
             clean_text = clean_text.strip()
 
-     
             try:
                 data = json.loads(clean_text)
                 level = data.get("level", "")
                 risk = data.get("risk_summary", "")
             except json.JSONDecodeError:
-              
                 level = "Error"
                 risk = f"Failed to parse JSON. Raw output: {interaction_text}"
 
-            results.append({
-                "drug_pair": f"{new_med} + {med.strip()}",
-                "level": level,
-                "risk_summary": risk
-            })
+            results.append(
+                {
+                    "drug_pair": f"{new_med} + {med.strip()}",
+                    "level": level,
+                    "risk_summary": risk,
+                }
+            )
 
         return results
 
@@ -91,32 +91,26 @@ class Interaction:
 # ISBAR generator
 # ─────────────────────────────────────────────
 class ISBAR_GEN:
-
     def _build_prompt(self, identification: str, background: str) -> str:
         return (
             "<bos><start_of_turn>user\n"
             "You are a clinical ISBAR documentation assistant.\n"
             "Generate ONLY a JSON object with exactly these 3 keys:\n\n"
-
             # ── Tell the model EXACTLY what each field must contain ──
-            "\"situation\":      The CURRENT clinical concern only — "
+            '"situation":      The CURRENT clinical concern only — '
             "include patient name/bed, their active status "
             "(Stable/Unstable/Critical), and their NEWS score. "
             "Do NOT include history or medications here.\n\n"
-
-            "\"assessment\":     The vital signs and clinical severity ONLY — "
+            '"assessment":     The vital signs and clinical severity ONLY — '
             "include HR, BP, O2 Sat, Temp, and one sentence stating "
             "the severity level implied by these vitals. "
             "Do NOT repeat background info here.\n\n"
-
-            "\"recommendation\": A concrete clinical action — e.g. ICU admission, "
+            '"recommendation": A concrete clinical action — e.g. ICU admission, '
             "increase monitoring, start IV medication, or prepare for discharge. "
             "Base it on the NEWS score and status. Be specific.\n\n"
-
             # ── Patient data ──
             f"Identity: {identification}\n"
             f"Background: {background}\n\n"
-
             # ── Output rules  ──
             "Rules:\n"
             "- situation   = WHO + current STATUS + NEWS score\n"
@@ -177,7 +171,7 @@ class ISBAR_GEN:
             }
         """
         prompt = self._build_prompt(identification, background)
-        raw    = query_medgemma(prompt, max_tokens=300, temp=0.1)
+        raw = query_medgemma(prompt, max_tokens=300, temp=0.1)
         return self._parse_response(raw)
 
 
@@ -185,11 +179,10 @@ class ISBAR_GEN:
 # Entry point
 # ─────────────────────────────────────────────
 if __name__ == "__main__":
-
     # ── Drug interaction check ───────────────
-    t    = time.time()
+    t = time.time()
     prev = ["warfarin", "metformin"]
-    new  = "aspirin"
+    new = "aspirin"
 
     interaction = Interaction()
     interaction_results = interaction.full_interaction_check(prev, new)
@@ -205,11 +198,9 @@ if __name__ == "__main__":
             "History: Chronic Kidney Disease Stage 5 on dialysis. "
             "Previous Medications: Fluticasone/Salmeterol 250/50. "
             "NEWS Score: 7. Status: Critical."
-        )
+        ),
     )
     print("\n=== ISBAR Generation ===")
     print(json.dumps(result, indent=2))
 
     print(f"\nTotal time: {time.time() - t:.2f}s")
-    
-    

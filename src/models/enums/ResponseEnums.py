@@ -1,5 +1,6 @@
 from enum import Enum
 
+
 class ResponseSignal(Enum):
     File_Type_Is_Not_Supported = "file_type_is_not_supported"
     File_Size_Exceeded = "file_size_exceeded"
@@ -18,4 +19,3 @@ class ResponseSignal(Enum):
     VECTORS_SEARCH_Failed = "vectors_search_failed"
     RAG_ANSWER_FAILED = "rag_answer_failed"
     RAG_ANSWER_SUCCESS = "rag_answer_success"
-    

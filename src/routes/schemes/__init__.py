@@ -1,3 +1,17 @@
 from .data import ProcessRequest
-from .nlp import PushRequest
-from .nlp import SearchRequest
+from .nlp import (
+    AnswerResponse,
+    PushRequest,
+    SearchRequest,
+    SearchResponse,
+    Source,
+)
+
+__all__ = [
+    "ProcessRequest",
+    "AnswerResponse",
+    "PushRequest",
+    "SearchRequest",
+    "SearchResponse",
+    "Source",
+]

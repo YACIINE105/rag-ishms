@@ -1,0 +1,9 @@
+# Opt into the remote Qdrant service and wait until it is ready.
+services:
+  fastapi:
+    environment:
+      VECTOR_DB_BACKEND: QDRANT
+      QDRANT_URL: http://qdrant:6333
+    depends_on:
+      qdrant:
+        condition: service_healthy

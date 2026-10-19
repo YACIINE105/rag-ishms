@@ -1,90 +1,505 @@
-# ishms-rag-app
+# RAG-ISHMS
 
-this is a rag api that was created to serve the ISHMS software.
+Upload PDF or TXT documents, index their contents, and ask questions with source
+citations. The system runs FastAPI behind nginx, stores documents/chunks in
+PostgreSQL, retrieves with PGVector or Qdrant, and uses a cross-encoder reranker
+before calling an OpenAI-compatible generation API.
 
+The local setup uses **Docker + PGVector**, with Qwen generation and BGE reranking
+in the existing separate vLLM environment. The selected model is the pinned
+**untuned `Qwen/Qwen3-4B-Instruct-2507` base**, served as `qwen3-legal-final`;
+neither pilot adapter was selected. Embeddings still use OpenRouter's
+`nvidia/llama-nemotron-embed-vl-1b-v2:free` with 2,048 dimensions.
 
-## REQUIREMENTS
-- Python 3.12
+Qwen runs in 4-bit on the laptop GPU alongside the reranker. Authenticated
+generation, cited English/Arabic RAG answers, health and SSE completion have been
+checked locally. A frozen 62-question bilingual Civil Code baseline and a real
+50-user load test are now measured. The model still makes omissions/errors, and
+50 of 58 answer requests failed under the PGVector load test; this laptop does
+not meet that capacity target. See the [measured report](docs/final-project-report.md),
+[evaluation reproduction](eval/CIVIL_CODE_EVALUATION.md) and
+[model setup](docs/model-serving.md). All five retrieval configurations now have
+complete automated scores for the same 62 questions. These scores remain
+provisional because inspection found judge errors as well as generator errors.
 
-#### Install Dependencies
+## Start the already configured project
 
-```bash
-sudo apt update
-```
-```bash
-sudo apt install libpq-dev gcc python3-dev
-```
+For a portable deployment with generation and reranking also inside Docker, use
+the [Docker release bundle](docker/release/README.md). It pulls the published API
+and vLLM images, downloads pinned public Hugging Face weights into a persistent
+volume, and generates private credentials locally. The existing host-service
+setup below remains supported.
 
-
-### Install Python using Miniconda
-1) Download and install mini coda from [here](https://docs.anaconda.com/free/miniconda/#quick-command-line-install)
-
-2) Create a new enviroment using the follwing command:
-```bash
- conda create -n rag-ishms python=3.12
-```
-3) Activate the enviroment :
-```bash
- conda activate rag-ishms
-```
-
-### Install the requires packages 
-```bash
- pip install -r requirements.txt
-```
-
-### Run the FastAPI server
-
-```bash         
- cd ~/rag-ishms/src
-```
+Run these commands in Bash from the repository root:
 
 ```bash
- uvicorn main:app --reload --host 0.0.0.0 --port 8000 
+cd /home/yacine_105/rag-ishms
+
+systemctl --user start rag-ishms-reranker.service rag-ishms-generator.service
+
+docker compose -f docker/docker-compose.yml up -d
+
+docker compose -f docker/docker-compose.yml ps
+curl --fail-with-body http://localhost/health
 ```
 
-### Run Dokcer Compose Service
-```bash
- cd docker
- cp .env.example .env
-```
+`up -d` runs the services in Docker; you can close the terminal afterward. Qwen's
+first load can take several minutes. The host services also run without background
+terminals. Wait for
+`fastapi` to become healthy before using nginx. The health response should contain
+`"status":"healthy"`. On this machine, project **6** already has **1,242 chunks**
+indexed, so you can ask questions immediately.
 
-- update `.env` with your credentials
-
-
-### for running the drug checker manually
-```bash         
- cd ~/rag-ishms/src
-```
-```bash         
- pyhton drug_checker.py
-```
-
-### Run the model 
-```bash
- cd ~/llama.cpp/build/bin
-```
-```bash
- ./llama-server -m /mnt/g/ishms/modeel/medgemma-4b-it-Q8_0.gguf -ngl 99 --host 0.0.0.0 --port 8080
-```
-
-### installing cloudflare to access the server
- -downloading the cloudflare package
-```bash
- wget https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64.deb
-```
- - Install it
-```bash
- sudo dpkg -i cloudflared-linux-amd64.deb
-```
- - Verify
-```bash
- cloudflared --version
-```
-
-### running cloudflare after runnig the depends
+Load the client key into your terminal without displaying it:
 
 ```bash
- cloudflared tunnel run rag-ishms
+set -a
+source docker/env/.env.client
+set +a
 ```
 
+Then ask a question about the existing machine-learning documents:
+
+```bash
+curl --fail-with-body http://localhost/api/v1/nlp/index/answer/6 \
+  -H "X-API-Key: $RAG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"text":"What is supervised machine learning?","limit":3}'
+```
+
+The JSON response contains `answer`, `sources`, `request_id`, and `prompt_version`.
+Use the returned sources to inspect the supporting document. Questions outside the
+indexed documents can produce a no-information answer with empty sources.
+
+| Service | URL | Access |
+|---|---|---|
+| Interactive API documentation | http://localhost/docs | Use **Authorize** and enter your client key |
+| Health | http://localhost/health | No API key required |
+| Direct FastAPI documentation | http://localhost:8000/docs | Same API key |
+| Grafana | http://localhost:3000 | Credentials in `docker/env/.env.grafana` |
+| Prometheus | http://localhost:9090 | Local monitoring UI |
+
+The key belongs in the `X-API-Key` header, not in the question or URL. The local
+key files are ignored by Git. The direct API and monitoring ports are intended
+for your trusted development environment.
+
+## First setup on a fresh checkout
+
+Skip this section if the project is already configured as above.
+
+You need Docker with Compose GPU support, an NVIDIA driver compatible with CUDA
+13.0, Python 3.12, and `uv`. Docker runs the application's Python dependencies;
+a host installation of vLLM is not needed for this API setup.
+
+### 1. Create the private configuration files
+
+From the repository root:
+
+```bash
+uv run --no-project --with python-dotenv python scripts/configure_api_access.py
+```
+
+This copies missing Docker environment examples, enables API authentication, and
+creates `docker/env/.env.client` when generating the initial service key. It
+preserves existing environment files and credentials.
+
+### 2. Set database and model credentials
+
+Edit these private files before starting Docker:
+
+| File | Required configuration |
+|---|---|
+| `docker/env/.env.postgres` | Set `POSTGRES_PASSWORD`; keep `POSTGRES_USER=postgres`, `POSTGRES_DB=rag-ishms` |
+| `docker/env/.env.fastapi` | Set the matching `POSTGRES_PASSWORD`, model API key, and settings below |
+| `docker/env/.env.postgres-exporter` | Set `DATA_SOURCE_PASS` to the same database password |
+| `docker/env/.env.grafana` | Set `GF_SECURITY_ADMIN_PASSWORD` |
+
+For an OpenRouter-only generation setup, set these values in
+`docker/env/.env.fastapi`. Replace the API-key placeholder with your own key:
+
+```dotenv
+POSTGRES_HOST=pgvector
+POSTGRES_PORT=5432
+POSTGRES_USERNAME=postgres
+POSTGRES_MAIN_DATABASE=rag-ishms
+
+GENERATION_PROVIDER=OPENAI
+EMBEDDING_PROVIDER=OPENAI
+OPENAI_BASE_URL=https://openrouter.ai/api/v1
+OPENAI_API_KEY=YOUR_OPENROUTER_API_KEY
+OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
+OPENROUTER_API_KEYS=[]
+OPENROUTER_API_KEY_INDEX=0
+GENERATION_BASE_URL=
+GENERATION_API_KEY=
+GENERATION_MODEL_ID=nvidia/nemotron-3-ultra-550b-a55b:free
+GENERATION_MODEL_TEMPERATURE=0.2
+MAX_OUTPUT_TOKENS=1000
+EMBEDDING_MODEL_ID=nvidia/llama-nemotron-embed-vl-1b-v2:free
+EMBEDDING_MODEL_SIZE=2048
+VECTOR_DB_BACKEND=PGVector
+RERANKER_ENABLED=true
+INDEX_BATCH_SIZE=64
+INDEX_BATCH_DELAY_SECONDS=3.5
+```
+
+Keep the generated `API_AUTH_ENABLED=true` and `API_CLIENTS` settings. The service
+key generated by the setup script has access to all projects; narrower project
+permissions can be configured in `API_CLIENTS`.
+
+Free provider availability and quotas can change. The old
+`minimax/minimax-m3:free` endpoint failed during verification; do not use that
+example value. A healthy `/health` confirms dependency readiness, but an actual
+answer request is still needed to verify generation. See
+[model configuration and verification](docs/model-serving.md).
+
+For Docker, `docker/env/.env.fastapi` controls the application. `src/.env` is for
+host execution and is not the configuration file to edit for this deployment.
+
+To configure multiple OpenRouter keys, edit the private Docker environment file:
+
+```dotenv
+OPENROUTER_API_KEYS='["YOUR_FIRST_KEY","YOUR_SECOND_KEY"]'
+OPENROUTER_API_KEY_INDEX=0
+```
+
+Use a JSON list with double-quoted entries. Index 0 starts with the first key;
+index 1 starts with the second. On HTTP 402/429 or a recognized OpenRouter 403
+budget-limit error, the client tries the remaining distinct keys once, in order,
+wrapping around the list. It remembers a successful key until the API restarts.
+After every key fails, the request fails normally; there is no infinite retry.
+Other errors do not trigger key fallback, and an already-started stream is not
+replayed. Key values are not included in fallback logs.
+
+The list applies when the effective API URL matches `OPENROUTER_BASE_URL`.
+An empty list preserves `OPENAI_API_KEY`. Explicit generation credentials, such
+as the local Qwen server key, remain separate. Changing only keys does not change
+the embedding model or require rebuilding existing vector indexes.
+
+OpenRouter's overall rate limits still apply across keys; this configuration
+does not increase the daily allowance. See the
+[provider's limits](https://openrouter.ai/docs/api_reference/limits).
+After adding keys, rebuild/recreate the API and reload nginx:
+
+```bash
+docker compose -f docker/docker-compose.yml up -d --build --wait fastapi
+docker compose -f docker/docker-compose.yml exec nginx nginx -s reload
+```
+
+### 3. Build and start
+
+```bash
+docker compose -f docker/docker-compose.yml up -d --build
+
+docker compose -f docker/docker-compose.yml ps
+
+docker compose -f docker/docker-compose.yml logs --tail=100 fastapi
+
+curl --fail-with-body http://localhost/health
+```
+
+The API image includes CUDA-enabled PyTorch 2.14.1 (CUDA 13.0), and Compose gives
+it NVIDIA GPU access. Docker GPU support and a compatible host driver are required;
+see the [GPU verification commands](docker/README.md#building-from-wsl).
+The first image build downloads CUDA libraries and compiles native dependencies,
+which can take several minutes.
+The first application start also downloads the multilingual reranker if its named
+Hugging Face cache is empty. Model caching, uploaded files, and database contents
+persist in Docker volumes. A fresh checkout does not include your existing local
+project 6 database; upload and index documents using the next section.
+
+## GPU reranking with the existing vLLM environment
+
+The current machine uses `BAAI/bge-reranker-v2-m3` served by vLLM 0.30.0 from
+`/home/yacine_105/vllm-env`, on port 8002. The Docker API calls its authenticated
+`/v1/rerank` endpoint. Reranking continues in that GPU service, while the API image
+also includes CUDA PyTorch and GPU access. Your indexes and Postman request URLs
+remain the same.
+
+To reproduce this setup on a machine with that vLLM environment and a CUDA GPU:
+
+```bash
+uv run --no-project --with python-dotenv python scripts/configure_reranker.py
+
+mkdir -p ~/.config/systemd/user
+cp deploy/systemd/rag-ishms-reranker.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user enable --now rag-ishms-reranker.service
+
+docker compose -f docker/docker-compose.yml up -d --build fastapi nginx
+curl --fail-with-body http://localhost/health
+```
+
+The supplied user unit assumes the checkout is `~/rag-ishms`; adjust its paths
+for another location. The startup script uses `~/vllm-env/bin/vllm` by default;
+`VLLM_BIN` can select another existing installation. It reuses the cached BGE
+weights in `hf_cache`; without those weights, vLLM downloads the same model.
+vLLM dependencies remain separate from this API project.
+
+The configuration helper creates a separate private key in
+`docker/env/.env.reranker` and configures `RERANKER_BASE_URL`/`RERANKER_API_KEY` in
+the Docker API environment. This service key is separate from `RAG_API_KEY`;
+Postman still sends your existing application key. Both private files are ignored.
+
+The server uses FP16, a 512-token query/document pair limit and at most 16
+concurrent sequences; long pairs are truncated. It uses about 1.3 GiB of VRAM on
+the current 6 GiB GPU. `RERANKER_GPU_MEMORY_UTILIZATION` defaults to 0.45. The
+pair limit must agree between the vLLM service and `RERANKER_MAX_LENGTH` in the API;
+review longer legal chunks before interpreting their quality scores.
+
+Useful service commands:
+
+```bash
+systemctl --user status rag-ishms-reranker.service
+journalctl --user -u rag-ishms-reranker.service -n 50 --no-pager
+systemctl --user restart rag-ishms-reranker.service
+systemctl --user stop rag-ishms-reranker.service
+```
+
+This is a managed user service; it needs no background terminal. Start it before
+the Docker API after restarting WSL. `docker compose down` does not stop this
+host service. If it is unavailable, `/health` reports the reranker dependency as
+an error. Clear `RERANKER_BASE_URL` to restore the embedded CPU reranker and
+recreate the API. Reindexing is not needed for a reranker change.
+
+Measured on project 8 with the same prompt-chaining question and 30 candidates:
+3.21 seconds for the first GPU search, then 0.51/0.41 seconds on repeats, compared
+with the prior 90.36-second Postman request. This is a small latency check, not a
+concurrency or answer-quality benchmark.
+
+## Local Qwen generation
+
+The generator runs on port 8001 from `~/vllm-env`; Docker calls it through
+`host.docker.internal`. Its weights are stored at
+`/mnt/g/rag-ishms-models/Qwen3-4B-Instruct-2507`, linked from
+`~/vllm-env/models/Qwen3-4B-Instruct-2507`. Keep G: mounted when starting it.
+
+The setup, download/resume command, service logs, verification requests and
+rollback instructions are in [model serving](docs/model-serving.md#local-qwen-generator--verified-2026-10-15).
+Postman continues to use the same RAG URLs and `X-API-Key`; the generator has its
+own private service key. No document reindexing is required for this switch.
+
+## Add your documents
+
+The normal flow is **upload → process → index → ask**. Use a positive integer as
+`project_id`; keep unrelated document collections in separate projects.
+
+For an importable Postman collection and a ready-to-query test project, follow
+the [full pipeline walkthrough](docs/pipeline-test.md). The live Docker/nginx
+walkthrough uses the original `G:\Downloads\1576751803.pdf`, Qalam article
+extraction (`W_qalam=true`), and project **900201**. Processing the full 170-page
+PDF produces 2,297 separate Arabic/English article chunks. The collection defaults
+to this PDF/Qalam path; no manual JSON conversion is needed.
+
+The helper below handles upload, background job submission, and status polling.
+Load the client key first, then replace `/absolute/path/document.pdf` with your file:
+
+```bash
+set -a
+source docker/env/.env.client
+set +a
+
+uv run --no-project --with requests python scripts/reindex_project.py \
+  --base-url http://localhost \
+  --project-id 7 \
+  --file /absolute/path/document.pdf
+```
+
+For a structured bilingual legal PDF with article headings, add `--qalam` to
+produce separate Arabic/English article chunks and richer article citations:
+
+```bash
+uv run --no-project --with requests python scripts/reindex_project.py \
+  --base-url http://localhost \
+  --project-id 7 \
+  --file /absolute/path/legal-document.pdf \
+  --qalam
+```
+
+Use ordinary processing for general PDFs and TXT files. The helper uses
+`do_reset=0` and waits for processing to succeed before indexing. Its default
+polling timeout is 1,800 seconds; `--timeout` changes it. If it times out, check the
+printed status URL before submitting another job.
+
+The helper processes the project's eligible files, not only the newly uploaded
+file. Uploading the same filename replaces the previous asset and its current
+indexed chunks. Use distinct filenames when you intend to keep both documents.
+
+After the helper reports completion, ask a question at
+`/api/v1/nlp/index/answer/7`, using the same JSON/header pattern as project 6.
+
+## Use the API directly
+
+All `/api/v1/data/*` and `/api/v1/nlp/*` requests require `X-API-Key`.
+Swagger at `/docs` provides forms for every endpoint, including file uploads.
+
+| Method | Endpoint | Body or purpose |
+|---|---|---|
+| GET | `/health` | Readiness; no key required |
+| POST | `/api/v1/data/upload/{project_id}` | Multipart field `file`: PDF or TXT |
+| POST | `/api/v1/data/process/jobs/{project_id}` | Start processing; examples below |
+| GET | `/api/v1/data/process/status/{job_id}` | Processing status/results |
+| POST | `/api/v1/nlp/index/jobs/{project_id}` | `{"do_reset":0}` |
+| GET | `/api/v1/nlp/index/status/{job_id}` | Indexing status/results |
+| GET | `/api/v1/nlp/index/info/{project_id}` | Collection information and vector count |
+| POST | `/api/v1/nlp/index/search/{project_id}` | `{"text":"question","limit":3}`; retrieved chunks |
+| POST | `/api/v1/nlp/index/answer/{project_id}` | Same body; generated answer and sources |
+| POST | `/api/v1/nlp/index/answer/stream/{project_id}` | Same body; streamed answer |
+| POST | `/api/v1/nlp/answer/feedback/{project_id}` | Answer `request_id`, score, optional comment |
+
+Ordinary processing body:
+
+```json
+{"chunk_size":500,"overlap_size":50,"do_reset":0}
+```
+
+Legal article processing body:
+
+```json
+{"W_qalam":true,"do_reset":0}
+```
+
+A submitted background job returns HTTP 202 and a `job_id`. Poll the corresponding
+status endpoint until `state` is `succeeded` or `failed`; other states are `queued`
+and `running`. Wait for processing to succeed before starting indexing. Avoid
+uploading or modifying that project while its job is active.
+
+Synchronous `/api/v1/data/process/{project_id}` and
+`/api/v1/nlp/index/push/{project_id}` remain available; use the background endpoints
+for larger documents. Keep `do_reset=0` for normal updates. Reset requests remove
+existing project processing/index data.
+
+Empty or unsupported extraction fails processing instead of reporting zero chunks
+as success. Indexing a project with no processed chunks also fails. A repeated
+processing request with no new eligible files can legitimately complete with
+zero changes; an initial upload must produce chunks before indexing.
+
+For streaming, add `-N` to curl:
+
+```bash
+curl -N --fail-with-body http://localhost/api/v1/nlp/index/answer/stream/6 \
+  -H "X-API-Key: $RAG_API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{"text":"Explain supervised learning briefly.","limit":3}'
+```
+
+SSE events are `sources`, `token`, and `done`; provider failures emit `error`.
+Streaming can buffer some output for PII filtering. Treat `done` as completion,
+not the initial HTTP 200 alone.
+
+Send feedback using a successful answer's returned `request_id`:
+
+```json
+{"request_id":"RETURNED_REQUEST_ID","score":1,"comment":"Helpful answer"}
+```
+
+Scores range from −1 to 1. Feedback must come from the same identity/project that
+received the answer; answer receipts expire after restart or after 1,000 entries.
+
+## Restart, update, and stop
+
+These commands run from the repository root:
+
+```bash
+# Apply changes to the API environment file or recreate its container.
+docker compose -f docker/docker-compose.yml up -d --force-recreate fastapi
+
+# Rebuild after changing application source or image dependencies.
+docker compose -f docker/docker-compose.yml up -d --build fastapi nginx
+
+# Inspect recent logs without opening a persistent terminal.
+docker compose -f docker/docker-compose.yml logs --tail=100 fastapi
+
+# Follow logs; Ctrl+C closes the log view and leaves Docker running.
+docker compose -f docker/docker-compose.yml logs -f fastapi
+
+# Stop the stack while retaining its stored data.
+docker compose -f docker/docker-compose.yml down
+systemctl --user stop rag-ishms-reranker.service rag-ishms-generator.service
+
+# Start it again.
+systemctl --user start rag-ishms-reranker.service rag-ishms-generator.service
+docker compose -f docker/docker-compose.yml up -d
+```
+
+Do not add `-v` to `down` unless you intend to delete the database, uploaded files,
+model cache, and monitoring volumes. Jobs interrupted by restart are marked failed;
+work does not resume automatically, and partial writes may remain.
+
+## Troubleshooting
+
+| Symptom | What to check |
+|---|---|
+| Upload returns 413 | nginx permits 100 MiB request bodies; also check the application `FILE_MAX_SIZE`. Reload nginx after changing its mounted configuration. |
+| nginx is unavailable or returns 502 | Check `docker compose -f docker/docker-compose.yml ps` and API logs; nginx waits for API health |
+| `/health` returns 503 | Inspect its dependency fields, then API logs; check database credentials and model API reachability |
+| 401 | Reload `docker/env/.env.client` and send `X-API-Key` |
+| 403 | Check the key's allowed projects in `API_CLIENTS` |
+| 409 | Poll the active project job before another upload/process/index request |
+| 422 | Provide nonblank `text`, `limit` between 1 and 20, and overlap smaller than chunk size |
+| 429 | Follow `Retry-After`; upstream free-model quotas are separate from the application's quota |
+| Failed indexing after upstream 429 | Wait for the upstream quota window, inspect the partial index, then retry with `do_reset=0` and batch pacing |
+| Empty sources/no information | Check project ID, processing/index job results, and whether the question is covered by those documents |
+| Upload fails with `Permission denied` | Correct an old root-owned assets volume using the command below |
+
+For the known non-root migration issue, preserve the files and correct ownership:
+
+```bash
+docker compose -f docker/docker-compose.yml run --rm --no-deps \
+  --user 0 --entrypoint sh fastapi \
+  -c 'chown -R 10001:10001 /app/assets'
+```
+
+Changing only the generation model requires recreating the API, not reindexing.
+Changing the embedding provider/model/dimension creates a different fingerprinted
+collection; re-index the stored chunks for that configuration. An old legacy index
+is not automatically converted. See the [runbook](docs/runbook.md) for recovery.
+
+## Development, evaluation, and monitoring
+
+Host-side development tools are optional for running Docker:
+
+```bash
+uv sync --locked --group dev
+uv run pytest
+uv run pre-commit run --all-files
+```
+
+The verified suite has 291 tests plus 12 subtests, with 88.22% source coverage; tests
+use mocks and do not download native model weights or make paid inference calls.
+
+For the reproducible legal corpus and optional evaluation tools:
+
+```bash
+uv sync --locked --group dev --group data --group eval
+uv run dvc repro
+uv run dvc status
+```
+
+The corpus contains 1,149 article records. The exact source PDF has an Arabic
+alignment defect around Articles 1021–1022, recorded in a checksum-pinned issue
+manifest. The complete evaluation uses 62 assistant-reviewed questions and five
+configurations: all 310 answers have saved four-metric RAGAS and reference-rubric
+grades. The measured 50-user load target failed. Legal expert review is still
+needed; successful connectivity and automated grades do not establish legal
+correctness. See the [measured report](docs/final-project-report.md) and
+[reproduction instructions](eval/CIVIL_CODE_EVALUATION.md).
+
+Grafana's 13 panels and Prometheus's six alert rules are provisioned automatically.
+Quality panels need a real evaluation report before displaying scores. Langfuse
+is optional and requires separate credentials; its traces omit raw query/document/
+answer content. `/metrics` is available on port 8000 and blocked through nginx.
+
+The existing FastAPI/controllers/provider factories and PostgreSQL/PGVector/Qdrant
+architecture are retained. Keep one API worker for the current job/model/quotas
+implementation. Deterministic guardrails are limited and do not certify medical
+privacy or answer correctness; use public documents for the course demonstration.
+
+- [Model serving and future vLLM configuration](docs/model-serving.md)
+- [Monitoring, tracing, and feedback](docs/observability.md)
+- [Plan review and scope limits](docs/plan-review.md)
+- [Verified Docker and API results](docker/VERIFICATION.md)
+- [Docker/Qdrant details](docker/README.md)
+- [Send queries to the Cue bot and read replies](docs/cue-mail.md)
+
+`certifcates_sys/` is a separate assignment and is not needed to run this RAG API.

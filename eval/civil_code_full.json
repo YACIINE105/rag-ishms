@@ -1,0 +1,1408 @@
+[
+  {
+    "id": "civil-final-1-en",
+    "question": "What sources must a judge apply when there is no applicable legislative provision?",
+    "language": "en",
+    "article_number": 1,
+    "required_claims": [
+      "Custom, then Moslem law, then natural justice/equity; fallback order and absence conditions."
+    ],
+    "project_id": 900101,
+    "expected_answer": "Apply custom first, then the principles of Moslem law if there is no custom, then natural justice and equity if those principles are absent.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "Provisions of laws govern all matters to which these provisions apply in letter or spirit. In the absence of a provision of a law that is applicable, the Judge will decide according to custom and in the absence of custom in accordance with the principles of Moslem Law. In the absence of such principles, the Judge will apply the principles of natural justice and the rules of equity.",
+    "source_pages": [
+      1
+    ]
+  },
+  {
+    "id": "civil-final-1-ar",
+    "question": "ما ترتيب المصادر التي يرجع إليها القاضي إذا لم يوجد نص تشريعي قابل للتطبيق؟",
+    "language": "ar",
+    "article_number": 1,
+    "required_claims": [
+      "Custom, then Moslem law, then natural justice/equity; fallback order and absence conditions."
+    ],
+    "project_id": 900101,
+    "expected_answer": "يرجع القاضي إلى العرف، ثم مبادئ الشريعة الإسلامية عند عدم وجود عرف، ثم مبادئ القانون الطبيعي وقواعد العدالة عند عدم وجود تلك المبادئ.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": ")١( تسرى النصوص التشريعية على جميع المسائل التي تتناولها هذه النصوص في لفظها أو في فحواها. (٢) فإذا لم يوجد نص تشريعي يمكن تطبيقه، حكم القاضي بمقتضى العرف، فإذا لم يوجد، فبمقتضى مبادئ الشريعة الإسلامية، فإذا لم يوجد فبمقتضى مبادئ القانون الطبيعي وقواعد العدالة.",
+    "source_pages": [
+      1
+    ]
+  },
+  {
+    "id": "civil-final-2-en",
+    "question": "How can a legislative provision be repealed under Article 2?",
+    "language": "en",
+    "article_number": 2,
+    "required_claims": [
+      "Later law; all three repeal routes: express repeal, inconsistency, regulation anew."
+    ],
+    "project_id": 900101,
+    "expected_answer": "A later law must expressly repeal the provision, contradict it, or regulate the same subject anew.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "A provision of a law can only be repealed by a subsequent law expressly providing for such repeal, or containing a provision inconsistent with a provision of the former law or regulating anew a matter previously regulated by a former law.",
+    "source_pages": [
+      1
+    ]
+  },
+  {
+    "id": "civil-final-2-ar",
+    "question": "كيف يمكن إلغاء نص تشريعي وفقا للمادة الثانية؟",
+    "language": "ar",
+    "article_number": 2,
+    "required_claims": [
+      "Later law; all three repeal routes: express repeal, inconsistency, regulation anew."
+    ],
+    "project_id": 900101,
+    "expected_answer": "بتشريع لاحق ينص صراحة على الإلغاء، أو يتضمن نصا يتعارض مع التشريع السابق، أو ينظم من جديد الموضوع الذي نظمه التشريع السابق.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "لا يجوز إلغاء نص تشريعي إلا بتشريع لاحق ينص صراحة على هذا الإلغاء، أو يشتمل على نص يتعارض مع نص التشريع القديم ، أو ينظم من جديد الموضوع الذي سبق أن قرر قواعده ذلك التشريع.",
+    "source_pages": [
+      1
+    ]
+  },
+  {
+    "id": "civil-final-3-en",
+    "question": "Which calendar determines statutory time limits unless another rule applies?",
+    "language": "en",
+    "article_number": 3,
+    "required_claims": [
+      "Gregorian calendar; exception for an express contrary law."
+    ],
+    "project_id": 900101,
+    "expected_answer": "The Gregorian calendar applies unless a law expressly provides otherwise.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "Periods of limitation will be calculated according to the Gregorian calendar, unless expressly provided otherwise by a law.",
+    "source_pages": [
+      1
+    ]
+  },
+  {
+    "id": "civil-final-3-ar",
+    "question": "بأي تقويم تحسب المواعيد إذا لم ينص القانون على غير ذلك؟",
+    "language": "ar",
+    "article_number": 3,
+    "required_claims": [
+      "Gregorian calendar; exception for an express contrary law."
+    ],
+    "project_id": 900101,
+    "expected_answer": "تحسب المواعيد بالتقويم الميلادي ما لم ينص القانون على غير ذلك.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "تحسب المواعيد بالتقويم الميلادي، ما لم ينص هذا القانون على غير ذلك.",
+    "source_pages": [
+      1
+    ]
+  },
+  {
+    "id": "civil-final-4-en",
+    "question": "Is lawful exercise of a right liable for the resulting harm?",
+    "language": "en",
+    "article_number": 4,
+    "required_claims": [
+      "No liability for harm from lawful exercise of a right."
+    ],
+    "project_id": 900101,
+    "expected_answer": "A person lawfully exercising a right is not liable for the resulting harm.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "A person legitimately exercises his rights is not responsible for prejudice resulting thereby.",
+    "source_pages": [
+      1
+    ]
+  },
+  {
+    "id": "civil-final-4-ar",
+    "question": "هل يسأل من استعمل حقه استعمالا مشروعا عن الضرر الناشئ عنه؟",
+    "language": "ar",
+    "article_number": 4,
+    "required_claims": [
+      "No liability for harm from lawful exercise of a right."
+    ],
+    "project_id": 900101,
+    "expected_answer": "لا يكون مسؤولا عما ينشأ عن الاستعمال المشروع لحقه من ضرر.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "من استعمل حقه استعمالاًمشروعاًلا يكون مسئولاًعما ينشأ عن ذلك من ضرر.",
+    "source_pages": [
+      1
+    ]
+  },
+  {
+    "id": "civil-final-5-en",
+    "question": "When is the exercise of a right unlawful?",
+    "language": "en",
+    "article_number": 5,
+    "required_claims": [
+      "Sole intent to harm; disproportionate benefit/harm; unlawful benefit."
+    ],
+    "project_id": 900101,
+    "expected_answer": "The exercise is unlawful if its sole aim is harming another, its benefit is out of proportion to the harm, or the intended benefit is unlawful.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "The exercise of a right is considered unlawful in the following cases: a) if the sole aim thereof is to harm another person; b) if the benefit it is desired to realize is out of proportion to the harm caused thereby to another person; c) if the benefit it is desired to realize is unlawful.",
+    "source_pages": [
+      1
+    ]
+  },
+  {
+    "id": "civil-final-5-ar",
+    "question": "متى يعد استعمال الحق غير مشروع؟",
+    "language": "ar",
+    "article_number": 5,
+    "required_claims": [
+      "Sole intent to harm; disproportionate benefit/harm; unlawful benefit."
+    ],
+    "project_id": 900101,
+    "expected_answer": "إذا كان القصد الوحيد الإضرار بالغير، أو كانت المصالح قليلة الأهمية وغير متناسبة البتة مع الضرر، أو كانت المصالح المراد تحقيقها غير مشروعة.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "يكون استعمال الحق غير مشروع في الأحوال الآتية : )أ) إذا لم يقصد به سوى الإضرار بالغير. (ب) إذا كانت المصالح التي يرمي إلى تحقيقها قليلة الأهمية، بحيث لا تتناسب البتة مع ما يصيب الغير من ضرر بسببها. (ج) إذا كان المصالح التي يرمي إلى تحقيقها غير مشروعة.",
+    "source_pages": [
+      1
+    ]
+  },
+  {
+    "id": "civil-final-40-en",
+    "question": "What is a domicile, and can a person have more than one?",
+    "language": "en",
+    "article_number": 40,
+    "required_claims": [
+      "Habitual residence; more than one domicile or none."
+    ],
+    "project_id": 900101,
+    "expected_answer": "A domicile is where a person habitually resides. A person may have several domiciles at once, or none.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "A domicile is the place where a person habitually resides. A person may have more than one domicile at the same time, as he may have none.",
+    "source_pages": [
+      5
+    ]
+  },
+  {
+    "id": "civil-final-40-ar",
+    "question": "ما المقصود بالموطن وهل يجوز للشخص أن يكون له أكثر من موطن؟",
+    "language": "ar",
+    "article_number": 40,
+    "required_claims": [
+      "Habitual residence; more than one domicile or none."
+    ],
+    "project_id": 900101,
+    "expected_answer": "الموطن هو المكان الذي يقيم فيه الشخص عادة. ويجوز أن يكون له أكثر من موطن في الوقت نفسه أو ألا يكون له موطن.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "(١( الموطن هو المكان الذي يقيم فيه الشخص عادة. (٢) ويجوز أن يكون للشخص في وقت واحد أكثر من موطن، كما يجوز ألا يكون له موطن ما.",
+    "source_pages": [
+      5
+    ]
+  },
+  {
+    "id": "civil-final-43-en",
+    "question": "How must an elected special domicile be evidenced?",
+    "language": "en",
+    "article_number": 43,
+    "required_claims": [
+      "Election of special domicile must be evidenced in writing."
+    ],
+    "project_id": 900101,
+    "expected_answer": "The election of a special domicile must be evidenced in writing.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "A special domicile may be elected for the performance of a specific legal act. The election of domicile must be evidenced by writing. A domicile elected for the performance of a legal act shall be deemed to be the domicile in so far as all matters relating to such act are concerned, including the procedure for enforcement by legal means unless the election of domicile is expressly limited to certain special acts, excluding others.",
+    "source_pages": [
+      6
+    ]
+  },
+  {
+    "id": "civil-final-43-ar",
+    "question": "كيف يجب إثبات الموطن المختار الخاص؟",
+    "language": "ar",
+    "article_number": 43,
+    "required_claims": [
+      "Election of special domicile must be evidenced in writing."
+    ],
+    "project_id": 900101,
+    "expected_answer": "يجب إثبات اختيار الموطن الخاص كتابة.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "(١( يجوز اتخاذ موطن مختار لتنفيذ عمل قانوني معين. (٢( ولا يجوز إثبات وجود الموطن المختار إلا بالكتابة. (٣( والموطن المختار لتنفيذ عمل قانوني يكون هو الموطن بالنسبة إلى كل ما يتعلق بهذا العمل، بما فى ذلك إجراءات التنفيذ الجبري ، إلا إذا اشترط صراحة قصر هذا الموطن على أعمال دون أخرى.",
+    "source_pages": [
+      6
+    ]
+  },
+  {
+    "id": "civil-final-44-en",
+    "question": "What is the age of majority and what conditions confer full civil capacity?",
+    "language": "en",
+    "article_number": 44,
+    "required_claims": [
+      "21 completed Gregorian years; mental faculties; not under legal disability."
+    ],
+    "project_id": 900101,
+    "expected_answer": "Majority is twenty-one completed Gregorian years. Full civil capacity also requires possession of mental faculties and absence of legal disability.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "All persons attaining majority in possession of their mental faculties and not under legal disability, have full legal capacity to exercise their civil rights. The majority of a person is fixed at twenty one years completed in accordance with the Gregorian calendar.",
+    "source_pages": [
+      6
+    ]
+  },
+  {
+    "id": "civil-final-44-ar",
+    "question": "ما سن الرشد وما شروط الأهلية الكاملة لمباشرة الحقوق المدنية؟",
+    "language": "ar",
+    "article_number": 44,
+    "required_claims": [
+      "21 completed Gregorian years; mental faculties; not under legal disability."
+    ],
+    "project_id": 900101,
+    "expected_answer": "سن الرشد إحدى وعشرون سنة ميلادية كاملة. ويكون الشخص كامل الأهلية إذا بلغها متمتعا بقواه العقلية ولم يحجر عليه.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "(١( كل شخص بلغ سن الرشد متمتعا بقواه العقلية ، ولم يحجر عليه ، يكون كامل الأهلية لمباشرة حقوقه المدنية. )٢( وسن الرشد هى إحدى وعشرون سنة ميلادية كاملة.",
+    "source_pages": [
+      6
+    ]
+  },
+  {
+    "id": "civil-final-45-en",
+    "question": "When is a child deemed unable to distinguish by reason of age?",
+    "language": "en",
+    "article_number": 45,
+    "required_claims": [
+      "Under seven; not seven-and-under or another age."
+    ],
+    "project_id": 900101,
+    "expected_answer": "A child who has not attained seven years is deemed devoid of discretion.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "A person devoid of discretion, owing to youth, feeble mindedness or insanity is incapable of exercising his civil rights. A person who has not attained the age of seven is considered devoid of discretion.",
+    "source_pages": [
+      6
+    ]
+  },
+  {
+    "id": "civil-final-45-ar",
+    "question": "متى يعتبر الطفل فاقدا للتمييز بسبب سنه؟",
+    "language": "ar",
+    "article_number": 45,
+    "required_claims": [
+      "Under seven; not seven-and-under or another age."
+    ],
+    "project_id": 900101,
+    "expected_answer": "من لم يبلغ السابعة يعتبر فاقدا للتمييز.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": ")١( لا يكون أهلا لمباشرة حقوقه المدنية من كان فاقد التمييز لصغر في السن أو عته أو جنون. (٢( وكل من لم يبلغ السابعة يعتبر فاقدا ًللتمييز.",
+    "source_pages": [
+      6
+    ]
+  },
+  {
+    "id": "civil-final-48-en",
+    "question": "Can a person waive legal capacity or modify its rules?",
+    "language": "en",
+    "article_number": 48,
+    "required_claims": [
+      "Cannot renounce capacity; cannot modify its governing rules."
+    ],
+    "project_id": 900101,
+    "expected_answer": "A person cannot renounce legal capacity or modify the rules governing it.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "No person can renounce his legal capacity or modify the rules relating thereto.",
+    "source_pages": [
+      6
+    ]
+  },
+  {
+    "id": "civil-final-48-ar",
+    "question": "هل يجوز للشخص التنازل عن أهليته أو تعديل أحكامها؟",
+    "language": "ar",
+    "article_number": 48,
+    "required_claims": [
+      "Cannot renounce capacity; cannot modify its governing rules."
+    ],
+    "project_id": 900101,
+    "expected_answer": "لا يجوز للشخص التنازل عن أهليته أو تعديل أحكامها.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "ليس لأحد الترول عن أهليته ولا التعديل في أحكامها.",
+    "source_pages": [
+      6
+    ]
+  },
+  {
+    "id": "civil-final-49-en",
+    "question": "Can a person renounce personal liberty under Article 49?",
+    "language": "en",
+    "article_number": 49,
+    "required_claims": [
+      "Cannot renounce personal liberty."
+    ],
+    "project_id": 900101,
+    "expected_answer": "No person can renounce personal liberty.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "No person can renounce his personal liberty.",
+    "source_pages": [
+      6
+    ]
+  },
+  {
+    "id": "civil-final-49-ar",
+    "question": "هل يجوز التنازل عن الحرية الشخصية وفقا للمادة 49؟",
+    "language": "ar",
+    "article_number": 49,
+    "required_claims": [
+      "Cannot renounce personal liberty."
+    ],
+    "project_id": 900101,
+    "expected_answer": "لا يجوز للشخص التنازل عن حريته الشخصية.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "ليس لأحد الترول عن حريته الشخصية.",
+    "source_pages": [
+      6
+    ]
+  },
+  {
+    "id": "civil-final-50-en",
+    "question": "What remedies can be sought for unlawful infringement of a personal right?",
+    "language": "en",
+    "article_number": 50,
+    "required_claims": [
+      "Cessation of unlawful infringement; compensation for resulting damage."
+    ],
+    "project_id": 900101,
+    "expected_answer": "The person may demand that the unlawful infringement stop and claim compensation for the resulting damage.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "A person whose rights inherent in his personality have been unlawfully infringed, shall have the right to demand the cessation of the infringement and compensation for any damage sustained thereby.",
+    "source_pages": [
+      6
+    ]
+  },
+  {
+    "id": "civil-final-50-ar",
+    "question": "ما الذي يجوز طلبه عند الاعتداء غير المشروع على حق ملازم للشخصية؟",
+    "language": "ar",
+    "article_number": 50,
+    "required_claims": [
+      "Cessation of unlawful infringement; compensation for resulting damage."
+    ],
+    "project_id": 900101,
+    "expected_answer": "يجوز طلب وقف الاعتداء والتعويض عن الضرر الذي لحق بالشخص.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "لكل من وقع عليه اعتداء غير مشروع في حق من الحقوق الملازمة لشخصيته ، أن يطلب وقف هذا الاعتداء مع التعويض عما يكون قد لحقه من ضرر.",
+    "source_pages": [
+      6
+    ]
+  },
+  {
+    "id": "civil-final-89-en",
+    "question": "When is a contract concluded, subject to legally prescribed formalities?",
+    "language": "en",
+    "article_number": 89,
+    "required_claims": [
+      "Concordant expressions of intention exchanged; special statutory formalities preserved."
+    ],
+    "project_id": 900101,
+    "expected_answer": "A contract is formed when two parties exchange concordant expressions of intention, subject to any special formalities required by law.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "A contract is created, subject to any special formalities that may be required by law for its conclusion, from the moment that two persons have exchanged two concordant intentions.",
+    "source_pages": [
+      8
+    ]
+  },
+  {
+    "id": "civil-final-89-ar",
+    "question": "متى ينعقد العقد مع مراعاة الأوضاع الخاصة التي قد يفرضها القانون؟",
+    "language": "ar",
+    "article_number": 89,
+    "required_claims": [
+      "Concordant expressions of intention exchanged; special statutory formalities preserved."
+    ],
+    "project_id": 900101,
+    "expected_answer": "ينعقد العقد عند تبادل طرفين التعبير عن إرادتين متطابقتين، مع مراعاة الأوضاع الخاصة التي يقررها القانون لانعقاده.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "يتم العقد بمجرد أن يتبادل طرفان التعبير عن إرادتين متطابقتين، مع مراعاة ما يقرره القانون فوق ذلك من أوضاع معينة لانعقاد العقد.",
+    "source_pages": [
+      8
+    ]
+  },
+  {
+    "id": "civil-final-90-en",
+    "question": "What forms can a declaration of intention take, and when can it be implied?",
+    "language": "en",
+    "article_number": 90,
+    "required_claims": [
+      "Verbal, writing, customary signs, unambiguous conduct; implied unless express required by law/parties."
+    ],
+    "project_id": 900101,
+    "expected_answer": "Intention may be declared verbally, in writing, through customary signs, or through unambiguous conduct. It may be implied unless the law or the parties require an express declaration.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "An intention may be declared verbally, in writing, by signs in general use, and also by such conduct as, in the circumstances of the case, leaves no doubt as to its true meaning. A declaration of intention may be implied when neither the law nor the parties require it to be expressed.",
+    "source_pages": [
+      8
+    ]
+  },
+  {
+    "id": "civil-final-90-ar",
+    "question": "ما صور التعبير عن الإرادة ومتى يكون التعبير ضمنيا؟",
+    "language": "ar",
+    "article_number": 90,
+    "required_claims": [
+      "Verbal, writing, customary signs, unambiguous conduct; implied unless express required by law/parties."
+    ],
+    "project_id": 900101,
+    "expected_answer": "يجوز التعبير عن الإرادة باللفظ أو الكتابة أو الإشارات المتعارف عليها أو السلوك الذي لا يدع شكا في دلالته. ويجوز أن يكون التعبير ضمنيا ما لم يوجب القانون أو اتفاق الطرفين أن يكون صريحا.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "(١( التعبير عن الإرادة يكون باللفظ وبالكتابة وبالإشارة المتداولة عرفا،ً كما يكون باتخاذ موقف لا تدع ظروف الحال شكاًفي دلالته على حقيقة المقصود. (٢( ويجوز أن يكون التعبير عن الإرادة ضمنيا،ً إذا لم ينص القانون أو يتفق الطرفان علي أن يكون صريحا .ً",
+    "source_pages": [
+      8
+    ]
+  },
+  {
+    "id": "civil-final-93-en",
+    "question": "How long is an offeror bound when a time limit for acceptance is fixed?",
+    "language": "en",
+    "article_number": 93,
+    "required_claims": [
+      "Offer binding to deadline; deadline may follow circumstances/nature of transaction."
+    ],
+    "project_id": 900101,
+    "expected_answer": "The offeror remains bound until the acceptance deadline expires. The deadline may be inferred from circumstances or the nature of the transaction.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "When a time limit is fixed for acceptance, the person who makes the offer is bound to maintain his offer until the expiration of the time limit. The time limit may result from the circumstances or from the nature of the transaction.",
+    "source_pages": [
+      9
+    ]
+  },
+  {
+    "id": "civil-final-93-ar",
+    "question": "إذا حدد ميعاد للقبول، فإلى متى يلتزم الموجب بالبقاء على إيجابه؟",
+    "language": "ar",
+    "article_number": 93,
+    "required_claims": [
+      "Offer binding to deadline; deadline may follow circumstances/nature of transaction."
+    ],
+    "project_id": 900101,
+    "expected_answer": "يلتزم الموجب بالبقاء على إيجابه إلى انقضاء ميعاد القبول، وقد يستخلص الميعاد من الظروف أو طبيعة المعاملة.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "(١( إذا عين ميعاد للقبول التزم الموجب بالبقاء على إيجابه إلى أن ينقضي هذا الميعاد. )٢( وقد يستخلص الميعاد من ظروف الحال أو من طبيعة المعاملة.",
+    "source_pages": [
+      9
+    ]
+  },
+  {
+    "id": "civil-final-94-en",
+    "question": "Can a contract form without immediate acceptance in a meeting of the parties?",
+    "language": "en",
+    "article_number": 94,
+    "required_claims": [
+      "No-deadline/immediate-acceptance default; no withdrawal; acceptance before meeting ends."
+    ],
+    "project_id": 900101,
+    "expected_answer": "Without a fixed acceptance deadline, the offeror is normally released if acceptance is not immediate. A contract can nevertheless be concluded if there is no indication of withdrawal and acceptance occurs before the contracting meeting ends.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "If at the time a contract is being framed, an offer is made without a time limit being fixed for acceptance, the offeror is released from his offer if it is not accepted forthwith. This also applies, if the offer is made by one person to another person by telephone or by any other similar means. A contract is concluded, however, even if acceptance is not immediate, when, during the interval between offer and acceptance, there is nothing to indicate that the offeror has withdrawn his offer and the declaration of acceptance is made before the end of the meeting at which the contract was being framed.",
+    "source_pages": [
+      9
+    ]
+  },
+  {
+    "id": "civil-final-94-ar",
+    "question": "هل يمكن انعقاد العقد رغم عدم صدور قبول فوري في مجلس العقد؟",
+    "language": "ar",
+    "article_number": 94,
+    "required_claims": [
+      "No-deadline/immediate-acceptance default; no withdrawal; acceptance before meeting ends."
+    ],
+    "project_id": 900101,
+    "expected_answer": "نعم، إذا لم يدل ما حدث بين الإيجاب والقبول على عدول الموجب، وصدر القبول قبل انفضاض مجلس العقد. والأصل أن الموجب يتحلل من إيجابه إذا لم يصدر قبول فوري دون تحديد ميعاد.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "(١( إذا صدر الإيجاب في مجلس العقد، دون أن يعين ميعاد القبول، فإن الموجب يتحلل من إيجابه إذا لم يصدر القبول فوراً. وكذلك الحال إذا صدر الإيجاب من شخص إلى آخر بطريق التليفون أو بأي طريق مماثل. (٢( ومع ذلك يتم العقد، ولو لم يصدر القبول فورا،ً إذا لم يوجد ما يدل على أن الموجب قد عدل عن ايجابه في الفترة ما بين الإيجاب والقبول وكان القبول قد صدر قبل أن ينفض مجلس العقد.",
+    "source_pages": [
+      9
+    ]
+  },
+  {
+    "id": "civil-final-95-en",
+    "question": "What happens when essential terms are agreed but details are left for later without a condition preventing formation?",
+    "language": "en",
+    "article_number": 95,
+    "required_claims": [
+      "Essential terms agreed; no condition that detail agreement is necessary; court applies transaction/law/custom/equity."
+    ],
+    "project_id": 900101,
+    "expected_answer": "The contract is concluded if essential points are agreed and the parties did not make agreement on remaining details a condition of conclusion. The court settles disputed details according to the transaction, law, custom and equity.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "When the parties have agreed on all the essential points of a contract and have left certain details to be agreed at a later date without stipulating that failing agreement on these details, the contract shall not be concluded, the contract is deemed to have been concluded, and the points of detail will, in the event of dispute, be decided by the court according to the nature of the transaction, to the provisions of the law and to custom and equity.",
+    "source_pages": [
+      9
+    ]
+  },
+  {
+    "id": "civil-final-95-ar",
+    "question": "ما أثر الاتفاق على المسائل الجوهرية وترك تفاصيل لاحقة دون اشتراط عدم انعقاد العقد عند الخلاف عليها؟",
+    "language": "ar",
+    "article_number": 95,
+    "required_claims": [
+      "Essential terms agreed; no condition that detail agreement is necessary; court applies transaction/law/custom/equity."
+    ],
+    "project_id": 900101,
+    "expected_answer": "يعد العقد منعقدا، وتفصل المحكمة في التفاصيل المختلف عليها وفقا لطبيعة المعاملة وأحكام القانون والعرف والعدالة.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "إذا اتفق الطرفان على جميع المسائل الجوهرية في العقد ، وإحتفظا بمسائل تفصيلية يتفقان عليها فيما بعد ولم يشترطا أن العقد لا يتم عند عدم الإتفاق عليها، فإن المحكمة تقضي فيها طبقاًلطبيعة المعاملة ولأحكام القانون والعرف والعدالة.",
+    "source_pages": [
+      9
+    ]
+  },
+  {
+    "id": "civil-final-147-en",
+    "question": "What may a judge do when exceptional unpredictable general events make contractual performance excessively onerous but not impossible?",
+    "language": "en",
+    "article_number": 147,
+    "required_claims": [
+      "Judge balances parties' interests and may reduce obligation to reasonable limits; contrary agreement void."
+    ],
+    "project_id": 900101,
+    "expected_answer": "The judge may balance the interests of both parties and reduce the excessively onerous obligation to reasonable limits. An agreement excluding this rule is void.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "The contract makes the law of the parties. It can be revoked or altered only by mutual consent of the parties or for reasons provided for by law. When, however, as a result of exceptional and unpredictable events of a general character, the performance of the contractual obligation, without becoming impossible, becomes excessively onerous in such way as to threaten the debtor with exorbitant loss, the judge may according to the circumstances, and after taking into consideration the interests of both parties, reduce to reasonable limits, the obligation that has become excessive. Any agreement to the contrary is void.",
+    "source_pages": [
+      16
+    ]
+  },
+  {
+    "id": "civil-final-147-ar",
+    "question": "ماذا يجوز للقاضي أن يفعل إذا جعلت حوادث عامة استثنائية غير متوقعة تنفيذ العقد مرهقا دون أن يصبح مستحيلا؟",
+    "language": "ar",
+    "article_number": 147,
+    "required_claims": [
+      "Judge balances parties' interests and may reduce obligation to reasonable limits; contrary agreement void."
+    ],
+    "project_id": 900101,
+    "expected_answer": "يجوز للقاضي، بعد مراعاة ظروف الحال والموازنة بين مصلحة الطرفين، رد الالتزام المرهق إلى الحد المعقول. ويقع باطلا كل اتفاق على خلاف ذلك.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "( ١ ( العقد شريعة المتعاقدين ، فلا يجوز نقضه ولا تعديله إلا باتفاق الطرفين ، أو للأسباب التى يقررها القانون. ( ٢ ( ومع ذلك إذا طرأت حوادث استثنائية عامة لم يكن فى الوسع توقعها وترتب على حدوثها أن تنفيذ الإلتزام التعاقدى ، وان لم يصبح مستحيلا ، صار مرهقا للمدين بحيث يهدده بخسارة فادحة ، جاز للقاضى تبعا للظروف وسد الموازنة بين مصلحة الطرفين أن يرد الإلتزام المرهق إلى الحد المعقول. ويقع باطلا كل اتفاق على خلاف ذلك.",
+    "source_pages": [
+      16
+    ]
+  },
+  {
+    "id": "civil-final-148-en",
+    "question": "How must a contract be performed, and are obligations confined to explicit terms?",
+    "language": "en",
+    "article_number": 148,
+    "required_claims": [
+      "Contents and good faith; obligations beyond express terms from law/usage/equity/nature."
+    ],
+    "project_id": 900101,
+    "expected_answer": "The contract must be performed according to its contents and in good faith. Its obligations also include consequences required by law, usage, equity and the nature of the obligation, beyond express terms.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "A contract must be performed in accordance with its contents and in compliance with the requirements of good faith.\n\nA contract binds the contracting party not only as regards its expressed conditions, but also as regards everything which, according to law, usage and equity, is deemed, in view of the nature of the obligation, to be a necessary sequel to the contract.",
+    "source_pages": [
+      16,
+      17
+    ]
+  },
+  {
+    "id": "civil-final-148-ar",
+    "question": "كيف يجب تنفيذ العقد، وهل تقتصر الالتزامات على الشروط الصريحة فقط؟",
+    "language": "ar",
+    "article_number": 148,
+    "required_claims": [
+      "Contents and good faith; obligations beyond express terms from law/usage/equity/nature."
+    ],
+    "project_id": 900101,
+    "expected_answer": "يجب تنفيذ العقد وفقا لمضمونه وبحسن نية. ولا يقتصر على شروطه الصريحة، بل يشمل مستلزماته وفقا للقانون والعرف والعدالة وطبيعة الالتزام.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "( ١ ( يجب تنفيذ العقد طبقا لما اشتمل عليه وبطريقة تتفق مع ما يوجبه حسن النية. ( ٢ ( ولا يقتصر العقد على إلزام المتعاقد بما ورد فيه.\n\nولكن يتناول أيضا ما هو من مستلزماته ، وفقا للقانون والعرف والعدالة بحسب طبيعة الإلتزام.",
+    "source_pages": [
+      16,
+      17
+    ]
+  },
+  {
+    "id": "civil-final-163-en",
+    "question": "What follows from a fault causing harm to another under Article 163?",
+    "language": "en",
+    "article_number": 163,
+    "required_claims": [
+      "Fault causing another's injury creates compensation obligation."
+    ],
+    "project_id": 900101,
+    "expected_answer": "A person whose fault causes injury to another must compensate for that injury.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "Every fault which cause injury to another, imposes an obligation to make reparation upon the person by whom it is committed.",
+    "source_pages": [
+      19
+    ]
+  },
+  {
+    "id": "civil-final-163-ar",
+    "question": "ما أثر الخطأ الذي يسبب ضررا للغير وفقا للمادة 163؟",
+    "language": "ar",
+    "article_number": 163,
+    "required_claims": [
+      "Fault causing another's injury creates compensation obligation."
+    ],
+    "project_id": 900101,
+    "expected_answer": "يلتزم من ارتكب الخطأ بتعويض الضرر الذي سببه للغير.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": false,
+    "semantic_refusal": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "كل خطأ سبب ضررا للغير يلزم من ارتكبه بالتعويض.",
+    "source_pages": [
+      19
+    ]
+  },
+  {
+    "id": "civil-final-unanswerable-interest-percentage-en",
+    "question": "What exact fixed percentage of interest does Article 147 prescribe?",
+    "language": "en",
+    "article_number": null,
+    "required_claims": [
+      "The supplied general-law excerpts contain no requested case-specific fact or fixed rate/fine. Refuse without inventing it."
+    ],
+    "project_id": 900101,
+    "expected_answer": "The requested case-specific fact is not stated in the cited provision; refuse to invent it.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": true,
+    "semantic_refusal": true,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "",
+    "source_pages": [],
+    "source_note": "Negative question concerns a named provision, not an unrelated rule elsewhere in the Code; no case-specific people, company names, signature dates or court addresses are supplied."
+  },
+  {
+    "id": "civil-final-unanswerable-interest-percentage-ar",
+    "question": "ما النسبة المئوية الثابتة للفائدة التي تقررها المادة 147؟",
+    "language": "ar",
+    "article_number": null,
+    "required_claims": [
+      "The supplied general-law excerpts contain no requested case-specific fact or fixed rate/fine. Refuse without inventing it."
+    ],
+    "project_id": 900101,
+    "expected_answer": "المعلومة المطلوبة غير مذكورة في المادة المشار إليها؛ يجب الامتناع عن اختلاقها.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": true,
+    "semantic_refusal": true,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "",
+    "source_pages": [],
+    "source_note": "Negative question concerns a named provision, not an unrelated rule elsewhere in the Code; no case-specific people, company names, signature dates or court addresses are supplied."
+  },
+  {
+    "id": "civil-final-unanswerable-court-address-en",
+    "question": "What street address of the competent court is specified in Article 1?",
+    "language": "en",
+    "article_number": null,
+    "required_claims": [
+      "The supplied general-law excerpts contain no requested case-specific fact or fixed rate/fine. Refuse without inventing it."
+    ],
+    "project_id": 900101,
+    "expected_answer": "The requested case-specific fact is not stated in the cited provision; refuse to invent it.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": true,
+    "semantic_refusal": true,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "",
+    "source_pages": [],
+    "source_note": "Negative question concerns a named provision, not an unrelated rule elsewhere in the Code; no case-specific people, company names, signature dates or court addresses are supplied."
+  },
+  {
+    "id": "civil-final-unanswerable-court-address-ar",
+    "question": "ما عنوان الشارع للمحكمة المختصة المحدد في المادة 1؟",
+    "language": "ar",
+    "article_number": null,
+    "required_claims": [
+      "The supplied general-law excerpts contain no requested case-specific fact or fixed rate/fine. Refuse without inventing it."
+    ],
+    "project_id": 900101,
+    "expected_answer": "المعلومة المطلوبة غير مذكورة في المادة المشار إليها؛ يجب الامتناع عن اختلاقها.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": true,
+    "semantic_refusal": true,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "",
+    "source_pages": [],
+    "source_note": "Negative question concerns a named provision, not an unrelated rule elsewhere in the Code; no case-specific people, company names, signature dates or court addresses are supplied."
+  },
+  {
+    "id": "civil-final-unanswerable-contract-company-en",
+    "question": "What are the names of the two companies that signed the contract referred to in Article 89?",
+    "language": "en",
+    "article_number": null,
+    "required_claims": [
+      "The supplied general-law excerpts contain no requested case-specific fact or fixed rate/fine. Refuse without inventing it."
+    ],
+    "project_id": 900101,
+    "expected_answer": "The requested case-specific fact is not stated in the cited provision; refuse to invent it.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": true,
+    "semantic_refusal": true,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "",
+    "source_pages": [],
+    "source_note": "Negative question concerns a named provision, not an unrelated rule elsewhere in the Code; no case-specific people, company names, signature dates or court addresses are supplied."
+  },
+  {
+    "id": "civil-final-unanswerable-contract-company-ar",
+    "question": "ما اسما الشركتين اللتين وقعتا العقد المشار إليه في المادة 89؟",
+    "language": "ar",
+    "article_number": null,
+    "required_claims": [
+      "The supplied general-law excerpts contain no requested case-specific fact or fixed rate/fine. Refuse without inventing it."
+    ],
+    "project_id": 900101,
+    "expected_answer": "المعلومة المطلوبة غير مذكورة في المادة المشار إليها؛ يجب الامتناع عن اختلاقها.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": true,
+    "semantic_refusal": true,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "",
+    "source_pages": [],
+    "source_note": "Negative question concerns a named provision, not an unrelated rule elsewhere in the Code; no case-specific people, company names, signature dates or court addresses are supplied."
+  },
+  {
+    "id": "civil-final-unanswerable-late-payment-fine-en",
+    "question": "What exact monetary fine for late payment is fixed by Article 148?",
+    "language": "en",
+    "article_number": null,
+    "required_claims": [
+      "The supplied general-law excerpts contain no requested case-specific fact or fixed rate/fine. Refuse without inventing it."
+    ],
+    "project_id": 900101,
+    "expected_answer": "The requested case-specific fact is not stated in the cited provision; refuse to invent it.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": true,
+    "semantic_refusal": true,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "",
+    "source_pages": [],
+    "source_note": "Negative question concerns a named provision, not an unrelated rule elsewhere in the Code; no case-specific people, company names, signature dates or court addresses are supplied."
+  },
+  {
+    "id": "civil-final-unanswerable-late-payment-fine-ar",
+    "question": "ما المبلغ المحدد لغرامة التأخر في السداد الذي تقرره المادة 148؟",
+    "language": "ar",
+    "article_number": null,
+    "required_claims": [
+      "The supplied general-law excerpts contain no requested case-specific fact or fixed rate/fine. Refuse without inventing it."
+    ],
+    "project_id": 900101,
+    "expected_answer": "المعلومة المطلوبة غير مذكورة في المادة المشار إليها؛ يجب الامتناع عن اختلاقها.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": true,
+    "semantic_refusal": true,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "",
+    "source_pages": [],
+    "source_note": "Negative question concerns a named provision, not an unrelated rule elsewhere in the Code; no case-specific people, company names, signature dates or court addresses are supplied."
+  },
+  {
+    "id": "civil-final-unanswerable-signature-date-en",
+    "question": "On what exact calendar date did the parties sign the contract referred to in Article 95?",
+    "language": "en",
+    "article_number": null,
+    "required_claims": [
+      "The supplied general-law excerpts contain no requested case-specific fact or fixed rate/fine. Refuse without inventing it."
+    ],
+    "project_id": 900101,
+    "expected_answer": "The requested case-specific fact is not stated in the cited provision; refuse to invent it.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": true,
+    "semantic_refusal": true,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "",
+    "source_pages": [],
+    "source_note": "Negative question concerns a named provision, not an unrelated rule elsewhere in the Code; no case-specific people, company names, signature dates or court addresses are supplied."
+  },
+  {
+    "id": "civil-final-unanswerable-signature-date-ar",
+    "question": "في أي تاريخ محدد وقع الطرفان العقد المشار إليه في المادة 95؟",
+    "language": "ar",
+    "article_number": null,
+    "required_claims": [
+      "The supplied general-law excerpts contain no requested case-specific fact or fixed rate/fine. Refuse without inventing it."
+    ],
+    "project_id": 900101,
+    "expected_answer": "المعلومة المطلوبة غير مذكورة في المادة المشار إليها؛ يجب الامتناع عن اختلاقها.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": true,
+    "semantic_refusal": true,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "",
+    "source_pages": [],
+    "source_note": "Negative question concerns a named provision, not an unrelated rule elsewhere in the Code; no case-specific people, company names, signature dates or court addresses are supplied."
+  },
+  {
+    "id": "civil-final-unanswerable-person-name-en",
+    "question": "What is the full personal name of the individual whose capacity is discussed in Article 44?",
+    "language": "en",
+    "article_number": null,
+    "required_claims": [
+      "The supplied general-law excerpts contain no requested case-specific fact or fixed rate/fine. Refuse without inventing it."
+    ],
+    "project_id": 900101,
+    "expected_answer": "The requested case-specific fact is not stated in the cited provision; refuse to invent it.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": true,
+    "semantic_refusal": true,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "",
+    "source_pages": [],
+    "source_note": "Negative question concerns a named provision, not an unrelated rule elsewhere in the Code; no case-specific people, company names, signature dates or court addresses are supplied."
+  },
+  {
+    "id": "civil-final-unanswerable-person-name-ar",
+    "question": "ما الاسم الكامل للشخص الذي تناقش المادة 44 أهليته؟",
+    "language": "ar",
+    "article_number": null,
+    "required_claims": [
+      "The supplied general-law excerpts contain no requested case-specific fact or fixed rate/fine. Refuse without inventing it."
+    ],
+    "project_id": 900101,
+    "expected_answer": "المعلومة المطلوبة غير مذكورة في المادة المشار إليها؛ يجب الامتناع عن اختلاقها.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "expect_no_answer": true,
+    "semantic_refusal": true,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false,
+    "reference_context": "",
+    "source_pages": [],
+    "source_note": "Negative question concerns a named provision, not an unrelated rule elsewhere in the Code; no case-specific people, company names, signature dates or court addresses are supplied."
+  },
+  {
+    "id": "civil-full-226-en",
+    "project_id": 900101,
+    "question": "What are the late-payment interest rates under Article 226, when do they start, and what conditions and exceptions apply?",
+    "expected_answer": "For a monetary obligation of known amount when demanded and delayed payment, interest is 4% in civil matters and 5% in commercial matters. It runs from the judicial demand unless agreement or commercial usage fixes another date, subject to contrary statutory provisions.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "language": "en",
+    "article_number": 226,
+    "required_claims": [
+      "For a monetary obligation of known amount when demanded and delayed payment, interest is 4% in civil matters and 5% in commercial matters. It runs from the judicial demand unless agreement or commercial usage fixes another date, subject to contrary statutory provisions."
+    ],
+    "expect_no_answer": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "source_pages": [
+      28
+    ],
+    "reference_context": "When the object of an obligation is the payment of a sum of money of which the amount is known at the time when the claim is made, the debtor shall be bound, in case of delay in payment, to pay to the creditor, as damages for the delay, interest at the rate of four percent in civil matters and five percent in commercial matters. Such interest shall run from the date of the claim in court, unless the contract or commercial usage fixes another date. This Article shall apply, unless otherwise provided in law.",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false
+  },
+  {
+    "id": "civil-full-226-ar",
+    "project_id": 900101,
+    "question": "ما نسب فوائد التأخير وفق المادة 226، ومتى تسري، وما شروطها واستثناءاتها؟",
+    "expected_answer": "إذا كان محل الالتزام مبلغاً نقدياً معلوم المقدار وقت الطلب وتأخر المدين في الوفاء، فالفائدة 4% في المسائل المدنية و5% في التجارية، من تاريخ المطالبة القضائية، ما لم يحدد الاتفاق أو العرف التجاري تاريخاً آخر، ومع مراعاة النص القانوني المخالف.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "language": "ar",
+    "article_number": 226,
+    "required_claims": [
+      "إذا كان محل الالتزام مبلغاً نقدياً معلوم المقدار وقت الطلب وتأخر المدين في الوفاء، فالفائدة 4% في المسائل المدنية و5% في التجارية، من تاريخ المطالبة القضائية، ما لم يحدد الاتفاق أو العرف التجاري تاريخاً آخر، ومع مراعاة النص القانوني المخالف."
+    ],
+    "expect_no_answer": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "source_pages": [
+      28
+    ],
+    "reference_context": "إذا كان محل الالتزام مبلغاًمن النقود وكان معلوم المقدار وقت الطلب وتأخر المدين في الوفاء به، كان ملزما بأن يدفع للدائن على سبيل التعويض عن التأخر فوائد قدرها أربعة في المائة في المسائل المدنية وخمسة في المائة في المسائل التجارية .وتسرى هذه الفوائد من تاريخ المطالبة القضائية ا أن لم يحدد الاتفاق أو العرف التجاري تاريخا آخر لسريانها، وهذا كله ما لم ينص القانون على غيره.",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false
+  },
+  {
+    "id": "civil-full-374-en",
+    "project_id": 900101,
+    "question": "What is the ordinary limitation period under Article 374, and are there exceptions?",
+    "expected_answer": "Obligations prescribe after fifteen years, except where a special legal provision or the following statutory exceptions apply.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "language": "en",
+    "article_number": 374,
+    "required_claims": [
+      "Obligations prescribe after fifteen years, except where a special legal provision or the following statutory exceptions apply."
+    ],
+    "expect_no_answer": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "source_pages": [
+      50
+    ],
+    "reference_context": "The term of prescription for obligations is fifteen years with the exception of those cases for which a special provision is contained in the law and with the exception also of the following cases.",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false
+  },
+  {
+    "id": "civil-full-374-ar",
+    "project_id": 900101,
+    "question": "ما مدة التقادم العامة للالتزامات في المادة 374 وهل لها استثناءات؟",
+    "expected_answer": "يتقادم الالتزام بمضي خمس عشرة سنة، مع استثناء الحالات ذات النص القانوني الخاص والاستثناءات التالية في القانون.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "language": "ar",
+    "article_number": 374,
+    "required_claims": [
+      "يتقادم الالتزام بمضي خمس عشرة سنة، مع استثناء الحالات ذات النص القانوني الخاص والاستثناءات التالية في القانون."
+    ],
+    "expect_no_answer": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "source_pages": [
+      50
+    ],
+    "reference_context": "يتقادم الالتزام بانقضاء خمس عشرة سنة فيما عدا الحالات التي ورد عنها نص خاص في القانون وفيما عدا الاستثناءات التالية.",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false
+  },
+  {
+    "id": "civil-full-558-en",
+    "project_id": 900101,
+    "question": "How does Article 558 define a lease?",
+    "expected_answer": "A lease obliges the lessor to allow the lessee to enjoy a specified thing for a specified period in return for a fixed rent.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "language": "en",
+    "article_number": 558,
+    "required_claims": [
+      "A lease obliges the lessor to allow the lessee to enjoy a specified thing for a specified period in return for a fixed rent."
+    ],
+    "expect_no_answer": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "source_pages": [
+      74
+    ],
+    "reference_context": "A lease is a contract by which the lessor undertakes to enable the lessee to enjoy a specific thing for a certain time in return of a fixed rent.",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false
+  },
+  {
+    "id": "civil-full-558-ar",
+    "project_id": 900101,
+    "question": "كيف تعرف المادة 558 عقد الإيجار؟",
+    "expected_answer": "الإيجار عقد يلتزم فيه المؤجر بتمكين المستأجر من الانتفاع بشيء معين لمدة معينة لقاء أجر معلوم.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "language": "ar",
+    "article_number": 558,
+    "required_claims": [
+      "الإيجار عقد يلتزم فيه المؤجر بتمكين المستأجر من الانتفاع بشيء معين لمدة معينة لقاء أجر معلوم."
+    ],
+    "expect_no_answer": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "source_pages": [
+      74
+    ],
+    "reference_context": "الإيجار عقد يلتزم المؤجر بمقتضاه أن يمكن المستأجر من الانتفاع بشيء معين مدة معينة لقاء أجر معلوم.",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false
+  },
+  {
+    "id": "civil-full-802-en",
+    "project_id": 900101,
+    "question": "What exclusive rights does an owner have under Article 802, and within what limits?",
+    "expected_answer": "The owner alone has the right to use, enjoy or exploit, and dispose of the thing, within the limits of the law.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "language": "en",
+    "article_number": 802,
+    "required_claims": [
+      "The owner alone has the right to use, enjoy or exploit, and dispose of the thing, within the limits of the law."
+    ],
+    "expect_no_answer": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "source_pages": [
+      113
+    ],
+    "reference_context": "The owner of a thing has alone, within the limits of the law, the right to use, enjoy and dispose of it.",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false
+  },
+  {
+    "id": "civil-full-802-ar",
+    "project_id": 900101,
+    "question": "ما الحقوق التي ينفرد بها المالك وفق المادة 802 وما حدودها؟",
+    "expected_answer": "لمالك الشيء وحده حق استعماله واستغلاله والتصرف فيه، في حدود القانون.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "language": "ar",
+    "article_number": 802,
+    "required_claims": [
+      "لمالك الشيء وحده حق استعماله واستغلاله والتصرف فيه، في حدود القانون."
+    ],
+    "expect_no_answer": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "source_pages": [
+      113
+    ],
+    "reference_context": "لمالك الشيء وحده ، فى حدود القانون ، حق استعماله واستغلاله والتصرف فيه.",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false
+  },
+  {
+    "id": "civil-full-1148-en",
+    "project_id": 900101,
+    "question": "Under Article 1148, what property secures contractors and architects, what caps their privilege, and how is its priority established?",
+    "expected_answer": "Amounts due to contractors and architects for construction, reconstruction, repair or maintenance are privileged over those works only to the extent of the increase in the property value caused by the works at sale. The privilege must be registered; its rank dates from registration.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "language": "en",
+    "article_number": 1148,
+    "required_claims": [
+      "Amounts due to contractors and architects for construction, reconstruction, repair or maintenance are privileged over those works only to the extent of the increase in the property value caused by the works at sale. The privilege must be registered; its rank dates from registration."
+    ],
+    "expect_no_answer": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "source_pages": [
+      170
+    ],
+    "reference_context": "Sums due to contractors and architects who have been entrusted with the erection, reconstruction, repair or maintenance of buildings or other works, have a privilege over such works but only in respect of the increase in value resulting from such works as at the time of alienation of the immovable. Such a privilege must be inscribed: its rank is fixed by the date of its inscription.",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false
+  },
+  {
+    "id": "civil-full-1148-ar",
+    "project_id": 900101,
+    "question": "وفق المادة 1148، على ماذا يرد امتياز المقاولين والمهندسين المعماريين، وما حد قيمته وكيف تتحدد مرتبته؟",
+    "expected_answer": "يرد امتياز مستحقات المقاولين والمهندسين المعماريين عن التشييد وإعادة التشييد والترميم والصيانة على المنشآت بقدر الزيادة التي أحدثتها الأعمال في قيمة العقار وقت بيعه. ويجب قيد الامتياز، وتتحدد مرتبته من وقت القيد.",
+    "reference_documents": [
+      "1576751803.pdf"
+    ],
+    "language": "ar",
+    "article_number": 1148,
+    "required_claims": [
+      "يرد امتياز مستحقات المقاولين والمهندسين المعماريين عن التشييد وإعادة التشييد والترميم والصيانة على المنشآت بقدر الزيادة التي أحدثتها الأعمال في قيمة العقار وقت بيعه. ويجب قيد الامتياز، وتتحدد مرتبته من وقت القيد."
+    ],
+    "expect_no_answer": false,
+    "source_sha256": "2d6419fb262dab712f7bf5f6e31834bea74fbcf03b78ae081dd35d156915eebf",
+    "source_pages": [
+      170
+    ],
+    "reference_context": ")١( المبالغ المستحقة للمقاولين والمهندسين المعماريين الذين عهد إليهم فى تشييد أبنية أو منشآت أخرى أو فى إعادة تشييدها أو فى ترميمها أو فى صيانتها ، يكون لها امتياز على هذه المنشآت ، ولكن بقدر ما يكون زائدا بسبب هذه الأعمال فى قيمة العقار وقت بيعه. ) ٢( ويجب أن يقيد هذا الامتياز ، وتكون مرتبته من وقت القيد.",
+    "review_status": "assistant_source_reviewed",
+    "legal_expert_review": false
+  }
+]

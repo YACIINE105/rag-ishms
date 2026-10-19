@@ -1,0 +1,14 @@
+[Unit]
+Description=RAG-ISHMS GPU reranker (vLLM)
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/rag-ishms
+ExecStart=%h/rag-ishms/scripts/run_vllm_reranker.sh
+Restart=on-failure
+RestartSec=10
+TimeoutStopSec=30
+
+[Install]
+WantedBy=default.target

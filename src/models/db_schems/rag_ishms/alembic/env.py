@@ -1,11 +1,15 @@
-from logging.config import fileConfig
+import os
+import sys
+from pathlib import Path
 
-from sqlalchemy import engine_from_config
-from sqlalchemy import pool
-
+# Resolve application utilities when Alembic runs from the schema directory.
+sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
 from alembic import context
-
 from schemes import SQLAlchemyBase
+from sqlalchemy import engine_from_config, pool
+from sqlalchemy.engine import URL
+
+from utils.logging import configure_logging
 
 # this is the Alembic Config object, which provides
 # access to the values within the .ini file in use.
@@ -13,8 +17,23 @@ config = context.config
 
 # Interpret the config file for Python logging.
 # This line sets up loggers basically.
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+configure_logging(os.getenv("LOG_LEVEL", "INFO"))
+
+# Containers use environment configuration, never a baked-in credential file.
+# Keep the local alembic.ini workflow when POSTGRES_HOST is not set.
+if os.getenv("POSTGRES_HOST"):
+    database_url = URL.create(
+        "postgresql+psycopg2",
+        username=os.environ["POSTGRES_USERNAME"],
+        password=os.environ["POSTGRES_PASSWORD"],
+        host=os.environ["POSTGRES_HOST"],
+        port=int(os.getenv("POSTGRES_PORT", "5432")),
+        database=os.environ["POSTGRES_MAIN_DATABASE"],
+    )
+    config.set_main_option(
+        "sqlalchemy.url",
+        database_url.render_as_string(hide_password=False).replace("%", "%%"),
+    )
 
 # add your model's MetaData object here
 # for 'autogenerate' support
@@ -66,9 +85,7 @@ def run_migrations_online() -> None:
     )
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

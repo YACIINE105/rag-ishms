@@ -1,0 +1,195 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: "0 1 * * *"
+  workflow_dispatch:
+    inputs:
+      full_rag_eval:
+        description: Evaluate the 52-case draft set with all four metrics
+        type: boolean
+        default: false
+      run_rag_eval:
+        description: Run the reviewed RAG evaluation
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  lint-and-test:
+    name: Lint and test
+    timeout-minutes: 30
+    runs-on: ubuntu-24.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake pkg-config libpq-dev \
+            libavif-dev libjpeg-dev libxml2-dev libxslt1-dev \
+            libffi-dev libopenblas-dev
+
+      - name: Install project dependencies
+        env:
+          CMAKE_BUILD_PARALLEL_LEVEL: "2"
+        run: uv sync --locked --group dev
+
+      - name: Run code-quality checks
+        run: uv run --locked pre-commit run --all-files
+
+      - name: Run tests and coverage
+        run: uv run --locked pytest
+
+  docker:
+    name: Build Docker image
+    timeout-minutes: 60
+    runs-on: ubuntu-24.04
+    needs: [lint-and-test, rag-eval]
+    if: >-
+      always() && github.event_name != 'schedule' && needs.lint-and-test.result == 'success' &&
+      (github.event_name != 'push' || github.ref != 'refs/heads/main' ||
+       needs.rag-eval.result == 'success')
+
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/${{ github.repository }}
+          tags: |
+            type=sha,format=short
+            type=raw,value=latest,enable=${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+
+      - name: Build and optionally push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/rag_ishms/Dockerfile
+          push: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+  rag-eval:
+    name: RAG evaluation gate
+    needs: lint-and-test
+    if: >-
+      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+      (github.event_name == 'workflow_dispatch' && inputs.run_rag_eval) ||
+      (github.event_name == 'schedule' && vars.RAG_NIGHTLY_EVAL_ENABLED == 'true')
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    environment: rag-evaluation
+    permissions:
+      contents: read
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Validate evaluation configuration
+        env:
+          APP_ENV: ${{ secrets.RAG_EVAL_APP_ENV }}
+          JUDGE_KEY: ${{ secrets.RAG_EVAL_JUDGE_API_KEY }}
+          JUDGE_MODEL: ${{ vars.RAG_EVAL_JUDGE_MODEL }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          required = ("APP_ENV", "JUDGE_KEY", "JUDGE_MODEL")
+          if not all(os.environ.get(name) for name in required):
+              raise SystemExit("Configure the rag-evaluation environment secrets and judge model.")
+          if not Path("eval/golden_set.json").is_file():
+              raise SystemExit("Commit a reviewed eval/golden_set.json before running evaluation.")
+          path = Path("src/.env")
+          path.write_text(os.environ["APP_ENV"], encoding="utf-8")
+          path.chmod(0o600)
+          PY
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@v10
+        with:
+          enable-cache: true
+
+      - name: Install native build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential cmake pkg-config libpq-dev \
+            libavif-dev libjpeg-dev libxml2-dev libxslt1-dev \
+            libffi-dev libopenblas-dev
+
+      - name: Install project dependencies
+        env:
+          CMAKE_BUILD_PARALLEL_LEVEL: "2"
+        run: uv sync --locked --group dev --group eval
+
+      - name: Evaluate reviewed questions
+        env:
+          RAG_EVAL_JUDGE_API_KEY: ${{ secrets.RAG_EVAL_JUDGE_API_KEY }}
+          RAG_EVAL_JUDGE_MODEL: ${{ vars.RAG_EVAL_JUDGE_MODEL }}
+          RAG_EVAL_JUDGE_BASE_URL: ${{ vars.RAG_EVAL_JUDGE_BASE_URL }}
+          RAG_EVAL_EMBEDDING_MODEL: ${{ vars.RAG_EVAL_EMBEDDING_MODEL }}
+          FULL_EVAL: ${{ github.event_name == 'schedule' || inputs.full_rag_eval }}
+        run: |
+          if [ "$FULL_EVAL" = "true" ]; then
+            uv run --locked python scripts/evaluate_rag.py --corpus eval/corpus/articles.json --dataset eval/monitoring_set.json --minimum-cases 50 --full-metrics --threshold 0.75
+          else
+            uv run --locked python scripts/evaluate_rag.py --corpus eval/corpus/articles.json --threshold 0.75
+          fi
+
+      - name: Save evaluation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: rag-evaluation-report
+          path: eval/reports/*.json
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Remove evaluation configuration
+        if: always()
+        run: rm -f src/.env
