@@ -39,6 +39,20 @@ def test_release_setup_creates_private_separate_keys_and_preserves_existing_conf
     for name in (".env", ".env.fastapi", ".env.client"):
         assert (tmp_path / name).stat().st_mode & 0o777 == 0o600
     assert api_key not in result.stdout
+    from helpers.config import Settings
+
+    settings = Settings(
+        _env_file=tmp_path / ".env.fastapi",
+        POSTGRES_HOST="pgvector",
+        POSTGRES_PASSWORD=values["POSTGRES_PASSWORD"],
+        GENERATION_MODEL_ID="qwen3-legal-final",
+        GENERATION_MODEL_TEMPERATURE=0,
+        MAX_OUTPUT_TOKENS=256,
+        API_AUTH_ENABLED=True,
+        API_CLIENTS=clients,
+    )
+    assert settings.EMBEDDING_MODEL_SIZE == 2048
+    assert settings.GENERATION_MODEL_ID == "qwen3-legal-final"
     before = (tmp_path / ".env").read_bytes()
     result = subprocess.run(command, capture_output=True, text=True)
     assert result.returncode != 0
@@ -71,8 +85,9 @@ def test_release_archive_hashes_match_payload_without_private_runtime_files(tmp_
             for name in archive.namelist()
         )
         compose = archive.read("docker/release/compose.yml").decode()
-        assert "rag-ishms:2.0.1" in compose
-        assert "rag-ishms-vllm:2.0.1" in compose
+        assert "rag-ishms:${RELEASE_VERSION:" in compose
+        assert "rag-ishms-vllm:${RELEASE_VERSION:" in compose
+        assert archive.read("docker/release/VERSION").decode().strip() == "2.0.1"
         assert manifest["models"]["generator"]["fine_tuned"] is False
     assert (
         hashlib.sha256(target.read_bytes()).hexdigest()

@@ -21,7 +21,7 @@ def main():
     api_key = secrets.token_urlsafe(32)
     clients = {api_key: {"user_id": "ishms-service", "projects": ["*"]}}
     values = {
-        "RELEASE_VERSION": "2.0.0",
+        "RELEASE_VERSION": Path(__file__).with_name("VERSION").read_text().strip(),
         "POSTGRES_PASSWORD": secrets.token_urlsafe(32),
         "GENERATOR_API_KEY": secrets.token_urlsafe(32),
         "RERANKER_API_KEY": secrets.token_urlsafe(32),

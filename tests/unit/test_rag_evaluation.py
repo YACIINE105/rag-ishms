@@ -455,6 +455,7 @@ async def test_bilingual_seed_batches_have_unique_ids_and_language_metadata():
 @pytest.mark.asyncio
 @pytest.mark.parametrize("invalid_response", [None, "length", "schema", "repeated"])
 async def test_judge_obeys_rate_limit_cooldown(tmp_path, monkeypatch, invalid_response):
+    pytest.importorskip("ragas", reason="Install the optional eval dependency group")
     import asyncio
 
     import httpx

@@ -7,8 +7,8 @@ then `docker compose pull` and `docker compose up -d --no-build`.
 
 Images:
 
-- `ghcr.io/yaciine105/rag-ishms:2.0.0`
-- `ghcr.io/yaciine105/rag-ishms-vllm:2.0.0`
+- `ghcr.io/yaciine105/rag-ishms:2.0.1`
+- `ghcr.io/yaciine105/rag-ishms-vllm:2.0.1`
 
 The archive manifest records the exact published image digests. GHCR packages
 may require owner-configured public visibility or `read:packages` authentication.

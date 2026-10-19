@@ -2,11 +2,11 @@ name: rag-ishms-release
 
 services:
   fastapi:
-    image: ${IMAGE_REGISTRY:-ghcr.io/yaciine105}/rag-ishms:${RELEASE_VERSION:-2.0.0}
+    image: ${IMAGE_REGISTRY:-ghcr.io/yaciine105}/rag-ishms:${RELEASE_VERSION:?Run python3 configure.py first}
     gpus: all
     env_file: .env.fastapi
     environment:
-      APP_VERSION: ${RELEASE_VERSION:-2.0.0}
+      APP_VERSION: ${RELEASE_VERSION:?Run python3 configure.py first}
       POSTGRES_HOST: pgvector
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Run python3 configure.py first}
       API_AUTH_ENABLED: "true"
@@ -35,7 +35,7 @@ services:
     restart: unless-stopped
 
   generator:
-    image: ${IMAGE_REGISTRY:-ghcr.io/yaciine105}/rag-ishms-vllm:${RELEASE_VERSION:-2.0.0}
+    image: ${IMAGE_REGISTRY:-ghcr.io/yaciine105}/rag-ishms-vllm:${RELEASE_VERSION:?Run python3 configure.py first}
     command: [generator]
     gpus: all
     shm_size: 512m
@@ -57,7 +57,7 @@ services:
     restart: unless-stopped
 
   reranker:
-    image: ${IMAGE_REGISTRY:-ghcr.io/yaciine105}/rag-ishms-vllm:${RELEASE_VERSION:-2.0.0}
+    image: ${IMAGE_REGISTRY:-ghcr.io/yaciine105}/rag-ishms-vllm:${RELEASE_VERSION:?Run python3 configure.py first}
     command: [reranker]
     gpus: all
     shm_size: 512m

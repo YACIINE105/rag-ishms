@@ -15,9 +15,14 @@ from routes import nlp
 
 @pytest.mark.parametrize("backend", ["QDRANT", "PGVector"])
 @pytest.mark.parametrize("remote", [False, True])
-def test_lifespan_loads_once_and_releases_resources(monkeypatch, backend, remote):
+def test_lifespan_loads_once_and_releases_resources(
+    monkeypatch, tmp_path, backend, remote
+):
     with patch("utils.logging.configure_logging"):
         main = importlib.import_module("main")
+    monkeypatch.setattr(
+        main, "BaseController", lambda: SimpleNamespace(base_dir=str(tmp_path))
+    )
     settings = SimpleNamespace(
         POSTGRES_USERNAME="test",
         POSTGRES_PASSWORD="p@ss%word",

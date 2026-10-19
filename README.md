@@ -465,7 +465,7 @@ uv run pytest
 uv run pre-commit run --all-files
 ```
 
-The verified suite has 291 tests plus 12 subtests, with 88.12% source coverage; tests
+The verified suite has 291 tests plus 12 subtests, with 88.22% source coverage; tests
 use mocks and do not download native model weights or make paid inference calls.
 
 For the reproducible legal corpus and optional evaluation tools:

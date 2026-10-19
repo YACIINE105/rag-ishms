@@ -21,6 +21,7 @@ def main():
     files = [
         "docker/release/compose.yml",
         "docker/release/configure.py",
+        "docker/release/VERSION",
         "docker/release/.env.example.fastapi",
         "docker/release/models.json",
         "docker/release/README.md",
@@ -31,12 +32,7 @@ def main():
         for path in sorted(args.image_manifests.rglob("image.json")):
             images.append(json.loads(path.read_text()))
     contents = {name: (root / name).read_text() for name in files}
-    contents["docker/release/compose.yml"] = contents[
-        "docker/release/compose.yml"
-    ].replace("${RELEASE_VERSION:-2.0.0}", args.version)
-    contents["docker/release/configure.py"] = contents[
-        "docker/release/configure.py"
-    ].replace('"RELEASE_VERSION": "2.0.0"', f'"RELEASE_VERSION": "{args.version}"')
+    contents["docker/release/VERSION"] = args.version + "\n"
     manifest = {
         "version": args.version,
         "models": json.loads((root / "docker/release/models.json").read_text()),
