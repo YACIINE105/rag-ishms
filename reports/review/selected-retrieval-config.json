@@ -1,0 +1,18 @@
+{
+  "config": {
+    "chunk_size": null,
+    "limit": 5,
+    "name": "article-rerank",
+    "overlap": 0,
+    "reranker": true
+  },
+  "corpus_sha256": "05262634385474977b14076389c39526a35ae53877de352ce40d3e588e14f53d",
+  "dataset_sha256": "18bcdaee5525639b721be2a2a6d473da33b1d8bfe5e68b55317cc7c9306a72b0",
+  "embedding_model": "nvidia/llama-nemotron-embed-vl-1b-v2",
+  "generation_model": "qwen3-legal-final",
+  "judge_model": "nvidia/nemotron-3-super-120b-a12b",
+  "judge_rubric_version": "candidate-unicode-v2",
+  "prompt_version": "rag-4d3aa56930b0",
+  "report_sha256": "78ea9922b40067c8d2ffd4814ffb8263fcae7ad5bcc6247b9e42916aa09123a6",
+  "run_id": "8aaac810a99a4924ac67fbab1aa0c8c9"
+}

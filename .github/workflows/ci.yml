@@ -37,7 +37,7 @@ jobs:
           python-version: "3.12"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v10
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
 
@@ -60,13 +60,34 @@ jobs:
       - name: Run tests and coverage
         run: uv run --locked pytest
 
+  rag-evidence:
+    name: RAG comparison evidence check
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check committed comparison evidence
+        run: python scripts/check_comparison_evidence.py
+
   docker:
     name: Build Docker image
     timeout-minutes: 60
     runs-on: ubuntu-24.04
-    needs: [lint-and-test, rag-eval]
+    needs: [lint-and-test, rag-eval, rag-evidence]
     if: >-
       always() && github.event_name != 'schedule' && needs.lint-and-test.result == 'success' &&
+      (github.event_name != 'pull_request' || needs.rag-evidence.result == 'success') &&
       (github.event_name != 'push' || github.ref != 'refs/heads/main' ||
        needs.rag-eval.result == 'success')
 
@@ -111,10 +132,12 @@ jobs:
   rag-eval:
     name: RAG evaluation gate
     needs: lint-and-test
+    # Live secrets must not be used on PR branches, including same-repository PRs.
     if: >-
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_dispatch' && inputs.run_rag_eval) ||
-      (github.event_name == 'schedule' && vars.RAG_NIGHTLY_EVAL_ENABLED == 'true')
+      github.ref == 'refs/heads/main' &&
+      (github.event_name == 'push' ||
+       (github.event_name == 'workflow_dispatch' && inputs.run_rag_eval) ||
+       (github.event_name == 'schedule' && vars.RAG_NIGHTLY_EVAL_ENABLED == 'true'))
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     environment: rag-evaluation
@@ -150,7 +173,7 @@ jobs:
           python-version: "3.12"
 
       - name: Set up uv
-        uses: astral-sh/setup-uv@v10
+        uses: astral-sh/setup-uv@68559e99cc807c1eb7e9238fd43a15bba460eec2 # v10.3.3
         with:
           enable-cache: true
 

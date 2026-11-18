@@ -22,74 +22,47 @@ not meet that capacity target. See the [measured report](docs/final-project-repo
 complete automated scores for the same 62 questions. These scores remain
 provisional because inspection found judge errors as well as generator errors.
 
-## Start the already configured project
+## Reviewer quick start (no NVIDIA GPU)
 
-For a portable deployment with generation and reranking also inside Docker, use
-the [Docker release bundle](docker/release/README.md). It pulls the published API
-and vLLM images, downloads pinned public Hugging Face weights into a persistent
-volume, and generates private credentials locally. The existing host-service
-setup below remains supported.
+Use a fresh copy of `docker/release` from this checkout, with its sibling `docker/nginx` directory intact. From **inside `docker/release`**, you need Python 3, Docker with Compose and `--wait` support, access to pull the release API image from GHCR, free disk space for that image and PostgreSQL, and an available loopback port (8080 by default). Have an OpenRouter API key with access and quota for both the configured embedding model and your chosen generation model. Requests leave your machine and may incur charges. This is hosted inference, not an offline CPU version of the Qwen benchmark.
 
-Run these commands in Bash from the repository root:
-
-```bash
-cd /home/yacine_105/rag-ishms
-
-systemctl --user start rag-ishms-reranker.service rag-ishms-generator.service
-
-docker compose -f docker/docker-compose.yml up -d
-
-docker compose -f docker/docker-compose.yml ps
-curl --fail-with-body http://localhost/health
+```sh
+python3 configure.py --reviewer
+docker compose -f compose.reviewer.yml up -d --wait --wait-timeout 300
+python3 verify_reviewer.py
 ```
 
-`up -d` runs the services in Docker; you can close the terminal afterward. Qwen's
-first load can take several minutes. The host services also run without background
-terminals. Wait for
-`fastapi` to become healthy before using nginx. The health response should contain
-`"status":"healthy"`. On this machine, project **6** already has **1,242 chunks**
-indexed, so you can ask questions immediately.
+The verifier uploads a small fixture to a fresh project, processes and indexes it, then asks a question and checks the citation. A healthy container alone does not verify provider access. The [release guide](docker/release/README.md) covers credentials and troubleshooting. Stop with `docker compose -f compose.reviewer.yml down`; project volumes are retained. The published 2.0.1 ZIP predates these reviewer commands.
 
-Load the client key into your terminal without displaying it:
+## Architecture
 
-```bash
-set -a
-source docker/env/.env.client
-set +a
+```mermaid
+flowchart LR
+    Client --> nginx --> API[FastAPI]
+    API -->|uploaded files| Assets[(Assets volume)]
+    API -->|projects, chunks and vectors| DB[(PostgreSQL / pgvector)]
+    API -->|embed documents and questions| Emb[Hosted embeddings]
+    API -->|retrieve evidence| DB
+    API -->|GPU profile only| R[BGE reranker]
+    API -->|GPU profile| Q[Local Qwen]
+    API -->|reviewer profile| O[OpenRouter generation]
+    Prom[Prometheus] -->|scrape, optional monitoring stack| API
+    Grafana --> Prom
 ```
 
-Then ask a question about the existing machine-learning documents:
+See the [review evidence](reports/review/README.md) for configuration scores and the load-test HTML, CSV and final counts. The [measured report](docs/final-project-report.md) explains why the 50-user trial failed. The [session changelog](docs/session-changelog.md) records subsequent work.
 
-```bash
-curl --fail-with-body http://localhost/api/v1/nlp/index/answer/6 \
-  -H "X-API-Key: $RAG_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"text":"What is supervised machine learning?","limit":3}'
-```
+![Grafana dashboard showing the published evaluation quality metrics](reports/review/grafana.png)
 
-The JSON response contains `answer`, `sources`, `request_id`, and `prompt_version`.
-Use the returned sources to inspect the supporting document. Questions outside the
-indexed documents can produce a no-information answer with empty sources.
+The dashboard shows the historic published evaluation, not the isolated load API. The [evidence index](reports/review/README.md) identifies the source and capture provenance.
 
-| Service | URL | Access |
-|---|---|---|
-| Interactive API documentation | http://localhost/docs | Use **Authorize** and enter your client key |
-| Health | http://localhost/health | No API key required |
-| Direct FastAPI documentation | http://localhost:8000/docs | Same API key |
-| Grafana | http://localhost:3000 | Credentials in `docker/env/.env.grafana` |
-| Prometheus | http://localhost:9090 | Local monitoring UI |
+## Optional GPU deployment
 
-The key belongs in the `X-API-Key` header, not in the question or URL. The local
-key files are ignored by Git. The direct API and monitoring ports are intended
-for your trusted development environment.
+For the pinned local Qwen generator and BGE reranker in Docker, use the [GPU release instructions](docker/release/README.md). Do not run duplicate model servers. The remaining host-service and monitoring instructions are for an advanced **source deployment**, not prerequisites for reviewers. Its example project IDs refer to the operator's own indexed documents; a fresh database has none.
 
-## First setup on a fresh checkout
+### Configure a source deployment
 
-Skip this section if the project is already configured as above.
-
-You need Docker with Compose GPU support, an NVIDIA driver compatible with CUDA
-13.0, Python 3.12, and `uv`. Docker runs the application's Python dependencies;
-a host installation of vLLM is not needed for this API setup.
+Use Docker with Compose GPU support, an NVIDIA driver compatible with CUDA 13.0, Python 3.12 and `uv`.
 
 ### 1. Create the private configuration files
 
@@ -461,20 +434,21 @@ Host-side development tools are optional for running Docker:
 
 ```bash
 uv sync --locked --group dev
-uv run pytest
-uv run pre-commit run --all-files
+uv run --locked pytest
+uv run --locked pre-commit run --all-files
 ```
 
-The verified suite has 291 tests plus 12 subtests, with 88.22% source coverage; tests
-use mocks and do not download native model weights or make paid inference calls.
+The test suite uses mocks for external inference and does not need model weights
+or an API key.
 
-For the reproducible legal corpus and optional evaluation tools:
+From the same locked development environment, rebuild the legal corpus:
 
 ```bash
-uv sync --locked --group dev --group data --group eval
-uv run dvc repro
-uv run dvc status
+uv run --locked dvc repro
+uv run --locked dvc status
 ```
+
+Install the additional evaluation tools with `uv sync --locked --group dev --group eval`.
 
 The corpus contains 1,149 article records. The exact source PDF has an Arabic
 alignment defect around Articles 1021–1022, recorded in a checksum-pinned issue

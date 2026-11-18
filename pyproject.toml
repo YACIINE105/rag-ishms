@@ -41,6 +41,7 @@ data = [
     "dvc>=3,<4",
 ]
 dev = [
+    {include-group = "data"},
     "pytest==9.1.1",
     "pytest-cov==7.1.0",
     "pytest-asyncio==1.4.0",
