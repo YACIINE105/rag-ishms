@@ -183,8 +183,9 @@ project 6 database; upload and index documents using the next section.
 
 ## GPU reranking with the existing vLLM environment
 
-The current machine uses `BAAI/bge-reranker-v2-m3` served by vLLM 0.30.0 from
-`/home/yacine_105/vllm-env`, on port 8002. The Docker API calls its authenticated
+The reference machine uses `BAAI/bge-reranker-v2-m3` served by vLLM 0.30.0 from a
+local virtual environment (for example `~/vllm-env`), on port 8002. The Docker API
+calls its authenticated
 `/v1/rerank` endpoint. Reranking continues in that GPU service, while the API image
 also includes CUDA PyTorch and GPU access. Your indexes and Postman request URLs
 remain the same.
@@ -388,9 +389,11 @@ docker compose -f docker/docker-compose.yml logs -f fastapi
 
 # Stop the stack while retaining its stored data.
 docker compose -f docker/docker-compose.yml down
+# Only if you created the optional host units described above:
 systemctl --user stop rag-ishms-reranker.service rag-ishms-generator.service
 
 # Start it again.
+# Only if you created the optional host units described above:
 systemctl --user start rag-ishms-reranker.service rag-ishms-generator.service
 docker compose -f docker/docker-compose.yml up -d
 ```
