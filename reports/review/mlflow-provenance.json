@@ -1,0 +1,19 @@
+{
+  "alias": "candidate",
+  "corpus_sha256": "05262634385474977b14076389c39526a35ae53877de352ce40d3e588e14f53d",
+  "dataset_sha256": "18bcdaee5525639b721be2a2a6d473da33b1d8bfe5e68b55317cc7c9306a72b0",
+  "judge_model": "nvidia/nemotron-3-super-120b-a12b",
+  "judge_rubric_version": "candidate-unicode-v2",
+  "recipe_sha256": "b0016cf0addf90762d8fcccd80786af5618dc7ca4dc2c446e82ceea5ea555709",
+  "registered_model": "rag-ishms-retrieval-config",
+  "release": "2026-10-16-super-candidate-v2",
+  "report_sha256": {
+    "250-rerank": "c3901099df00f9dcfa291afb15bb136bbbbfab9dd3bb6cee36f1b9041a9ffa99",
+    "500-rerank": "19eae0ed347ad7086bdccccf5602a32d4fe2f709fc04d7b991c89196a62fb00a",
+    "article-k3": "974eee2f321f9994415990bbbb2bdf0ec2274d8cec69c4c80c85270c328f6ff2",
+    "article-no-rerank": "f0bf9bc5e8ebe12a7711a11137f163559abfa2dcfa67e6a32aa46f8cee4c2e10",
+    "article-rerank": "78ea9922b40067c8d2ffd4814ffb8263fcae7ad5bcc6247b9e42916aa09123a6"
+  },
+  "run_id": "8aaac810a99a4924ac67fbab1aa0c8c9",
+  "version": 1
+}

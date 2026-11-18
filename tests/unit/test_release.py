@@ -1,5 +1,6 @@
 import hashlib
 import json
+import runpy
 import subprocess
 import sys
 from pathlib import Path
@@ -85,6 +86,12 @@ def test_release_archive_hashes_match_payload_without_private_runtime_files(tmp_
             for name in archive.namelist()
         )
         compose = archive.read("docker/release/compose.yml").decode()
+        for name in (
+            "compose.reviewer.yml",
+            "verify_reviewer.py",
+            "fixtures/reviewer_provision.txt",
+        ):
+            assert f"docker/release/{name}" in manifest["files"]
         assert "rag-ishms:${RELEASE_VERSION:" in compose
         assert "rag-ishms-vllm:${RELEASE_VERSION:" in compose
         assert archive.read("docker/release/VERSION").decode().strip() == "2.0.1"
@@ -93,3 +100,38 @@ def test_release_archive_hashes_match_payload_without_private_runtime_files(tmp_
         hashlib.sha256(target.read_bytes()).hexdigest()
         in (tmp_path / "SHA256SUMS").read_text()
     )
+
+
+def test_reviewer_config_enables_hosted_models_and_retains_private_key(
+    tmp_path, monkeypatch, capsys
+):
+    from dotenv import dotenv_values
+
+    from helpers.config import Settings
+
+    key = "test-reviewer-only-key"
+    monkeypatch.setattr("getpass.getpass", lambda _: key)
+    monkeypatch.setattr("builtins.input", lambda _: "openrouter/free")
+    monkeypatch.setattr(
+        sys, "argv", ["configure.py", "--reviewer", "--directory", str(tmp_path)]
+    )
+    runpy.run_path(str(ROOT / "docker/release/configure.py"), run_name="__main__")
+    values = dotenv_values(tmp_path / ".env.fastapi")
+    assert json.loads(values["OPENROUTER_API_KEYS"]) == [key]
+    assert values["GENERATION_MODEL_ID"] == "openrouter/free"
+    assert values["EMBEDDING_MODEL_ID"] == "nvidia/nemotron-3-embed-1b:free"
+    assert values["EMBEDDING_MODEL_SIZE"] == "2048"
+    assert values["RERANKER_ENABLED"] == "false"
+    assert key not in capsys.readouterr().out
+    assert (tmp_path / ".env.fastapi").stat().st_mode & 0o777 == 0o600
+    compose_settings = dotenv_values(tmp_path / ".env")
+    settings = Settings(
+        _env_file=tmp_path / ".env.fastapi",
+        POSTGRES_HOST="pgvector",
+        POSTGRES_PASSWORD=compose_settings["POSTGRES_PASSWORD"],
+        API_AUTH_ENABLED=True,
+        API_CLIENTS=json.loads(compose_settings["API_CLIENTS"]),
+    )
+    assert settings.GENERATION_MODEL_TEMPERATURE == 0
+    assert settings.GENERATION_MODEL_ID == "openrouter/free"
+    assert settings.RERANKER_ENABLED is False

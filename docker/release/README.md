@@ -1,5 +1,31 @@
 # RAG-ISHMS Docker release
 
+## Reviewer setup without an NVIDIA GPU
+
+From this directory in a clean checkout or newly packaged bundle, use Python 3,
+Docker Compose with `--wait`, GHCR pull access and an OpenRouter key. Select a
+generation model available to that account. The embedding model is
+`nvidia/nemotron-3-embed-1b:free` (2,048 dimensions). Both calls go to OpenRouter;
+quota and prices depend on the account and chosen model. The reused API image
+contains CUDA libraries and is a large download, but requires no GPU here.
+
+```sh
+python3 configure.py --reviewer
+docker compose -f compose.reviewer.yml up -d --wait --wait-timeout 300
+python3 verify_reviewer.py
+```
+
+The verifier checks a real answer with a fixture citation on a new project each
+time. It leaves that small project in the isolated reviewer database and consumes
+provider requests. If port 8080 is occupied, edit `HTTP_PORT` in `.env` before
+starting. On failure, inspect `docker compose -f compose.reviewer.yml logs fastapi`
+locally; do not share private configuration. Stop with
+`docker compose -f compose.reviewer.yml down` to retain reviewer data. Use a
+separate configuration directory for each deployment. Do not reuse an index
+created with another embedding model.
+
+## Optional GPU deployment
+
 This deployment runs the existing API, Qwen generator, BGE reranker, PostgreSQL
 with pgvector, and nginx as separate containers. It uses the selected **untuned**
 Qwen base; no pilot fine-tuned adapter is loaded. Model download links and exact
@@ -12,7 +38,7 @@ is needed for these public models. Allow approximately 10 GB for model downloads
 additional space for the CUDA images, and several minutes for initial warmup.
 The runtime keeps the existing 4-bit Qwen and FP16 BGE settings.
 
-## Start
+### Start the GPU deployment
 
 Use an NVIDIA GPU, its working host driver, Docker Compose with GPU support and,
 on Linux, NVIDIA Container Toolkit. Windows users need Docker Desktop's WSL 2 GPU

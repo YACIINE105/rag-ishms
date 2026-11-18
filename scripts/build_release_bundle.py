@@ -20,6 +20,9 @@ def main():
     args.output.mkdir(parents=True, exist_ok=True)
     files = [
         "docker/release/compose.yml",
+        "docker/release/compose.reviewer.yml",
+        "docker/release/verify_reviewer.py",
+        "docker/release/fixtures/reviewer_provision.txt",
         "docker/release/configure.py",
         "docker/release/VERSION",
         "docker/release/.env.example.fastapi",

@@ -195,12 +195,26 @@ def main():
     parser.add_argument("--env-file", type=Path)
     parser.add_argument("--full-metrics", action="store_true")
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--register-selected", action="store_true")
+    parser.add_argument("--run-inventory", type=Path)
+    parser.add_argument("--review-export", type=Path)
+    parser.add_argument("--registry-artifacts", type=Path)
     parser.add_argument(
         "--capture-only",
         action="store_true",
         help="Save real RAG answers/contexts without waiting for an external judge",
     )
     args = parser.parse_args()
+    if args.register_selected:
+        if not args.resume or args.capture_only:
+            parser.error("--register-selected requires --resume without --capture-only")
+        from register_retrieval import register
+
+        try:
+            register(args, CONFIGS, load_cases(args.dataset))
+        except ValueError as error:
+            parser.error(str(error))
+        return
     if args.env_file:
         from dotenv import load_dotenv
 

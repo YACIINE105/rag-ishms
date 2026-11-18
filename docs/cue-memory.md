@@ -1610,3 +1610,17 @@ The interrupted diagnosis observed substantial swap use, a ready reranker and
 Qwen's checkpoint loading/warmup. No startup repair, service restart or memory
 increase was performed, and final application readiness was not verified in that
 interrupted task. Do not resume that work merely because it is recorded here.
+
+## Review remediation — 2026-11-18
+
+The review used a private working copy of the Ubuntu checkout at `656c2dd`,
+not a running WSL instance. The original disk was mounted read-only. The final
+five scored configurations, MLflow release inventory, Locust outputs and Grafana
+captures were recovered from that checkout; no answers were regenerated for
+the comparison. See the [review evidence](../reports/review/README.md).
+
+The reviewer deployment uses a fresh index and hosted providers. An actual
+embedding request to `nvidia/llama-nemotron-embed-vl-1b-v2:free` returned 404;
+`nvidia/nemotron-3-embed-1b:free` returned a 2,048-dimensional vector. These
+checks establish provider availability on this date, not equivalence to the
+historical benchmark or authorization to replace its indexes.
